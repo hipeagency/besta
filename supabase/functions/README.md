@@ -30,6 +30,7 @@ Supabase solo. El resto:
 |---|---|
 | `STRIPE_SECRET_KEY` | `sk_live_…` (o `sk_test_…` para probar) |
 | `STRIPE_WEBHOOK_SECRET` | `whsec_…` del endpoint del webhook |
+| `STRIPE_TAX_RATE_ID` | `txr_…` del IVA (incluido en el precio). Opcional: sin él la factura sale sin desglose |
 | `BREVO_API_KEY` | clave API v3 de Brevo |
 | `BREVO_LIST_ID` | id numérico de la lista de la newsletter |
 | `BREVO_DOI_TEMPLATE_ID` | id de la plantilla de doble confirmación (tipo «double opt-in») |

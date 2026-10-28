@@ -1,6 +1,6 @@
 /* Comprar entradas: reserva plazas en SQL (con bloqueo, para no pasarse
    del aforo) y devuelve la URL de pago de Stripe. Pública: la llama la web. */
-import { siteUrl } from "../_shared/env.ts";
+import { optEnv, siteUrl } from "../_shared/env.ts";
 import { email, HttpError, json, readJson, serve } from "../_shared/http.ts";
 import { stripe } from "../_shared/stripe.ts";
 import { adminClient, dbError, getRow, patchDoc } from "../_shared/supabase.ts";
@@ -29,6 +29,7 @@ serve(["POST"], async req => {
   if (error) dbError(error, "No hemos podido reservar tus entradas.");
   const order = data as Order;
 
+  const taxRate = optEnv("STRIPE_TAX_RATE_ID");
   try {
     const session = await stripe().checkout.sessions.create({
       mode: "payment",
@@ -39,7 +40,15 @@ serve(["POST"], async req => {
           unit_amount: ev.priceCents,
           product_data: { name: `Entrada general · ${ev.name}` },
         },
+        // IVA incluido en el precio: la factura lo desglosa sin cambiar el total.
+        ...(taxRate ? { tax_rates: [taxRate] } : {}),
       }],
+      // Factura simplificada: Stripe la numera, la manda en PDF al comprador
+      // y la guarda en el panel para el gestor.
+      invoice_creation: {
+        enabled: true,
+        invoice_data: { description: `Pedido ${order.number}`, metadata: { order_id: order.id } },
+      },
       customer_email: mail,
       metadata: { order_id: order.id },
       payment_intent_data: { metadata: { order_id: order.id } },
