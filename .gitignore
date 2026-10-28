@@ -8,3 +8,4 @@ dist/
 # traspaso de datos: contienen datos y emails reales
 scripts/out/
 scripts/members-map.json
+deno.lock
