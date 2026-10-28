@@ -64,6 +64,7 @@ export interface Gig {
   riderId?: ID;
   checklist: Record<string, boolean>;  // claves manuales: furgo, merch…
   bandsintownId?: string;  // si existe en Bandsintown (de ahí lo coge Spotify)
+  soldOut?: boolean;       // cartel de sold out en la web; al marcarlo se cierra la venta propia
 }
 
 // ---------- entradas ----------
@@ -215,7 +216,7 @@ export interface Lead {
 
 // ---------- merch ----------
 export interface Variant { id: ID; label: string; stock: number }
-export interface Product { id: ID; name: string; priceCents: number; costCents: number; variants: Variant[]; archived: boolean; published: boolean; color: "senal" | "crema" | "tubo" | "noche" }
+export interface Product { id: ID; name: string; priceCents: number; costCents: number; variants: Variant[]; archived: boolean; published: boolean; color: "senal" | "crema" | "tubo" | "noche"; info?: string }
 
 export type MoveKind = "venta" | "reserva" | "regalo" | "reposicion" | "recuento";
 export type PayMethod = "efectivo" | "bizum" | "tarjeta" | "otro";
@@ -232,6 +233,7 @@ export interface MerchMove {
   customer?: string;
   gigId?: ID;
   open?: boolean;          // reserva sin entregar
+  reservedAt?: ISODateTime; // venta que empezó como reserva: cuándo se apartó
   note?: string;
   at: ISODateTime;
 }

@@ -123,7 +123,7 @@ export default function Finanzas() {
         </Card>
       )}
 
-      <ExpenseSheet open={params.get("nuevo") === "1"} onClose={() => setParams({})} />
+      <ExpenseSheet open={params.get("nuevo") === "1"} gig={params.get("bolo") ?? undefined} onClose={() => setParams({})} />
       <IncomeSheet open={incomeOpen} onClose={() => setIncomeOpen(false)} />
     </Page>
   );
@@ -172,7 +172,7 @@ function Balances({ bal, max, plan }: { bal: ReturnType<typeof balances>; max: n
   );
 }
 
-function ExpenseSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+function ExpenseSheet({ open, onClose, gig }: { open: boolean; onClose: () => void; gig?: string }) {
   const { me } = useMe();
   const toast = useToast();
   const { data: everyone } = useCollection("members");
@@ -193,7 +193,7 @@ function ExpenseSheet({ open, onClose }: { open: boolean; onClose: () => void })
     if (!open) return;
     setPhoto(""); setPhotoFile(null); setAmount(""); setTitle(""); setPayer(members.some(m => m.id === me.id) ? me.id : members[0]?.id ?? "");
     setParts(members.map(m => m.id)); setCategory("otros"); setDate(new Date().toISOString().slice(0, 10));
-    setGigId(upcomingGigs(gigs)[0]?.id ?? "");
+    setGigId(gig ?? upcomingGigs(gigs)[0]?.id ?? "");
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const save = useAction(async (e: Expense) => {

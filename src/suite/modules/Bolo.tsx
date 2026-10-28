@@ -9,7 +9,7 @@ import { eventStats, gigChecklist, setlistMinutes, upcomingGigs } from "@/data/s
 import type { Gig, TicketEvent } from "@/data/types";
 import { Button, Card, CardTitle, Empty, Input, Pill, Progress, Segmented, Select, Stat, Textarea, Toggle, useToast } from "@/components/ui";
 import { Icon } from "@/components/ui/icons";
-import { NewGig } from "./Bolos";
+import { NewGig, applySoldOut } from "./Bolos";
 import { cx, dateLong, dateShort, daysUntil, eur, isPast } from "@/lib/format";
 
 /* En la web: oculto, en secreto (teaser con lo desvelado) o público. */
@@ -62,6 +62,14 @@ export default function Bolo() {
         <Segmented size="sm" value={webMode(g)} onChange={m => { patch.run(webPatch(g, m)); toast(WEB_TOAST[m], "ok"); }} options={[
           { value: "oculto", label: "oculto" }, { value: "secreto", label: "secreto" }, { value: "publico", label: "en la web" },
         ]} />
+        {g.ticketing !== "ninguna" && !isPast(g.date) && (
+          <Button variant={g.soldOut ? "primary" : "ghost"} aria-pressed={!!g.soldOut} onClick={async () => {
+            const on = !g.soldOut;
+            if (on && !confirm(ev?.salesEnabled ? "¿Marcar sold out? Se cierra la venta de entradas y en la web sale el cartel." : "¿Marcar sold out? En la web sale el cartel en lugar del botón de entradas.")) return;
+            await applySoldOut(g, on, ev);
+            toast(on ? (ev?.salesEnabled ? "Sold out: venta cerrada y cartel en la web" : "Sold out: cartel en la web") : "Quitado el sold out. La venta sigue cerrada: ábrela en entradas si quieres.", "ok");
+          }}>{g.soldOut ? "sold out ✓" : "sold out"}</Button>
+        )}
         <Button onClick={() => setEditing(true)}><Icon name="editar" size={16} />editar</Button>
       </>}
     >
@@ -95,11 +103,15 @@ export default function Bolo() {
                 {g.contacts.map((c, i) => (
                   <div key={i} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-noche">
                     <span className="min-w-0"><span className="block font-mono text-[11px] tracking-wider text-crema/60">{c.role.toUpperCase()}</span><span className="block truncate">{c.name}</span></span>
-                    {c.phone && <a href={`tel:${c.phone}`} aria-label={`Llamar a ${c.name}`} className="size-10 shrink-0 rounded-full bg-tubo grid place-items-center"><Icon name="telefono" size={17} /></a>}
+                    <span className="flex gap-1.5 shrink-0">
+                      {c.email && <a href={`mailto:${c.email}`} aria-label={`Escribir a ${c.name}`} title={c.email} className="h-10 px-3 rounded-full bg-tubo grid place-items-center font-mono text-xs">@</a>}
+                      {c.phone && <a href={`tel:${c.phone}`} aria-label={`Llamar a ${c.name}`} title={c.phone} className="size-10 rounded-full bg-tubo grid place-items-center"><Icon name="telefono" size={17} /></a>}
+                    </span>
                   </div>
                 ))}
               </div>
               <div className="flex flex-wrap gap-2 mt-4">
+                {g.feeCents ? <Pill>caché {eur(g.feeCents)}</Pill> : null}
                 {g.deal && <Pill>{g.deal}</Pill>}
                 {g.quoteId && <Link to={`/presupuestos/${g.quoteId}`}><Pill tone="senal">presupuesto {quotes.find(q => q.id === g.quoteId)?.number} <Icon name="flecha" size={14} className="inline align-[-2px]" /></Pill></Link>}
                 {(g.address || g.venue) && <a href={`https://www.google.com/maps/search/${encodeURIComponent(`${g.venue} ${g.address ?? ""} ${g.city}`)}`} target="_blank" rel="noopener"><Pill>cómo llegar <Icon name="externo" size={14} className="inline align-[-2px]" /></Pill></a>}
@@ -130,7 +142,7 @@ export default function Bolo() {
               pct={ev ? eventStats(ev, { orders, tickets }).pct : 0} />
             <LinkCard onClick={() => setTab("setlist")} mod="SETLIST"
               main={(() => { const sl = setlists.find(s => s.id === g.setlistId || s.gigId === g.id); return sl ? `${sl.songIds.length} canciones` : "sin setlist"; })()}
-              pct={setlists.find(s => s.id === g.setlistId)?.closed ? 1 : .5} />
+              pct={(() => { const sl = setlists.find(s => s.id === g.setlistId || s.gigId === g.id); return sl?.closed ? 1 : sl ? .5 : 0; })()} />
             <LinkCard onClick={() => setTab("rider")} mod="RIDER" main={riders.find(r => r.sentTo.some(s => s.gigId === g.id))?.name ?? "sin enviar"} pct={riders.some(r => r.sentTo.some(s => s.gigId === g.id)) ? 1 : 0} />
           </div>
         </div>
@@ -206,6 +218,7 @@ function TicketsTab({ g, ev }: { g: Gig; ev?: TicketEvent }) {
         <Stat label="ingresos" value={eur(s.gross)} sub={`neto ≈ ${eur(s.net)}`} />
         <Stat label="dentro" value={s.inside} />
       </div>
+      {g.soldOut && <p className="mb-4 text-sm"><Pill tone="senal">sold out</Pill> <span className="text-crema/70">En la web sale el cartel y no se venden más.</span></p>}
       <div className="flex flex-wrap gap-2">
         <Button variant="primary" onClick={() => nav(`/entradas/${ev.id}`)}>gestionar entradas</Button>
         <Button onClick={() => nav(`/puerta/${ev.id}`)}><Icon name="puerta" size={16} />abrir puerta</Button>
@@ -250,10 +263,12 @@ function RiderTab({ g }: { g: Gig }) {
   const sent = riders.find(r => r.sentTo.some(s => s.gigId === g.id));
   const [pick, setPick] = useState(g.riderId ?? riders[0]?.id ?? "");
   const markSent = useAction(async () => {
-    const r = riders.find(x => x.id === pick)!;
+    const r = riders.find(x => x.id === pick);
+    if (!r) return;
     await api.update("riders", r.id, { sentTo: [...r.sentTo.filter(s => s.gigId !== g.id), { gigId: g.id, date: new Date().toISOString().slice(0, 10) }] });
     await api.update("gigs", g.id, { riderId: r.id });
   });
+  if (!riders.length) return <Empty title="Todavía no hay ningún rider" action={<Link to="/rider" className="underline">crear rider</Link>} />;
   return (
     <Card>
       {sent ? <p className="mb-4">Se envió <b>{sent.name} v{sent.version}</b> el {dateShort(sent.sentTo.find(s => s.gigId === g.id)!.date)}.</p> : <p className="mb-4 text-crema/70">Aún no se ha enviado ningún rider a este bolo.</p>}
@@ -275,7 +290,7 @@ function MerchTab({ g }: { g: Gig }) {
   const sales = moves.filter(m => m.gigId === g.id && m.kind === "venta");
   const units = sales.reduce((s, m) => s + -m.qty, 0);
   const total = sales.reduce((s, m) => s + -m.qty * m.unitCents, 0);
-  const low = products.flatMap(p => p.variants.filter(v => v.stock <= 3).map(v => `${p.name}${v.label ? " " + v.label : ""}: ${v.stock}`));
+  const low = products.filter(p => !p.archived).flatMap(p => p.variants.filter(v => v.stock <= 3).map(v => `${p.name}${v.label ? " " + v.label : ""}: ${v.stock}`));
   return (
     <Card>
       <div className="grid grid-cols-2 gap-4 mb-4"><Stat label="unidades vendidas" value={units} /><Stat label="ventas" value={eur(total)} /></div>
@@ -303,7 +318,7 @@ function MoneyTab({ g, ev }: { g: Gig; ev?: TicketEvent }) {
         <li className="flex justify-between py-3 border-t-2 border-crema/20 text-xl font-semibold"><span>resultado</span><span className="font-mono">{eur(fee + tix + merch - out)}</span></li>
       </ul>
       {exp.length > 0 && <p className="text-sm text-crema/60 mt-3">Gastos: {exp.map(e => e.title).join(", ")}.</p>}
-      <Link to="/finanzas?nuevo=1" className="inline-block mt-4 text-sm underline">+ añadir gasto a este bolo</Link>
+      <Link to={`/finanzas?nuevo=1&bolo=${g.id}`} className="inline-block mt-4 text-sm underline">+ añadir gasto a este bolo</Link>
     </Card>
   );
 }

@@ -93,7 +93,9 @@ export const supabaseApi = {
 
   async update<K extends Collection>(k: K, id: ID, patch: Partial<Item<K>>): Promise<void> {
     const { userId: _u, ...rest } = patch as Record<string, unknown>;
-    const { error } = await sb().rpc("patch_doc", { tbl: k, row_id: id, patch: rest });
+    // undefined desaparece al pasar a JSON y la clave vieja se quedaría: va como null, que patch_doc borra.
+    const sent = Object.fromEntries(Object.entries(rest).map(([key, v]) => [key, v === undefined ? null : v]));
+    const { error } = await sb().rpc("patch_doc", { tbl: k, row_id: id, patch: sent });
     fail(error);
     if (k === "members" && "email" in rest) fail((await sb().from("members").update({ email: rest.email || null }).eq("id", id)).error);
   },
@@ -233,7 +235,9 @@ export const supabaseApi = {
   },
 
   async deliverReservation(moveId: ID, payment: PayMethod): Promise<void> {
-    await supabaseApi.update("moves", moveId, { open: false, kind: "venta", payment });
+    const m = await get("moves", moveId);
+    if (!m) return;
+    await supabaseApi.update("moves", moveId, { open: false, kind: "venta", payment, reservedAt: m.at, at: new Date().toISOString() });
     await markRequests(moveId, "entregada");
   },
 
@@ -241,6 +245,14 @@ export const supabaseApi = {
     const m = await get("moves", moveId);
     if (!m) return;
     await adjust(m.productId, m.variantId, -m.qty);   // la reserva restó (qty negativa): se devuelve
+    await supabaseApi.remove("moves", moveId);
+    await markRequests(moveId, "cancelada");
+  },
+
+  async deleteMove(moveId: ID): Promise<void> {
+    const m = await get("moves", moveId);
+    if (!m) return;
+    await adjust(m.productId, m.variantId, -m.qty);   // deshace lo que movió; falla si ya no hay de dónde quitar
     await supabaseApi.remove("moves", moveId);
     await markRequests(moveId, "cancelada");
   },

@@ -69,6 +69,8 @@ export const mockApi = {
     const i = arr.findIndex(x => x[idField] === id);
     if (i < 0) throw new Error(`No existe ${String(k)} ${id}`);
     arr[i] = { ...arr[i], ...patch };
+    // Como patch_doc: un campo a null o undefined se borra.
+    for (const [key, v] of Object.entries(patch)) if (v === undefined || v === null) delete arr[i][key];
     save();
   },
 
@@ -336,7 +338,7 @@ export const mockApi = {
     const d = load();
     const m = d.moves.find(x => x.id === moveId);
     if (!m) return;
-    m.open = false; m.kind = "venta"; m.payment = payment;
+    m.open = false; m.kind = "venta"; m.payment = payment; m.reservedAt = m.at; m.at = now();
     d.requests.forEach(r => { if (r.moveId === moveId) r.status = "entregada"; });
     save();
   },
@@ -347,6 +349,19 @@ export const mockApi = {
     if (!m) return;
     const v = d.products.find(p => p.id === m.productId)?.variants.find(v => v.id === m.variantId);
     if (v) v.stock -= m.qty; // la reserva restó: lo devolvemos
+    d.moves = d.moves.filter(x => x.id !== moveId);
+    d.requests.forEach(r => { if (r.moveId === moveId) r.status = "cancelada"; });
+    save();
+  },
+
+  /* Borrar un apunte hecho por error: deshace lo que movió en el stock. */
+  async deleteMove(moveId: ID): Promise<void> {
+    const d = load();
+    const m = d.moves.find(x => x.id === moveId);
+    if (!m) return;
+    const v = d.products.find(p => p.id === m.productId)?.variants.find(v => v.id === m.variantId);
+    if (v && v.stock - m.qty < 0) throw new Error(`No se puede: quedan ${v.stock} y habría que quitar ${m.qty}.`);
+    if (v) v.stock -= m.qty;
     d.moves = d.moves.filter(x => x.id !== moveId);
     d.requests.forEach(r => { if (r.moveId === moveId) r.status = "cancelada"; });
     save();
