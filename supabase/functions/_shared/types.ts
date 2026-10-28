@@ -68,7 +68,7 @@ export interface Gig {
 }
 
 export interface Variant { id: string; label: string; stock: number }
-export interface Product { id: string; name: string; priceCents: number; variants: Variant[]; archived?: boolean }
+export interface Product { id: string; name: string; priceCents: number; variants: Variant[]; archived?: boolean; published?: boolean }
 
 export type Topic = "fechas" | "merch" | "lanzamientos";
 export const TOPICS: Topic[] = ["fechas", "merch", "lanzamientos"];

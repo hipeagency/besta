@@ -42,7 +42,7 @@ export function SetlistEditor() {
   if (loading) return null;
   if (!sl) return (
     <main className="flex-1 p-6">
-      <Link to="/ensayos/setlists" className="md:hidden font-mono text-xs text-crema/80">← setlists</Link>
+      <Link to="/ensayos/setlists" className="md:hidden font-mono text-xs text-crema/80 inline-flex items-center gap-1.5"><Icon name="atras" size={14} />setlists</Link>
       <div className="mt-4"><Empty title="Este setlist ya no existe" /></div>
     </main>
   );
@@ -72,7 +72,7 @@ export function SetlistEditor() {
   return (
     <main className="flex-1 min-w-0 md:overflow-y-auto px-4 md:px-[clamp(16px,3vw,40px)] pt-4 md:pt-6 pb-16 flex flex-col gap-5 max-w-[920px] print:p-0 print:max-w-none print:overflow-visible">
       <div className="print:hidden md:hidden flex items-center justify-between gap-3 -mt-1">
-        <Link to="/ensayos/setlists" className="font-mono text-xs text-crema/80 h-11 inline-flex items-center">← setlists</Link>
+        <Link to="/ensayos/setlists" className="font-mono text-xs text-crema/80 h-11 inline-flex items-center gap-1.5"><Icon name="atras" size={14} />setlists</Link>
         <SaveStatus />
       </div>
 
@@ -136,8 +136,8 @@ export function SetlistEditor() {
                   )}
                   {!locked && <span className="flex shrink-0">
                     {it.notes == null && <IconButton label={`Añadir nota a ${label}`} onClick={() => editItem(i, { notes: "" })} className="text-[13px] font-mono">+ nota</IconButton>}
-                    <IconButton label={`Subir ${label}`} disabled={i === 0} onClick={() => move(i, -1)}>↑</IconButton>
-                    <IconButton label={`Bajar ${label}`} disabled={i === items.length - 1} onClick={() => move(i, 1)}>↓</IconButton>
+                    <IconButton label={`Subir ${label}`} disabled={i === 0} onClick={() => move(i, -1)}><Icon name="arriba" size={16} /></IconButton>
+                    <IconButton label={`Bajar ${label}`} disabled={i === items.length - 1} onClick={() => move(i, 1)}><Icon name="abajo" size={16} /></IconButton>
                     <IconButton label={`Quitar ${label}`} onClick={() => setItems(items.filter((_, j) => j !== i))}><Icon name="x" size={16} /></IconButton>
                   </span>}
                 </div>

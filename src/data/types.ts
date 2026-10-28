@@ -32,6 +32,14 @@ export type Ticketing = "propia" | "externa" | "ninguna";
 export interface ScheduleItem { time: string; what: string; note?: string }
 export interface Contact { role: string; name: string; phone?: string; email?: string }
 
+/* Bolo anunciado en secreto: sale en la web, pero solo con lo desvelado.
+   Lo oculto no llega a la web (public_site lo vacía), no es solo un blur. */
+export interface GigTeaser {
+  date: "oculta" | "mes" | "exacta";
+  city: boolean;
+  venue: boolean;
+}
+
 export interface Gig {
   id: ID;
   date: ISODate;
@@ -43,6 +51,7 @@ export interface Gig {
   capacity?: number;
   status: GigStatus;
   published: boolean;      // aparece en la web
+  teaser?: GigTeaser | null; // con esto, sale en la web en modo secreto
   ticketing: Ticketing;
   externalUrl?: string;    // entradas o info fuera
   feeCents?: number;       // caché acordado
@@ -206,7 +215,7 @@ export interface Lead {
 
 // ---------- merch ----------
 export interface Variant { id: ID; label: string; stock: number }
-export interface Product { id: ID; name: string; priceCents: number; costCents: number; variants: Variant[]; archived: boolean; color: "senal" | "crema" | "tubo" | "noche" }
+export interface Product { id: ID; name: string; priceCents: number; costCents: number; variants: Variant[]; archived: boolean; published: boolean; color: "senal" | "crema" | "tubo" | "noche" }
 
 export type MoveKind = "venta" | "reserva" | "regalo" | "reposicion" | "recuento";
 export type PayMethod = "efectivo" | "bizum" | "tarjeta" | "otro";

@@ -1,5 +1,6 @@
-/* Editor de canción: datos, material, secciones (en texto plano con los
-   acordes encima de la letra) con cortar/unir y paleta de acordes, tu nota
+/* Editor de canción: datos, material, secciones con dos modos —«escribir»
+   (texto plano, acordes encima o [Am] dentro de la letra) y «poner acordes»
+   (tocas una palabra y eliges el acorde)—, cortar/unir/duplicar, tu nota
    en cada sección y «mis acordes» de quien edita. Borrar se pide y lo
    aprueba la banda. */
 import { useEffect, useRef, useState } from "react";
@@ -10,10 +11,10 @@ import type { ID, Song, SongSection } from "@/data/types";
 import { Button, Field, IconButton, Input, Modal, Segmented, Sheet, Textarea, Toggle, useToast } from "@/components/ui";
 import { Icon } from "@/components/ui/icons";
 import { cx } from "@/lib/format";
-import { toLatin } from "@/lib/chords";
-import { chordsIn, linesToText, parseChordText, useView } from "./lib";
+import { chordsIn, guessKey, isChordLine, linesToText, parseChordText, useView } from "./lib";
 import { sx, updateSong, type SongAudio, type SongLink } from "./extra";
 import { MaterialEditor } from "./Material";
+import { ChordPalette, ChordPlacer } from "./ChordPlacer";
 
 interface Draft { id: ID; name: string; note: string; text: string; mine: string; mineOn: boolean; myNote: string }
 
@@ -45,6 +46,7 @@ export function SongEditor({ open, onClose, song }: { open: boolean; onClose: ()
   const [history, setHistory] = useState<Draft[][]>([]);
   const [deleting, setDeleting] = useState(false);
   const [pal, setPal] = useState<number | null>(null); // sección con la paleta abierta
+  const [modo, setModo] = useState<"acordes" | "escribir">("escribir");
   const areas = useRef<Record<ID, HTMLTextAreaElement | null>>({});
   const carets = useRef<Record<ID, number>>({});
 
@@ -54,6 +56,7 @@ export function SongEditor({ open, onClose, song }: { open: boolean; onClose: ()
     const x = sx(song);
     setTitle(song.title); setArtist(song.artist); setKey(song.key); setBpm(song.bpm ? String(song.bpm) : "");
     setDuration(song.duration ?? ""); setOwn(song.own); setNotes(x.notes ?? ""); setSecsRaw(toDraft(song, me.id)); setHistory([]); setTab("cancion"); setPal(null);
+    setModo(song.sections.some(s => s.lines.some(l => l.lyric.trim())) ? "acordes" : "escribir");
     const a = [...(x.audios ?? [])];
     const l = [...(x.links ?? [])];
     for (const [url, label] of [[x.video, "referencia youtube"], [song.demoUrl, "demo"]] as const) {
@@ -115,14 +118,15 @@ export function SongEditor({ open, onClose, song }: { open: boolean; onClose: ()
     return n;
   });
 
-  /** ♫ mete un acorde donde está el cursor. */
+  /** ♫ mete un acorde donde está el cursor: en una línea de letra va como [Am] (se coloca encima al guardar). */
   const insertChord = (i: number, chord: string) => {
     const d = secs[i];
     const el = areas.current[d.id];
     const pos = el?.selectionStart ?? carets.current[d.id] ?? d.text.length;
     const end = el?.selectionEnd ?? pos;
     const before = d.text.slice(0, pos);
-    const ins = (before && !/\s$/.test(before) ? " " : "") + chord + " ";
+    const row = before.slice(before.lastIndexOf("\n") + 1) + d.text.slice(end).split("\n")[0];
+    const ins = row.trim() && !isChordLine(row) ? `[${chord}]` : (before && !/\s$/.test(before) ? " " : "") + chord + " ";
     edit(i, { text: before + ins + d.text.slice(end) });
     const at = pos + ins.length;
     carets.current[d.id] = at;
@@ -159,6 +163,13 @@ export function SongEditor({ open, onClose, song }: { open: boolean; onClose: ()
   };
 
   const songChords = chordsIn(secs.flatMap(s => parseChordText(s.text)));
+  const guessed = guessKey(secs.map(s => ({ id: s.id, name: s.name, lines: parseChordText(s.text) })));
+  /* Al pasar a «poner acordes», los [Am] escritos dentro de la letra suben a su línea. */
+  const switchModo = (m: typeof modo) => {
+    if (m === "acordes") setSecsRaw(s => s.map(x => ({ ...x, text: linesToText(parseChordText(x.text)) })));
+    setPal(null); setModo(m);
+  };
+  const duplicate = (i: number) => setSecs(s => { const n = [...s]; n.splice(i + 1, 0, { ...s[i], id: uid(), mine: "", mineOn: false, myNote: "" }); return n; });
   const tool = "inline-grid place-items-center h-9 px-2.5 rounded-full text-[13px] text-crema/80 hover:text-crema hover:bg-crema/10 disabled:opacity-35";
 
   return (
@@ -167,7 +178,7 @@ export function SongEditor({ open, onClose, song }: { open: boolean; onClose: ()
         footer={<div className="flex flex-wrap justify-between gap-2">
           <Button variant="quiet" onClick={() => setDeleting(true)}><Icon name="basura" size={16} />borrar</Button>
           <span className="flex gap-2">
-            {history.length > 0 && <Button variant="quiet" onClick={undo}>↶ deshacer</Button>}
+            {history.length > 0 && <Button variant="quiet" onClick={undo}><Icon name="deshacer" size={16} />deshacer</Button>}
             <Button variant="quiet" onClick={onClose}>cancelar</Button><Button variant="primary" onClick={submit} disabled={save.pending}>guardar</Button>
           </span>
         </div>}>
@@ -181,7 +192,7 @@ export function SongEditor({ open, onClose, song }: { open: boolean; onClose: ()
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <Field label="título" className="col-span-2">{id => <Input id={id} value={title} onChange={e => setTitle(e.target.value)} />}</Field>
               <Field label="artista" className="col-span-2">{id => <Input id={id} value={artist} onChange={e => setArtist(e.target.value)} />}</Field>
-              <Field label="tono">{id => <Input id={id} value={key} onChange={e => setKey(e.target.value)} className="font-mono" placeholder="G" />}</Field>
+              <Field label="tono">{id => <Input id={id} value={key} onChange={e => setKey(e.target.value)} className="font-mono" placeholder={guessed || "G"} />}</Field>
               <Field label="bpm">{id => <Input id={id} inputMode="numeric" value={bpm} onChange={e => setBpm(e.target.value.replace(/\D/g, ""))} className="font-mono" />}</Field>
               <Field label="duración">{id => <Input id={id} value={duration} onChange={e => setDuration(e.target.value)} className="font-mono" placeholder="3:41" />}</Field>
               <div className="flex items-end"><Toggle checked={own} onChange={setOwn} label="propia" className="bg-noche" /></div>
@@ -191,36 +202,47 @@ export function SongEditor({ open, onClose, song }: { open: boolean; onClose: ()
             </div>
 
             <div className="flex flex-col gap-3">
-              <h3 className="font-semibold">secciones</h3>
-              <p className="text-xs text-crema/60 -mt-2">Acordes en la línea de encima de cada verso, alineados con espacios. ✂ corta en la línea del cursor, ⤒ une con la anterior, ⇥ divide por las líneas en blanco, ♫ mete un acorde.</p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="font-semibold">secciones</h3>
+                <Segmented size="sm" value={modo} onChange={switchModo} options={[{ value: "escribir", label: "escribir letra" }, { value: "acordes", label: "poner acordes" }]} />
+              </div>
+              <p className="text-xs text-crema/60 -mt-1">{modo === "acordes"
+                ? "Toca una palabra y elige el acorde: se pone encima. En palabras largas puedes elegir la sílaba. Toca un acorde para cambiarlo o quitarlo."
+                : "Escribe o pega la letra. Los acordes van en la línea de encima o dentro, como [Am]hola. «acorde» (o ⌘/Ctrl+K) mete uno donde está el cursor; «dividir» corta en la línea del cursor y «bloques» por las líneas en blanco."}</p>
               {secs.map((s, i) => (
                 <div key={s.id} className="rounded-2xl bg-noche p-3.5 flex flex-col gap-2.5">
                   <div className="flex gap-1 items-center">
                     <label className="sr-only" htmlFor={`sn-${s.id}`}>Nombre de la sección</label>
                     <Input id={`sn-${s.id}`} value={s.name} onChange={e => edit(i, { name: e.target.value })} className="flex-1 min-w-0 font-mono text-sm uppercase tracking-wider !bg-tubo" />
-                    <IconButton label="Subir sección" disabled={i === 0} onClick={() => move(i, -1)}>↑</IconButton>
-                    <IconButton label="Bajar sección" disabled={i === secs.length - 1} onClick={() => move(i, 1)}>↓</IconButton>
+                    <IconButton label="Subir sección" disabled={i === 0} onClick={() => move(i, -1)}><Icon name="arriba" size={16} /></IconButton>
+                    <IconButton label="Bajar sección" disabled={i === secs.length - 1} onClick={() => move(i, 1)}><Icon name="abajo" size={16} /></IconButton>
+                    <IconButton label={`Duplicar ${s.name}`} onClick={() => duplicate(i)}><Icon name="copiar" size={16} /></IconButton>
                     <IconButton label={`Quitar ${s.name}`} onClick={() => setSecs(x => x.filter((_, j) => j !== i))}><Icon name="x" size={16} /></IconButton>
                   </div>
                   <label className="sr-only" htmlFor={`sx-${s.id}`}>Nota de la sección</label>
                   <Input id={`sx-${s.id}`} value={s.note} onChange={e => edit(i, { note: e.target.value })} placeholder="nota para todos: todos, solo piano, bajan todos…" className="!bg-tubo text-sm" />
                   <label className="sr-only" htmlFor={`sy-${s.id}`}>Tu nota en {s.name}</label>
                   <Input id={`sy-${s.id}`} value={s.myNote} onChange={e => edit(i, { myNote: e.target.value })} placeholder={`tu nota (${me.instrument}): entra el wah, cejilla 3…`} className="!bg-tubo text-sm" />
+                  {modo === "acordes" ? (
+                    <ChordPlacer text={s.text} onChange={t => edit(i, { text: t })} songChords={songChords} latin={latin} onWrite={() => switchModo("escribir")} />
+                  ) : (<>
                   <div className="flex flex-wrap gap-0.5 -mb-1" role="toolbar" aria-label={`herramientas de ${s.name}`}>
-                    <button type="button" className={tool} onMouseDown={e => e.preventDefault()} onClick={() => splitAtCaret(i)} title="dividir por el cursor">✂ dividir</button>
-                    <button type="button" className={tool} onClick={() => mergeUp(i)} disabled={i === 0} title="unir con la anterior">⤒ unir</button>
-                    <button type="button" className={tool} onClick={() => splitBlocks(i)} title="dividir en bloques por las líneas en blanco">⇥ bloques</button>
-                    <button type="button" className={cx(tool, pal === i && "!bg-crema !text-noche")} aria-expanded={pal === i} onMouseDown={e => e.preventDefault()} onClick={() => setPal(pal === i ? null : i)}>♫ acorde</button>
+                    <button type="button" className={tool} onMouseDown={e => e.preventDefault()} onClick={() => splitAtCaret(i)} title="dividir por el cursor"><Icon name="tijeras" size={14} />dividir</button>
+                    <button type="button" className={tool} onClick={() => mergeUp(i)} disabled={i === 0} title="unir con la anterior"><Icon name="subir" size={14} />unir</button>
+                    <button type="button" className={tool} onClick={() => splitBlocks(i)} title="dividir en bloques por las líneas en blanco"><Icon name="bloques" size={14} />bloques</button>
+                    <button type="button" className={cx(tool, pal === i && "!bg-crema !text-noche")} aria-expanded={pal === i} onMouseDown={e => e.preventDefault()} onClick={() => setPal(pal === i ? null : i)}><Icon name="nota" size={14} />acorde</button>
                   </div>
                   {pal === i && <ChordPalette songChords={songChords} latin={latin} onPick={c => insertChord(i, c)} onClose={() => setPal(null)} />}
                   <label className="sr-only" htmlFor={`st-${s.id}`}>Letra y acordes de {s.name}</label>
                   <textarea id={`st-${s.id}`} ref={el => { areas.current[s.id] = el; }} value={s.text}
                     onChange={e => edit(i, { text: e.target.value })}
                     onSelect={e => { carets.current[s.id] = (e.target as HTMLTextAreaElement).selectionStart; }}
+                    onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); e.stopPropagation(); setPal(pal === i ? null : i); } }}
                     spellCheck={false}
                     rows={Math.max(3, s.text.split("\n").length + 1)}
                     className="w-full rounded-xl border border-crema/15 bg-tubo px-3.5 py-2.5 text-crema placeholder:text-crema/40 focus:border-senal focus:outline-none resize-y min-h-20 font-mono text-[13px] leading-relaxed whitespace-pre overflow-x-auto"
-                    placeholder={"G               D/F#\nprimera línea"} />
+                    placeholder={"G               D/F#\nprimera línea\no con [Em]acordes [C]dentro"} />
+                  </>)}
                 </div>
               ))}
               <Button className="self-start" onClick={() => setSecs(s => [...s, blank("Estribillo")])}>+ sección</Button>
@@ -252,51 +274,6 @@ export function SongEditor({ open, onClose, song }: { open: boolean; onClose: ()
       </Sheet>
       <DeleteSong open={deleting} onClose={() => setDeleting(false)} song={song} />
     </>
-  );
-}
-
-// ---------- paleta de acordes ----------
-const ROOTS = ["C", "D", "E", "F", "G", "A", "B"];
-const QUALS = [
-  { q: "", label: "mayor" }, { q: "m", label: "menor" }, { q: "7", label: "7" }, { q: "m7", label: "m7" }, { q: "maj7", label: "maj7" },
-  { q: "6", label: "6" }, { q: "sus2", label: "sus2" }, { q: "sus4", label: "sus4" }, { q: "dim", label: "dim" }, { q: "add9", label: "add9" },
-];
-
-function ChordPalette({ songChords, latin, onPick, onClose }: { songChords: string[]; latin: boolean; onPick: (c: string) => void; onClose: () => void }) {
-  const [acc, setAcc] = useState<"" | "#" | "b">("");
-  const [q, setQ] = useState("");
-  /* Mi♯, Si♯, Do♭ y Fa♭ no existen en la tabla: fuera. */
-  const valid = (r: string) => !((acc === "#" && (r === "E" || r === "B")) || (acc === "b" && (r === "C" || r === "F")));
-  const label = (c: string) => (latin ? toLatin(c) : c);
-  const pill = "h-9 min-w-9 px-2.5 rounded-full font-mono text-[13px] transition disabled:opacity-30";
-  return (
-    <div role="dialog" aria-label="insertar acorde" onMouseDown={e => { if ((e.target as HTMLElement).tagName === "BUTTON") e.preventDefault(); }}
-      className="rounded-xl bg-tubo p-2.5 flex flex-col gap-2">
-      {songChords.length > 0 && (<>
-        <span className="text-[11px] font-mono uppercase tracking-[.1em] text-crema/55">en esta canción</span>
-        <div className="flex flex-wrap gap-1">
-          {songChords.slice(0, 18).map(c => <button key={c} type="button" onClick={() => onPick(c)} className={cx(pill, "bg-noche hover:bg-crema/10")}>{label(c)}</button>)}
-        </div>
-      </>)}
-      <div className="flex flex-wrap gap-1 items-center">
-        {(["", "#", "b"] as const).map(a => (
-          <button key={a || "n"} type="button" aria-pressed={acc === a} onClick={() => setAcc(a)}
-            className={cx(pill, acc === a ? "bg-crema text-noche" : "bg-noche")}>{a === "" ? "♮" : a === "#" ? "♯" : "♭"}</button>
-        ))}
-        <span className="w-px h-6 bg-crema/15 mx-1" />
-        {QUALS.map(x => (
-          <button key={x.q || "M"} type="button" aria-pressed={q === x.q} onClick={() => setQ(x.q)}
-            className={cx(pill, q === x.q ? "bg-crema text-noche" : "bg-noche")}>{x.label}</button>
-        ))}
-      </div>
-      <div className="flex flex-wrap gap-1 items-center">
-        {ROOTS.map(r => {
-          const c = r + acc + q;
-          return <button key={r} type="button" disabled={!valid(r)} onClick={() => onPick(c)} className={cx(pill, "bg-senal/15 text-senal-suave hover:bg-senal/25")}>{label(c)}</button>;
-        })}
-        <button type="button" onClick={onClose} className={cx(pill, "ml-auto text-crema/70")}>cerrar</button>
-      </div>
-    </div>
   );
 }
 

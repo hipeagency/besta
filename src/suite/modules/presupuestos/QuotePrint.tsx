@@ -22,8 +22,8 @@ export function QuotePrint({ q }: { q: Quote }) {
       <style>{PRINT_CSS}</style>
       <header className="flex justify-between items-start gap-8 pb-6 border-b-2 border-noche">
         <div>
-          <p className="text-[28pt] font-extrabold tracking-[-.03em] leading-none">besta</p>
-          <p className="mt-2">{ISSUER.name} · {ISSUER.kind} · NIF {ISSUER.nif}</p>
+          <img src="/img/logo-tinta.png" alt="besta" width={170} height={52} className="h-[52px] w-auto" />
+          <p className="mt-3">{ISSUER.name} · {ISSUER.kind} · NIF {ISSUER.nif}</p>
           <p>{ISSUER.email}</p>
         </div>
         <div className="text-right">

@@ -79,6 +79,7 @@ const gigs: Gig[] = [
     id: "mad-2027-03-07", date: "2027-03-07", time: "19:00",
     city: "Madrid", venue: "[festival por confirmar]",
     status: "confirmado", published: true, ticketing: "externa", externalUrl: "https://example.com",
+    teaser: { date: "mes", city: true, venue: false },
     schedule: [{ time: "19:00", what: "besta", note: "45 min" }], contacts: [], checklist: {},
   },
   {
@@ -307,10 +308,10 @@ const leads: Lead[] = [
 
 const v = (id: string, label: string, stock: number) => ({ id, label, stock });
 const products: Product[] = [
-  { id: "p-camiseta", name: "camiseta tele", priceCents: 2200, costCents: 700, color: "senal", archived: false, variants: [v("cam-s", "S", 8), v("cam-m", "M", 3), v("cam-l", "L", 12), v("cam-xl", "XL", 6)] },
-  { id: "p-sudadera", name: "sudadera atardecer", priceCents: 3800, costCents: 1600, color: "crema", archived: false, variants: [v("sud-s", "S", 4), v("sud-m", "M", 2), v("sud-l", "L", 5), v("sud-xl", "XL", 1)] },
-  { id: "p-gorra", name: "gorra besta", priceCents: 1800, costCents: 600, color: "noche", archived: false, variants: [v("gor", "", 24)] },
-  { id: "p-vinilo", name: "vinilo 7\"", priceCents: 1500, costCents: 650, color: "tubo", archived: false, variants: [v("vin", "", 40)] },
+  { id: "p-camiseta", name: "camiseta tele", priceCents: 2200, costCents: 700, color: "senal", archived: false, published: true, variants: [v("cam-s", "S", 8), v("cam-m", "M", 3), v("cam-l", "L", 12), v("cam-xl", "XL", 6)] },
+  { id: "p-sudadera", name: "sudadera atardecer", priceCents: 3800, costCents: 1600, color: "crema", archived: false, published: true, variants: [v("sud-s", "S", 4), v("sud-m", "M", 2), v("sud-l", "L", 5), v("sud-xl", "XL", 1)] },
+  { id: "p-gorra", name: "gorra besta", priceCents: 1800, costCents: 600, color: "noche", archived: false, published: true, variants: [v("gor", "", 24)] },
+  { id: "p-vinilo", name: "vinilo 7\"", priceCents: 1500, costCents: 650, color: "tubo", archived: false, published: true, variants: [v("vin", "", 40)] },
 ];
 
 const moves: MerchMove[] = [

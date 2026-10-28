@@ -10,7 +10,9 @@ export interface SiteData { gigs: Gig[]; events: TicketEvent[]; products: Produc
 export async function loadSiteData(): Promise<SiteData> {
   if (import.meta.env.PUBLIC_DATA_MODE !== "supabase") {
     const db = createSeed();
-    return { gigs: db.gigs, events: db.events, products: db.products };
+    const gigs = db.gigs.map(publicGig).filter((g): g is Gig => !!g);
+    const open = new Set(gigs.filter(g => !g.teaser).map(g => g.id));
+    return { gigs, events: db.events.filter(e => open.has(e.gigId)), products: db.products.filter(p => p.published && !p.archived) };
   }
   const url = import.meta.env.PUBLIC_SUPABASE_URL;
   const key = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
@@ -27,5 +29,23 @@ export async function loadSiteData(): Promise<SiteData> {
     gigs: d.gigs.map(g => ({ schedule: [], contacts: [], checklist: {}, published: true, ...g }) as Gig),
     events: d.events,
     products: d.products,
+  };
+}
+
+/* Lo mismo que besta.public_gig (SQL) para el modo de prueba: un bolo en
+   secreto pierde lo no desvelado y cambia de id. */
+function publicGig(g: Gig): Gig | null {
+  if (!g.published || g.status === "cancelado") return null;
+  const t = g.teaser;
+  if (!t) return g;
+  const d = new Date(`${g.date}T12:00:00`);
+  const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return {
+    id: `secreto-${[...g.id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7).toString(36)}`, status: "confirmado", ticketing: "ninguna", published: true, teaser: t,
+    date: t.date === "exacta" ? g.date : t.date === "mes" ? `${monthEnd.getFullYear()}-${pad(monthEnd.getMonth() + 1)}-${pad(monthEnd.getDate())}` : "",
+    time: t.date === "exacta" ? g.time : "",
+    city: t.city ? g.city : "", venue: t.venue ? g.venue : "",
+    schedule: [], contacts: [], checklist: {},
   };
 }

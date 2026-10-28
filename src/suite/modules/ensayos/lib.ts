@@ -24,9 +24,24 @@ export function isChordLine(line: string) {
   return chords > 0;
 }
 
-/** Texto plano (acordes encima de la letra) → líneas. */
+/** «[Am]hola [G]qué tal» → la línea de acordes encima y la letra debajo. Si no son acordes («[Estribillo]»), se queda. */
+function expandInline(row: string): string[] {
+  const marks = [...row.matchAll(/\[([^\]\s]+)\]/g)];
+  if (!marks.length || !marks.every(m => CHORD.test(m[1]))) return [row];
+  let lyric = "", chords = "";
+  row.split(/(\[[^\]\s]+\])/).forEach(part => {
+    const m = part.match(/^\[([^\]\s]+)\]$/);
+    if (!m) { lyric += part; return; }
+    if (chords.length > lyric.length) lyric += " ".repeat(chords.length - lyric.length);
+    chords += " ".repeat(Math.max(0, lyric.length - chords.length)) + m[1] + " ";
+  });
+  chords = chords.replace(/\s+$/, "");
+  return lyric.trim() ? [chords, lyric.replace(/\s+$/, "")] : [chords];
+}
+
+/** Texto plano (acordes encima de la letra, o [acordes] dentro) → líneas. */
 export function parseChordText(text: string): SongLine[] {
-  const rows = text.replace(/\r/g, "").replace(/\t/g, "    ").split("\n").map(r => r.replace(/\s+$/, ""));
+  const rows = text.replace(/\r/g, "").replace(/\t/g, "    ").split("\n").map(r => r.replace(/\s+$/, "")).flatMap(expandInline);
   while (rows.length && !rows[0].trim()) rows.shift();
   while (rows.length && !rows[rows.length - 1].trim()) rows.pop();
   const out: SongLine[] = [];

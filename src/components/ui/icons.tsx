@@ -37,6 +37,24 @@ const paths = {
   subir: "M10 17V7M6 11l4-4 4 4M4 3h12",
   usuarios: "M7.5 9a3 3 0 100-6 3 3 0 000 6zM2 17c0-3 2.5-5 5.5-5s5.5 2 5.5 5M13.5 3.5a3 3 0 010 5.5M15 12.2c1.8.6 3 2.3 3 4.8",
   basura: "M4 6h12M8 6V4h4v2M6 6l1 11h6l1-11",
+  externo: "M8 4H4v12h12v-4M11 3h6v6M17 3l-8 8",
+  arriba: "M10 16V4M5 9l5-5 5 5",
+  abajo: "M10 4v12M5 11l5 5 5-5",
+  desplegar: "M5 8l5 5 5-5",
+  sol: "M10 13a3 3 0 100-6 3 3 0 000 6zM10 2v2M10 16v2M2 10h2M16 10h2M4.3 4.3l1.4 1.4M14.3 14.3l1.4 1.4M4.3 15.7l1.4-1.4M14.3 5.7l1.4-1.4",
+  luna: "M16 12.5A7 7 0 017.5 4 7 7 0 1016 12.5z",
+  auto: "M10 18a8 8 0 100-16 8 8 0 000 16zM10 2v16",
+  ajustes: "M3 6h8M15 6h2M13 4v4M3 14h2M9 14h8M7 12v4",
+  tijeras: "M5 7a2 2 0 100-4 2 2 0 000 4zM5 17a2 2 0 100-4 2 2 0 000 4zM6.6 6.2L17 15M6.6 13.8L17 5",
+  bloques: "M3 4h14v5H3zM3 11h14v5H3z",
+  deshacer: "M7 4L3 8l4 4M3 8h9a5 5 0 010 10H9",
+  estrella: "M10 2.5l2.3 4.7 5.2.8-3.8 3.6.9 5.1L10 14.3l-4.6 2.4.9-5.1L2.5 8l5.2-.8z",
+  nota: "M9 15V3l6 2M9 15a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z",
+  comentario: "M3 4h14v10H8l-4 3v-3H3z",
+  metronomo: "M7 2h6l3 16H4zM10 14l4-9M6 13h8",
+  reiniciar: "M16 10a6 6 0 11-6-6h3M11 1l3 3-3 3",
+  asterisco: "M10 3v14M4 6.5l12 7M16 6.5l-12 7",
+  grabar: "M10 16a6 6 0 100-12 6 6 0 000 12zM10 11.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3z",
 } as const;
 
 export type IconName = keyof typeof paths;
@@ -48,4 +66,9 @@ export function Icon({ name, size = 20, ...rest }: { name: IconName; size?: numb
       <path d={paths[name]} />
     </svg>
   );
+}
+
+/* Punto de estado (● a la venta, ● agotado…): un círculo, no un carácter. */
+export function Punto({ className = "" }: { className?: string }) {
+  return <span aria-hidden="true" className={`inline-block size-[.5em] rounded-full bg-current shrink-0 align-middle ${className}`} />;
 }

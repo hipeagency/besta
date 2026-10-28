@@ -6,6 +6,7 @@ import { api } from "@/data/api";
 import type { Product } from "@/data/types";
 import { Button, Field, Input, Modal, Select, Stepper, Textarea } from "@/components/ui";
 import { cx, dateShort, eur } from "@/lib/format";
+import { Icon, Punto } from "@/components/ui/icons";
 
 export interface WebGig { id: string; city: string; date: string }
 
@@ -20,12 +21,12 @@ export default function MerchRequest({ products: initial, gigs, empty = false }:
   // El stock de verdad se lee al cargar (el HTML se generó en el build).
   useEffect(() => { if (!empty) api.publicProducts().then(setProducts).catch(() => {}); }, [empty]);
 
-  const available = empty ? [] : products.filter(p => !p.archived && p.variants.some(v => v.stock > 0));
+  const available = empty ? [] : products.filter(p => p.published && !p.archived && p.variants.some(v => v.stock > 0));
 
   if (!available.length) return (
     <div className="rounded-[28px] border-[1.5px] border-dashed border-crema/25 p-7 sm:p-10 flex flex-wrap items-center justify-between gap-6">
       <div className="flex flex-col gap-2 max-w-[520px]">
-        <p className="kicker text-senal">● agotado</p>
+        <p className="kicker text-senal flex items-center gap-2"><Punto />agotado</p>
         <p className="text-[28px] sm:text-[34px] font-bold tracking-[-.02em] leading-tight">se nos ha acabado todo. ya estamos con lo siguiente.</p>
         <p className="text-crema/70">Te avisamos cuando salga el merch nuevo.</p>
       </div>

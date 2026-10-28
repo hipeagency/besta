@@ -57,7 +57,7 @@ function Workspace() {
     <div className="min-h-dvh md:h-dvh flex flex-col print:h-auto print:block print:bg-white print:text-black">
       <header className={cx("print:hidden items-center justify-between gap-3 flex-wrap px-4 md:px-5 py-2.5 border-b border-crema/8 bg-lateral", concert ? "hidden" : "flex")}>
         <div className="flex items-center gap-3 md:gap-4 min-w-0">
-          <Link to="/" className="font-mono text-xs text-crema/80 hover:text-crema h-11 inline-flex items-center">← suite</Link>
+          <Link to="/" className="font-mono text-xs text-crema/80 hover:text-crema h-11 inline-flex items-center gap-1.5"><Icon name="atras" size={14} />suite</Link>
           <span className="font-bold text-xl tracking-[-.02em]">ensayos</span>
           <SaveStatus />
         </div>
@@ -66,7 +66,7 @@ function Workspace() {
           <Button variant="primary" className="hidden md:inline-flex" onClick={() => nav(directo)} disabled={!where.setlistId && !where.songId && !fallback}>
             <Icon name="play" size={14} />modo directo
           </Button>
-          <IconButton label="ajustes" onClick={() => setSettings(true)} aria-haspopup="dialog" className="text-xl">⚙</IconButton>
+          <IconButton label="ajustes" onClick={() => setSettings(true)} aria-haspopup="dialog" ><Icon name="ajustes" size={20} /></IconButton>
         </div>
       </header>
       <SettingsSheet open={settings} onClose={() => setSettings(false)} />

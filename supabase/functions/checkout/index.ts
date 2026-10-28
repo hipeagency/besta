@@ -18,6 +18,10 @@ serve(["POST"], async req => {
 
   // Mismo orden de comprobaciones que api.checkout, para que el mensaje sea el mismo.
   if (!ev.salesEnabled) throw new HttpError("La venta de este concierto está cerrada.");
+  // Un bolo en secreto (o sin publicar) aún no vende, aunque el evento esté abierto.
+  const { data: isPublic, error: pubErr } = await db.rpc("event_is_public", { ev: eventId });
+  if (pubErr) dbError(pubErr, "No hemos podido comprobar el concierto.");
+  if (!isPublic) throw new HttpError("La venta de este concierto aún no está abierta.");
   const qty = Number(body.qty);
   const max = ev.maxPerOrder || 10;
   if (!Number.isInteger(qty) || qty < 1 || qty > max) throw new HttpError(`Puedes comprar entre 1 y ${max} entradas.`);

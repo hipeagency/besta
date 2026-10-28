@@ -137,7 +137,7 @@ function LeadsCard({ leads, onCreate }: { leads: Lead[]; onCreate: (l: Lead) => 
               <span className="block text-sm font-medium truncate">{l.org || l.name}</span>
               <span className="block text-xs text-noche/70">{l.city}{l.date ? ` · ${dateShort(l.date)}` : ""} · {ago(l.createdAt)}</span>
             </button>
-            <Button size="sm" variant="dark" className="shrink-0" onClick={() => onCreate(l)}>crear →</Button>
+            <Button size="sm" variant="dark" className="shrink-0" onClick={() => onCreate(l)}>crear <Icon name="flecha" size={14} className="inline align-[-2px]" /></Button>
           </div>
           {open === l.id && (
             <div className="mt-2 flex flex-col gap-2 text-sm">
@@ -246,7 +246,7 @@ function Editor({ quote }: { quote: Quote }) {
         <Segmented value={quote.status} onChange={setStatus} size="sm" className="self-start"
           options={STATUSES.map(s => ({ value: s, label: s }))} />
         {quote.gigId && (
-          <Link to={`/bolos/${quote.gigId}`} className="self-start"><Pill tone="senal" dot>bolo creado · abrir ficha →</Pill></Link>
+          <Link to={`/bolos/${quote.gigId}`} className="self-start"><Pill tone="senal" dot>bolo creado · abrir ficha <Icon name="flecha" size={14} className="inline align-[-2px]" /></Pill></Link>
         )}
       </div>
 
@@ -283,7 +283,7 @@ function Editor({ quote }: { quote: Quote }) {
         </ul>
         <div className="relative flex flex-wrap gap-2 pt-2">
           <Button size="sm" className="border-dashed" onClick={() => set({ lines: [...d.lines, { id: uid(), name: "", amountCents: 0 }] })}>+ concepto</Button>
-          <Button size="sm" className="border-dashed" aria-expanded={tplOpen} onClick={() => setTplOpen(o => !o)}>desde plantilla ▾</Button>
+          <Button size="sm" className="border-dashed" aria-expanded={tplOpen} onClick={() => setTplOpen(o => !o)}>desde plantilla <Icon name="desplegar" size={14} className="inline align-[-2px]" /></Button>
           {tplOpen && (
             <ul className="absolute z-10 top-full mt-1 left-0 w-[min(100%,340px)] rounded-2xl bg-noche border border-crema/12 p-1.5 shadow-2xl">
               {TEMPLATES.map(tp => (
@@ -325,7 +325,7 @@ function Editor({ quote }: { quote: Quote }) {
         <Button onClick={duplicate}><Icon name="copiar" size={16} />duplicar</Button>
         <Button variant="quiet" onClick={() => setConfirmDelete(true)}><Icon name="basura" size={16} />borrar</Button>
         {quote.status !== "aceptado" && (
-          <Button variant="primary" className="sm:ml-auto" onClick={() => setStatus("aceptado")} disabled={accept.pending}>aceptado → crear bolo</Button>
+          <Button variant="primary" className="sm:ml-auto" onClick={() => setStatus("aceptado")} disabled={accept.pending}>aceptado <Icon name="flecha" size={14} className="inline align-[-2px]" /> crear bolo</Button>
         )}
       </div>
 

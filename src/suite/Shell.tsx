@@ -59,7 +59,7 @@ export function Shell() {
         <div className="mt-auto flex items-center gap-2.5 p-2.5 rounded-xl border border-crema/10">
           <span className="size-8 rounded-full bg-senal text-noche grid place-items-center font-semibold text-sm">{me.name[0]}</span>
           <span className="text-sm leading-tight flex-1"><span className="block">{me.name}</span><span className="block font-mono text-[11px] text-crema/55">{me.role}</span></span>
-          <button type="button" onClick={theme.next} aria-label={themeLabel[theme.pref]} title={themeLabel[theme.pref]} className="size-9 grid place-items-center rounded-full hover:bg-crema/10 font-mono text-[15px]">{theme.pref === "auto" ? "◐" : theme.pref === "claro" ? "☀" : "☾"}</button>
+          <button type="button" onClick={theme.next} aria-label={themeLabel[theme.pref]} title={themeLabel[theme.pref]} className="size-9 grid place-items-center rounded-full hover:bg-crema/10 "><Icon name={theme.pref === "auto" ? "auto" : theme.pref === "claro" ? "sol" : "luna"} size={16} /></button>
           <button type="button" onClick={logout} aria-label="Salir" title="Salir" className="size-9 grid place-items-center rounded-full hover:bg-crema/10"><Icon name="salir" size={16} /></button>
         </div>
       </nav>
@@ -95,7 +95,7 @@ export function Page({ title, kicker, actions, children, back, className }: { ti
     <main className={cx("px-4 sm:px-6 lg:px-10 pt-5 md:pt-7 pb-12 flex flex-col gap-5 md:gap-6 max-w-[1400px]", className)}>
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-1.5 min-w-0">
-          {back && <button type="button" onClick={() => nav(back.to)} className="self-start font-mono text-xs text-crema/70 hover:text-crema">← {back.label}</button>}
+          {back && <button type="button" onClick={() => nav(back.to)} className="self-start font-mono text-xs text-crema/70 hover:text-crema inline-flex items-center gap-1.5"><Icon name="atras" size={14} />{back.label}</button>}
           {kicker && <div className="font-mono text-xs tracking-wider text-crema/65">{kicker}</div>}
           <h1 className="text-[34px] md:text-[44px] font-extrabold tracking-[-.035em] leading-none">{title}</h1>
         </div>

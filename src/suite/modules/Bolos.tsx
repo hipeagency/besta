@@ -35,7 +35,7 @@ export default function Bolos() {
                 <span className="flex flex-wrap gap-1.5">
                   {g.status !== "confirmado" && <Pill>{g.status}</Pill>}
                   {g.ticketing === "propia" && ev && <Pill tone={ev.salesEnabled ? "senal" : "mute"} dot={ev.salesEnabled}>entradas propias</Pill>}
-                  {g.published ? <Pill>en la web</Pill> : <Pill>oculto</Pill>}
+                  {!g.published ? <Pill>oculto</Pill> : g.teaser ? <Pill>secreto</Pill> : <Pill>en la web</Pill>}
                   {tab === "proximos" && <Pill>{d === 0 ? "hoy" : `en ${d} d`}</Pill>}
                 </span>
               </Link>

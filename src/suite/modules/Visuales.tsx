@@ -9,6 +9,7 @@ import { upcomingGigs } from "@/data/selectors";
 import { Button, Card, CardTitle, Pill, Toggle } from "@/components/ui";
 import { dateLabel, daysUntil } from "@/lib/format";
 import { useMedia } from "./composicion/audio";
+import { Icon } from "@/components/ui/icons";
 
 const STUDIO = "/suite/estudio-visuales.html";
 
@@ -20,7 +21,7 @@ export default function Visuales() {
 
   const open = (
     <a href={STUDIO} target="_blank" rel="noopener" className="inline-flex items-center justify-center gap-2 h-11 px-[18px] rounded-full bg-senal text-noche font-semibold text-[15px] whitespace-nowrap hover:brightness-110">
-      abrir estudio ↗
+      abrir estudio <Icon name="externo" size={14} className="inline align-[-2px]" />
     </a>
   );
 

@@ -12,7 +12,7 @@ import type {
 export type Collection = keyof DB;
 type Item<K extends Collection> = DB[K] extends (infer T)[] ? T : never;
 
-const KEY = "besta:datos-prueba:v7";  // subir la versión cuando cambie el seed
+const KEY = "besta:datos-prueba:v9";  // subir la versión cuando cambie el seed
 const isBrowser = typeof window !== "undefined";
 
 let db: DB | null = null;
@@ -96,7 +96,7 @@ export const mockApi = {
 
   /* Merch publicable (sin coste) para la web. */
   async publicProducts(): Promise<Product[]> {
-    return tick(load().products.filter(p => !p.archived).map(p => ({ ...p, costCents: 0 })));
+    return tick(load().products.filter(p => p.published && !p.archived).map(p => ({ ...p, costCents: 0 })));
   },
 
   // ---------- archivos ----------
@@ -125,6 +125,8 @@ export const mockApi = {
     const ev = d.events.find(e => e.id === input.eventId);
     if (!ev) throw new Error("Este evento ya no existe.");
     if (!ev.salesEnabled) throw new Error("La venta de este concierto está cerrada.");
+    const gig = d.gigs.find(g => g.id === ev.gigId);
+    if (!gig?.published || gig.teaser) throw new Error("La venta de este concierto aún no está abierta.");
     if (input.qty < 1 || input.qty > ev.maxPerOrder) throw new Error(`Puedes comprar entre 1 y ${ev.maxPerOrder} entradas.`);
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) throw new Error("Revisa el email: ahí te llegan las entradas.");
     const taken = d.tickets.filter(t => t.eventId === ev.id && t.status !== "cancelada").length
@@ -307,7 +309,7 @@ export const mockApi = {
      comprador y aviso a la banda (Brevo). */
   async requestMerch(input: Omit<MerchRequest, "id" | "status" | "createdAt" | "moveId">): Promise<void> {
     const d = load();
-    const v = d.products.find(p => p.id === input.productId)?.variants.find(v => v.id === input.variantId);
+    const v = d.products.find(p => p.id === input.productId && p.published && !p.archived)?.variants.find(v => v.id === input.variantId);
     if (!v) throw new Error("Esa talla ya no está disponible.");
     if (v.stock < input.qty) throw new Error(v.stock ? `Solo quedan ${v.stock}.` : "Esa talla está agotada.");
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) throw new Error("Revisa el email: ahí te escribimos.");

@@ -7,6 +7,7 @@ import { useMe } from "@/suite/session";
 import { Button, Sheet, useToast } from "@/components/ui";
 import { dateShort } from "@/lib/format";
 import { fmtTime, rememberDemoUrl } from "./audio";
+import { Icon } from "@/components/ui/icons";
 
 export function VoiceNote({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: (id: string) => void }) {
   const { me } = useMe();
@@ -80,7 +81,7 @@ export function VoiceNote({ open, onClose, onCreated }: { open: boolean; onClose
         </span>
         {state === "grabando"
           ? <Button variant="light" size="lg" onClick={() => rec.current?.stop()}>parar y guardar</Button>
-          : <Button variant="primary" size="lg" onClick={start} disabled={state === "pidiendo"}>● empezar a grabar</Button>}
+          : <Button variant="primary" size="lg" onClick={start} disabled={state === "pidiendo"}><Icon name="grabar" size={18} />empezar a grabar</Button>}
         <p className="text-xs text-crema/55 max-w-xs">El audio se queda en este navegador hasta que llegue el backend.</p>
       </div>
     </Sheet>

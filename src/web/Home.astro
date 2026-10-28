@@ -3,8 +3,10 @@ import Base from "@/layouts/Base.astro";
 import WebIslands from "@/web/WebIslands";
 import MerchRequest from "@/web/MerchRequest";
 import { loadSiteData } from "@/web/siteData";
+import { Icon, Punto } from "@/components/ui/icons";
 import { platforms, socials, single, bio, contactEmail } from "@/web/content";
 import { dateLabel, dayNum, mon, eur, isPast } from "@/lib/format";
+import type { Gig } from "@/data/types";
 
 /* En el build se leen los bolos publicados (seed o Supabase, ver siteData). */
 const db = await loadSiteData();
@@ -13,27 +15,36 @@ const db = await loadSiteData();
 interface Props { empty?: boolean }
 const { empty = false } = Astro.props;
 const published = db.gigs.filter(g => g.published && g.status !== "cancelado");
-const upcoming = empty ? [] : published.filter(g => !isPast(g.date)).sort((a, b) => a.date.localeCompare(b.date));
-const past = published.filter(g => isPast(g.date)).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 2);
+/* Los bolos en secreto (teaser) solo traen lo desvelado; sin fecha van al final. */
+const upcoming = empty ? [] : published.filter(g => !g.date || !isPast(g.date)).sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999"));
+const past = published.filter(g => g.date && !g.teaser && isPast(g.date)).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 2);
 const eventOf = (gigId: string) => db.events.find(e => e.gigId === gigId);
 
 const rows = [...upcoming, ...past].map(g => {
   const ev = eventOf(g.id);
-  const own = g.ticketing === "propia" && ev && !isPast(g.date);
+  const own = !g.teaser && g.ticketing === "propia" && ev && !isPast(g.date);
   return { g, ev, own, past: isPast(g.date) };
 });
 /* El próximo concierto, venda entradas besta o no. */
 const next = rows.find(r => !r.past);
 /* Para «lo quiero»: el producto en el build y los conciertos donde se puede recoger. */
-const merchProducts = empty ? [] : db.products.filter(p => !p.archived);
-const pickupGigs = upcoming.map(g => ({ id: g.id, city: g.city, date: g.date }));
+const merchProducts = empty ? [] : db.products.filter(p => p.published && !p.archived);
+const pickupGigs = upcoming.filter(g => !g.teaser).map(g => ({ id: g.id, city: g.city, date: g.date }));
 
 const islandEvents = db.events.map(e => {
   const g = db.gigs.find(x => x.id === e.gigId)!;
   return { id: e.id, name: e.name, city: g.city, venue: g.venue, date: g.date, time: g.time, priceCents: e.priceCents, maxPerOrder: e.maxPerOrder, image: e.image ?? "/img/escenario-azul.jpg" };
 });
 
-const ticker = upcoming.map(g => `${dayNum(g.date)} ${mon(g.date)} ${g.city.toUpperCase()}`).join(" ✶ ") || "nuevas fechas muy pronto";
+/* El teletipo: trozos de texto separados por un asterisco dibujado. */
+const tickerGig = (g: Gig) => {
+  const t = g.teaser;
+  const when = !t || t.date === "exacta" ? `${dayNum(g.date)} ${mon(g.date)}` : t.date === "mes" ? mon(g.date) : "fecha secreta";
+  return `${when} ${g.city ? g.city.toUpperCase() : "???"}`;
+};
+const ticker = ["besta en directo", ...(upcoming.length ? upcoming.map(tickerGig) : ["nuevas fechas muy pronto"]), `nuevo single «${single.title}»`];
+/* Lo que aún no se ha desvelado: un texto de relleno borroso (el dato real no llega a la web). */
+const secretWhen = (g: Gig) => g.teaser?.date === "mes" ? mon(g.date) : null;
 
 /* Datos estructurados: quién es besta (Google, panel de conocimiento y
    asistentes de IA), la web, el single y cada concierto con su venta. */
@@ -54,7 +65,7 @@ const jsonLd = {
       track: { "@type": "MusicRecording", name: single.title, byArtist: band, url: single.spotify, image: `${SITE}${single.cover}` },
     },
     { "@type": "WebSite", "@id": `${SITE}/#web`, name: "besta", url: SITE, inLanguage: "es-ES", publisher: band },
-    ...upcoming.map(g => {
+    ...upcoming.filter(g => !g.teaser).map(g => {
       const ev = eventOf(g.id);
       return {
         "@type": "MusicEvent", name: `besta en ${g.city}`, startDate: `${g.date}T${g.time}:00+01:00`,
@@ -100,14 +111,28 @@ const jsonLd = {
           </div>
           <div class="w-full sm:w-[340px] rounded-3xl bg-tubo/95 border border-crema/15 p-5 flex flex-col gap-3.5">
             <p class="kicker text-[12px] text-crema/70">próximo concierto</p>
-            {next ? (
+            {next?.g.teaser ? (
+              <>
+                <div class="flex items-center gap-4">
+                  <div class="font-mono text-center leading-none px-3 py-2.5 rounded-2xl border-[1.5px] border-dashed border-senal text-senal">
+                    <div class="text-xs">{next.g.teaser.date === "oculta" ? "PRÓX" : mon(next.g.date)}</div>
+                    <div class="text-[30px] font-medium mt-1">{next.g.teaser.date === "exacta" ? dayNum(next.g.date) : <span class="blur-[6px] select-none" aria-hidden="true">17</span>}</div>
+                  </div>
+                  <div class="min-w-0">
+                    <div class="text-xl font-semibold">{next.g.city || <><span class="blur-[7px] select-none" aria-hidden="true">Ciudad secreta</span><span class="sr-only">ciudad por desvelar</span></>}</div>
+                    <div class="text-[15px] text-crema/70">{next.g.venue || "se desvela pronto"}</div>
+                  </div>
+                </div>
+                <button type="button" data-avisame="fechas" class="h-12 rounded-full bg-senal text-noche font-semibold">avísame cuando se desvele</button>
+              </>
+            ) : next ? (
               <>
                 <div class="flex items-center gap-4">
                   <div class="font-mono text-center leading-none px-3 py-2.5 rounded-2xl bg-senal text-noche"><div class="text-xs">{mon(next.g.date)}</div><div class="text-[30px] font-medium mt-1">{dayNum(next.g.date)}</div></div>
                   <div class="min-w-0"><div class="text-xl font-semibold">{next.g.city}</div><div class="text-[15px] text-crema/70">{next.g.venue} · {next.g.time}</div></div>
                 </div>
                 {next.own && <button type="button" data-tickets={next.ev!.id} class="h-12 rounded-full bg-senal text-noche font-semibold">comprar entradas · {eur(next.ev!.priceCents)}</button>}
-                {!next.own && next.g.externalUrl && <a href={next.g.externalUrl} target="_blank" rel="noopener" class="h-12 rounded-full bg-senal text-noche font-semibold grid place-items-center">entradas e info ↗</a>}
+                {!next.own && next.g.externalUrl && <a href={next.g.externalUrl} target="_blank" rel="noopener" class="h-12 rounded-full bg-senal text-noche font-semibold flex items-center justify-center gap-2">entradas e info <Icon name="externo" size={16} /></a>}
               </>
             ) : (
               <>
@@ -126,8 +151,11 @@ const jsonLd = {
     <!-- TELETIPO -->
     <div aria-hidden="true" class="mt-10 bg-senal text-noche overflow-hidden -rotate-[1.2deg]">
       <div class="ticker py-3.5 text-[28px] sm:text-[34px] font-extrabold tracking-[-.02em] whitespace-nowrap">
-        <span class="pr-10">besta en directo ✶ {ticker} ✶ nuevo single «{single.title}» ✶</span>
-        <span class="pr-10">besta en directo ✶ {ticker} ✶ nuevo single «{single.title}» ✶</span>
+        {[0, 1].map(() => (
+          <span class="pr-10 inline-flex items-center gap-[.45em]">
+            {ticker.map(t => <>{t}<Icon name="asterisco" size={26} strokeWidth={2.4} /></>)}
+          </span>
+        ))}
       </div>
     </div>
 
@@ -150,18 +178,30 @@ const jsonLd = {
             <button type="button" data-avisame="fechas" class="h-12 min-w-[168px] px-5 rounded-full bg-senal text-noche font-semibold">avísame</button>
           </li>
         )}
-        {rows.map(({ g, ev, own, past }) => (
+        {rows.map(({ g, ev, own, past }) => g.teaser ? (
+          <li class="flex flex-wrap items-center gap-x-6 gap-y-3 py-5 px-2 border-b border-crema/15">
+            <span class="w-[120px] font-mono text-[15px] tracking-wider text-senal">
+              {g.teaser.date === "exacta" ? dateLabel(g.date) : <>{secretWhen(g) ?? ""} <span class="blur-[5px] select-none" aria-hidden="true">{secretWhen(g) ? "17" : "SÁB 17 OCT"}</span><span class="sr-only">fecha por desvelar</span></>}
+            </span>
+            <div class="flex-[1_1_220px] min-w-0">
+              <div class="text-[28px] sm:text-[30px] font-bold tracking-[-.02em] leading-tight">{g.city || <><span class="blur-[8px] select-none" aria-hidden="true">Ciudad secreta</span><span class="sr-only">ciudad por desvelar</span></>}</div>
+              <div class="text-[15px] text-crema/70">{g.venue ? `${g.venue}${g.time ? ` · ${g.time}` : ""}` : <>{g.time ? `${g.time} · ` : ""}<span class="blur-[5px] select-none" aria-hidden="true">sala misteriosa</span><span class="sr-only">sala por desvelar</span></>}</div>
+            </div>
+            <span class="font-mono text-xs px-2.5 py-1.5 rounded-full bg-senal/15 text-senal-suave inline-flex items-center gap-1.5"><Icon name="asterisco" size={12} />secreto</span>
+            <button type="button" data-avisame="fechas" class="h-12 min-w-[168px] px-5 rounded-full border-[1.5px] border-senal text-senal font-semibold">avísame</button>
+          </li>
+        ) : (
           <li class="flex flex-wrap items-center gap-x-6 gap-y-3 py-5 px-2 border-b border-crema/15 hover:bg-crema/[.03]">
             <span class="w-[120px] font-mono text-[15px] tracking-wider">{dateLabel(g.date)}</span>
             <div class="flex-[1_1_220px] min-w-0">
               <div class={`text-[28px] sm:text-[30px] font-bold tracking-[-.02em] leading-tight ${past ? "text-crema/70" : ""}`}>{g.city}</div>
               <div class="text-[15px] text-crema/70">{g.venue} · {g.time}</div>
             </div>
-            {own && <span class="font-mono text-xs px-2.5 py-1.5 rounded-full bg-senal/15 text-senal-suave">● a la venta</span>}
+            {own && <span class="font-mono text-xs px-2.5 py-1.5 rounded-full bg-senal/15 text-senal-suave inline-flex items-center gap-1.5"><Punto />a la venta</span>}
             {!own && !past && g.ticketing === "externa" && <span class="font-mono text-xs px-2.5 py-1.5 rounded-full bg-crema/10 text-crema/80">entradas fuera</span>}
             {past && <span class="font-mono text-xs px-2.5 py-1.5 rounded-full bg-crema/5 text-crema/60">pasado</span>}
             {own && <button type="button" data-tickets={ev!.id} class="h-12 min-w-[168px] px-5 rounded-full bg-senal text-noche font-semibold">entradas · {eur(ev!.priceCents)}</button>}
-            {!own && g.externalUrl && <a href={g.externalUrl} target="_blank" rel="noopener" class="h-12 min-w-[168px] px-5 rounded-full border-[1.5px] border-crema/40 grid place-items-center font-medium">más info ↗</a>}
+            {!own && g.externalUrl && <a href={g.externalUrl} target="_blank" rel="noopener" class="h-12 min-w-[168px] px-5 rounded-full border-[1.5px] border-crema/40 flex items-center justify-center gap-2 font-medium">más info <Icon name="externo" size={16} /></a>}
           </li>
         ))}
       </ul>
@@ -193,7 +233,7 @@ const jsonLd = {
           <div class="scan absolute inset-0"></div>
           <div class="absolute left-4 bottom-4 sm:left-5 sm:bottom-5 flex flex-wrap gap-2">
             <span class="bg-noche px-3 py-2 rounded-[10px] font-mono text-xs tracking-wider">SEIS AMIGOS · BARCELONA</span>
-            <button type="button" data-radio class="bg-senal text-noche px-3 py-2 rounded-[10px] font-mono text-xs tracking-wider">▶ ESCUCHAR ENTREVISTA</button>
+            <button type="button" data-radio class="bg-senal text-noche px-3 py-2 rounded-[10px] font-mono text-xs tracking-wider inline-flex items-center gap-1.5"><Icon name="play" size={12} />ESCUCHAR ENTREVISTA</button>
           </div>
         </div>
         <div class="bg-crema text-noche rounded-[28px] sm:rounded-[32px] p-7 sm:p-8 flex flex-col justify-between gap-6">
@@ -212,7 +252,7 @@ const jsonLd = {
         <div>
           <h2 class="text-[clamp(40px,5vw,64px)] font-bold leading-[.95] tracking-[-.035em]">así se vive en directo.</h2>
         </div>
-        <a href={socials[0].url} target="_blank" rel="noopener" class="font-mono text-[13px] text-crema/75 hover:text-crema underline">más en Instagram ↗</a>
+        <a href={socials[0].url} target="_blank" rel="noopener" class="font-mono text-[13px] text-crema/75 hover:text-crema underline inline-flex items-center gap-1.5">más en Instagram <Icon name="externo" size={14} /></a>
       </div>
       <ul class="flex gap-4 overflow-x-auto snap-x snap-mandatory no-scrollbar px-4 sm:px-[max(24px,calc((100vw-1240px)/2+24px))] pb-2">
         {["catxull/08", "directo/05", "directo/08", "directo/07", "directo/04", "directo/10", "directo/02", "directo/11", "directo/12", "directo/13"].map((n, i) => (
@@ -267,7 +307,6 @@ const jsonLd = {
         <a href="/legal/condiciones/" class="hover:text-crema">condiciones de venta</a>
         <a href="/legal/privacidad/" class="hover:text-crema">privacidad</a>
         <a href="/legal/cookies/" data-cookies class="hover:text-crema">cookies</a>
-        <a href="/suite/" class="hover:text-crema">suite ↗</a>
       </div>
     </div>
   </footer>

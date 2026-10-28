@@ -1,5 +1,6 @@
 ---
 import Base from "@/layouts/Base.astro";
+import { trackers } from "@/web/content";
 
 /* Textos legales de besta.es. Al cambiar algo, actualiza la fecha de abajo. */
 export function getStaticPaths() {
@@ -26,11 +27,20 @@ export function getStaticPaths() {
       "Si tienes cualquier queja, escríbenos a besta@besta.es y te contestamos lo antes posible. También puedes acudir a la oficina de consumo de tu municipio o a la Agència Catalana del Consum. Se aplica la ley española.",
     ] } },
     { params: { doc: "cookies" }, props: { description: "Qué cookies usa besta.es y cómo cambiar tu elección.", title: "cookies", body: [
-      "Necesarias (siempre activas): guardan tu elección de cookies y, en la suite interna, la sesión. No sirven para seguirte.",
-      "Analítica (solo si aceptas): Google Analytics, para saber cuánta gente visita la web y qué mira. Sin datos que te identifiquen.",
-      "Publicidad (solo si aceptas): el píxel de Meta, para medir nuestros anuncios en Instagram y Facebook y enseñárselos a gente parecida.",
-      "Las tipografías se sirven desde besta.es: no cargamos nada de Google mientras no aceptes la analítica.",
-      "Tu elección se guarda en tu navegador. Puedes cambiarla cuando quieras desde «cookies», abajo del todo en la web.",
+      /* Lo que se cuenta depende de lo que hay configurado en content.ts:
+         sin analítica ni píxel no se pide permiso y no sale el banner. */
+      ...(trackers.googleAnalyticsId || trackers.metaPixelId ? [
+        "Necesarias (siempre activas): guardan tu elección de cookies y lo imprescindible para que la web funcione. No sirven para seguirte.",
+        ...(trackers.googleAnalyticsId ? ["Analítica (solo si aceptas): Google Analytics, para saber cuánta gente visita la web y qué mira. Sin datos que te identifiquen."] : []),
+        ...(trackers.metaPixelId ? ["Publicidad (solo si aceptas): el píxel de Meta, para medir nuestros anuncios en Instagram y Facebook y enseñárselos a gente parecida."] : []),
+        "Tu elección se guarda en tu navegador. Puedes cambiarla cuando quieras desde «cookies», abajo del todo en la web.",
+      ] : [
+        "besta.es no usa cookies de analítica ni de publicidad, ni carga nada de terceros que te siga.",
+        "Solo guardamos en tu navegador lo imprescindible para que la web funcione (por ejemplo, el acceso a tus entradas). Por eso no te pedimos permiso.",
+        "Cloudflare, que aloja la web, puede poner una cookie técnica para protegerla de ataques y bots.",
+        "Si algún día añadimos analítica o publicidad, te pediremos permiso antes de cargar nada y lo contaremos aquí.",
+      ]),
+      "Las tipografías se sirven desde besta.es, sin pasar por Google.",
       "El pago de las entradas se hace en la página de Stripe, que usa sus propias cookies para evitar fraudes.",
     ] } },
     { params: { doc: "privacidad" }, props: { description: "Qué datos recoge besta.es, para qué los usa, quién los trata y cómo ejercer tus derechos.", title: "privacidad", body: [

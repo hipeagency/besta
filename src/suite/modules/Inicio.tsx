@@ -7,6 +7,7 @@ import { useCollection } from "@/data/hooks";
 import { eventStats, gigChecklist, salesByDay, upcomingGigs, balances } from "@/data/selectors";
 import { Button, Card, CardTitle, Dot, Pill, Stat } from "@/components/ui";
 import { ago, cx, dateShort, daysUntil, eur, eur0, maskEmail, todayLabel } from "@/lib/format";
+import { Icon } from "@/components/ui/icons";
 
 export default function Inicio() {
   const { me } = useMe();
@@ -59,12 +60,12 @@ export default function Inicio() {
                 <h2 className="text-[26px] sm:text-[30px] font-bold tracking-[-.02em]">{next.city} · {dateShort(next.date)}</h2>
                 <p className="text-crema/70">{next.venue}{next.doors ? ` · puertas ${next.doors}` : ""}</p>
               </div>
-              <span className="self-start h-10 px-4 rounded-full border-[1.5px] border-crema/25 grid place-items-center text-sm group-hover:border-crema/60">abrir ficha →</span>
+              <span className="self-start h-10 px-4 rounded-full border-[1.5px] border-crema/25 grid place-items-center text-sm group-hover:border-crema/60">abrir ficha <Icon name="flecha" size={14} className="inline align-[-2px]" /></span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-2">
               {checklist.map(c => (
                 <div key={c.key} className="p-3 rounded-xl border border-crema/10 flex flex-col gap-0.5">
-                  <span className={cx("font-mono text-[11px]", c.done ? "text-crema/85" : "text-crema/55")}>{c.done ? "✓ hecho" : "○ pendiente"}</span>
+                  <span className={cx("font-mono text-[11px]", c.done ? "text-crema/85" : "text-crema/55")}>{c.done ? <><Icon name="check" size={12} className="inline align-[-1px] mr-1" />hecho</> : "pendiente"}</span>
                   <span className="text-[14px]">{c.name}</span>
                 </div>
               ))}
@@ -101,7 +102,7 @@ export default function Inicio() {
 
       <div className="flex flex-wrap gap-4 items-start">
         {can("entradas", me) && <Card className="flex-[3_1_420px] min-w-0">
-          <CardTitle action={ev && <Link to={`/entradas/${ev.id}`} className="text-sm text-crema/75 hover:text-crema">ver todos →</Link>}>últimos pedidos</CardTitle>
+          <CardTitle action={ev && <Link to={`/entradas/${ev.id}`} className="text-sm text-crema/75 hover:text-crema">ver todos <Icon name="flecha" size={14} className="inline align-[-2px]" /></Link>}>últimos pedidos</CardTitle>
           <ul className="flex flex-col">
             {recent.map(o => (
               <li key={o.id} className="flex items-center justify-between gap-3 py-2.5 border-t border-crema/8 text-sm">
@@ -125,7 +126,7 @@ export default function Inicio() {
             {newLeads.map(l => (
               <div key={l.id} className="flex items-center justify-between gap-3 py-2.5 border-t border-crema/8">
                 <span className="min-w-0"><span className="block truncate">{l.org}</span><span className="block font-mono text-[11px] text-crema/60">{l.city} · {ago(l.createdAt)}</span></span>
-                <Link to={`/presupuestos?lead=${l.id}`} className="shrink-0 h-[34px] px-3 rounded-full bg-senal/15 text-senal-suave grid place-items-center text-[13px]">→ presupuesto</Link>
+                <Link to={`/presupuestos?lead=${l.id}`} className="shrink-0 h-[34px] px-3 rounded-full bg-senal/15 text-senal-suave grid place-items-center text-[13px] inline-flex items-center gap-1"><Icon name="flecha" size={14} />presupuesto</Link>
               </div>
             ))}
           </Card>}

@@ -10,6 +10,7 @@ import { radioAudio } from "./content";
 import Cookies from "./Cookies";
 import { Button, Field, Input, Modal, Stepper, Textarea, ToastProvider } from "@/components/ui";
 import { dateLabel, eur } from "@/lib/format";
+import { Icon } from "@/components/ui/icons";
 
 export interface IslandEvent {
   id: string; name: string; city: string; venue: string; date: string; time: string;
@@ -162,7 +163,7 @@ function TicketDrawer({ ev, onClose }: { ev: IslandEvent; onClose: () => void })
           </form>
         ) : (
           <div className="px-7 py-12 flex flex-col gap-4 items-center text-center">
-            <div className="size-[72px] rounded-full bg-senal/15 text-senal grid place-items-center text-3xl">→</div>
+            <div className="size-[72px] rounded-full bg-senal/15 text-senal grid place-items-center"><Icon name="flecha" size={32} /></div>
             <h2 className="text-[28px] font-bold">te llevamos al pago seguro</h2>
             <p className="text-crema/75 leading-relaxed">Tus {qty} {qty === 1 ? "entrada queda reservada" : "entradas quedan reservadas"} 30 minutos. Al pagar te llegan al email con su QR.</p>
           </div>
@@ -260,13 +261,13 @@ function Gallery({ onClose }: { onClose: () => void }) {
       </div>
       <div className="relative flex-1 min-h-0 px-3 sm:px-20">
         <img key={i} src={src(i)} alt={`besta en El Catxull: ${GALLERY.photos[i]}`} className="size-full object-contain anim-fade" />
-        <button type="button" onClick={() => go(-1)} aria-label="Foto anterior" className="hidden sm:grid absolute left-4 top-1/2 -translate-y-1/2 size-12 place-items-center rounded-full bg-tubo text-2xl hover:bg-senal hover:text-noche">←</button>
-        <button type="button" onClick={() => go(1)} aria-label="Foto siguiente" className="hidden sm:grid absolute right-4 top-1/2 -translate-y-1/2 size-12 place-items-center rounded-full bg-tubo text-2xl hover:bg-senal hover:text-noche">→</button>
+        <button type="button" onClick={() => go(-1)} aria-label="Foto anterior" className="hidden sm:grid absolute left-4 top-1/2 -translate-y-1/2 size-12 place-items-center rounded-full bg-tubo text-2xl hover:bg-senal hover:text-noche"><Icon name="atras" size={22} /></button>
+        <button type="button" onClick={() => go(1)} aria-label="Foto siguiente" className="hidden sm:grid absolute right-4 top-1/2 -translate-y-1/2 size-12 place-items-center rounded-full bg-tubo text-2xl hover:bg-senal hover:text-noche"><Icon name="flecha" size={22} /></button>
       </div>
       <div className="flex items-center justify-center gap-4 h-16 shrink-0 font-mono text-[13px] text-crema/75">
-        <button type="button" onClick={() => go(-1)} aria-label="Foto anterior" className="sm:hidden size-11 rounded-full bg-tubo">←</button>
+        <button type="button" onClick={() => go(-1)} aria-label="Foto anterior" className="sm:hidden size-11 rounded-full bg-tubo grid place-items-center"><Icon name="atras" size={18} /></button>
         <span aria-live="polite">{String(i + 1).padStart(2, "0")} / {n}</span>
-        <button type="button" onClick={() => go(1)} aria-label="Foto siguiente" className="sm:hidden size-11 rounded-full bg-tubo">→</button>
+        <button type="button" onClick={() => go(1)} aria-label="Foto siguiente" className="sm:hidden size-11 rounded-full bg-tubo grid place-items-center"><Icon name="flecha" size={18} /></button>
       </div>
     </div>
   );

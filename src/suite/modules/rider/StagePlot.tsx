@@ -4,6 +4,7 @@
 import { useRef } from "react";
 import type { StagePos } from "@/data/types";
 import { cx } from "@/lib/format";
+import { Icon } from "@/components/ui/icons";
 
 const clamp = (v: number) => Math.round(Math.min(96, Math.max(4, v)) * 10) / 10;
 
@@ -46,7 +47,7 @@ export function StagePlot({ stage, onChange, className }: { stage: StagePos[]; o
             </span>
           );
         })}
-        <span className="absolute left-1/2 bottom-1.5 -translate-x-1/2 font-mono text-[10px] tracking-[.14em] pointer-events-none">PÚBLICO ↓</span>
+        <span className="absolute left-1/2 bottom-1.5 -translate-x-1/2 font-mono text-[10px] tracking-[.14em] pointer-events-none">PÚBLICO <Icon name="abajo" size={11} className="inline align-[-1px]" /></span>
       </div>
     </div>
   );

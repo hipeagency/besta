@@ -9,7 +9,7 @@ import { dateLabel, isPast } from "@/lib/format";
 export const GET: APIRoute = async () => {
   const db = await loadSiteData();
   const gigs = db.gigs
-    .filter(g => g.published && g.status !== "cancelado" && !isPast(g.date))
+    .filter(g => g.published && !g.teaser && g.status !== "cancelado" && !isPast(g.date))
     .sort((a, b) => a.date.localeCompare(b.date));
 
   const lines = [

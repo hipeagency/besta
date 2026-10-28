@@ -8,7 +8,7 @@ import { useAction, useCollection } from "@/data/hooks";
 import { api, uid } from "@/data/api";
 import { upcomingGigs } from "@/data/selectors";
 import type { MerchMove, MoveKind, PayMethod, Product } from "@/data/types";
-import { Button, Card, CardTitle, Field, IconButton, Input, Segmented, Select, Sheet, Stat, useToast } from "@/components/ui";
+import { Button, Card, CardTitle, Field, IconButton, Input, Pill, Segmented, Select, Sheet, Stat, Toggle, useToast } from "@/components/ui";
 import { Icon } from "@/components/ui/icons";
 import { MoneyInput } from "./presupuestos/money";
 import { Requests } from "./merch/Requests";
@@ -23,7 +23,7 @@ export default function Merch() {
   const [editing, setEditing] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const create = useAction(async () => {
-    const p: Product = { id: uid("p-"), name: "producto nuevo", priceCents: 0, costCents: 0, color: "tubo", archived: false, variants: [{ id: uid("v-"), label: "", stock: 0 }] };
+    const p: Product = { id: uid("p-"), name: "producto nuevo", priceCents: 0, costCents: 0, color: "tubo", archived: false, published: false, variants: [{ id: uid("v-"), label: "", stock: 0 }] };
     await api.insert("products", p);
     return p;
   });
@@ -93,6 +93,7 @@ function ProductCard({ p, onOpen }: { p: Product; onOpen: () => void }) {
         <span className="font-semibold truncate">{p.name}</span>
         <span className="font-mono shrink-0">{eur0(p.priceCents)}</span>
       </span>
+      {!p.archived && !p.published && <Pill className="self-start">oculto en la web</Pill>}
       <span className="flex flex-wrap gap-1.5">
         {p.variants.map(v => (
           <span key={v.id} className={cx("min-w-11 px-2 py-1.5 rounded-[10px] text-center font-mono text-xs leading-tight", v.stock <= LOW ? "bg-senal text-noche" : "bg-noche text-crema")}>
@@ -269,6 +270,9 @@ function ProductSheet({ id, onClose }: { id: string | null; onClose: () => void 
             <Segmented size="sm" value={p.color} onChange={color => patch.run({ color })} className="self-start"
               options={(["senal", "crema", "tubo", "noche"] as const).map(c => ({ value: c, label: c === "senal" ? "señal" : c }))} />
           </div>
+          {!p.archived && (
+            <Toggle checked={p.published} onChange={v => { patch.run({ published: v }); toast(v ? "Ahora sale en la web" : "Oculto en la web", "ok"); }} label="visible en la web" className="self-start" />
+          )}
         </div>
 
         {/* tallas */}

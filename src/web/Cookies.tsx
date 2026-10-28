@@ -15,7 +15,7 @@ export default function Cookies() {
     if (c) { setAnalitica(c.analitica); setPublicidad(c.publicidad); loadTrackers(c); }
     else if (needsBanner()) setBanner(true);
     const open = (e: MouseEvent) => {
-      if ((e.target as HTMLElement).closest("[data-cookies]")) { e.preventDefault(); setPrefs(true); }
+      if (needsBanner() && (e.target as HTMLElement).closest("[data-cookies]")) { e.preventDefault(); setPrefs(true); }
     };
     document.addEventListener("click", open);
     return () => document.removeEventListener("click", open);

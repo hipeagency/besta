@@ -33,7 +33,7 @@ export function MaterialView({ song }: { song: Song }) {
           {others.map(l => (
             <a key={l.id} href={l.url} target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-1 h-9 px-3 rounded-full bg-crema/10 text-[13px] hover:bg-crema/15 max-w-full">
-              <span className="truncate">{l.label || l.url.replace(/^https?:\/\/(www\.)?/, "").slice(0, 32)}</span> ↗
+              <span className="truncate">{l.label || l.url.replace(/^https?:\/\/(www\.)?/, "").slice(0, 32)}</span> <Icon name="externo" size={14} className="shrink-0" />
             </a>
           ))}
         </div>
@@ -63,7 +63,7 @@ function YouTube({ link }: { link: SongLink }) {
           </button>
         )}
       </div>
-      <a href={`https://www.youtube.com/watch?v=${id}`} target="_blank" rel="noopener noreferrer" className="self-end text-xs text-crema/65 underline">abrir en youtube ↗</a>
+      <a href={`https://www.youtube.com/watch?v=${id}`} target="_blank" rel="noopener noreferrer" className="self-end text-xs text-crema/65 underline">abrir en youtube <Icon name="externo" size={14} className="inline align-[-2px]" /></a>
     </div>
   );
 }

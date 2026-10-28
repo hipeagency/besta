@@ -38,3 +38,12 @@ for f in pending:
     body = open(os.path.join(folder, f)).read()
     query(f"begin;\n{body}\ninsert into supabase_migrations.schema_migrations(version, name) values ('{v}', '{n}');\ncommit;")
     print(f"✓ {f}")
+
+# El deploy hook de Cloudflare (CF_DEPLOY_HOOK en el .env.local) va a Vault:
+# con él, la base de datos recompila la web cuando cambian bolos o merch.
+hook = env.get("CF_DEPLOY_HOOK", "")
+if hook.startswith("https://api.cloudflare.com/"):
+    lit = "'" + hook.replace("'", "''") + "'"
+    query("select vault.update_secret(id, " + lit + ") from vault.secrets where name = 'deploy_hook_url';"
+          f"select vault.create_secret({lit}, 'deploy_hook_url') where not exists (select 1 from vault.secrets where name = 'deploy_hook_url');")
+    print("✓ deploy hook de Cloudflare guardado")

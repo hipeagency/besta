@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { cx } from "@/lib/format";
 import { FONT_MAX, FONT_MIN, SPEED_MAX, SPEED_MIN } from "./lib";
+import { Icon } from "@/components/ui/icons";
 
 export const DEFAULT_BPM = 100;
 const PX_PER_BEAT = 9; // ~30 px/s a 120 BPM con ×1, como la app antigua
@@ -135,7 +136,7 @@ export function SongControl(p: ControlProps & { floating?: boolean }) {
         <button type="button" aria-pressed={p.scrolling} aria-label={p.scrolling ? "parar auto-scroll" : "auto-scroll"}
           title={`auto-scroll · ${p.hasBpm ? `${p.songBpm} BPM` : `~${DEFAULT_BPM} BPM (sin valor)`}`}
           onClick={() => p.onScroll(!p.scrolling)}
-          className={cx(btn, "font-sans", p.scrolling && "!bg-senal !text-noche")}>{p.scrolling ? "❚❚" : "▶"}</button>
+          className={cx(btn, "font-sans", p.scrolling && "!bg-senal !text-noche")}><Icon name={p.scrolling ? "pause" : "play"} size={16} /></button>
         <button type="button" aria-label="más lento" onClick={() => p.onSpeed(step(p.speed, -0.25, SPEED_MIN, SPEED_MAX))} disabled={p.speed <= SPEED_MIN} className={btn}>−</button>
         <span className="font-mono text-[13px] w-11 text-center" aria-live="polite" title="velocidad">{fmtX(p.speed)}</span>
         <button type="button" aria-label="más rápido" onClick={() => p.onSpeed(step(p.speed, 0.25, SPEED_MIN, SPEED_MAX))} disabled={p.speed >= SPEED_MAX} className={btn}>+</button>
@@ -144,7 +145,7 @@ export function SongControl(p: ControlProps & { floating?: boolean }) {
       {/* claqueta */}
       <span className={group} title="claqueta · acento en el 1">
         <button type="button" aria-pressed={p.metro.on} aria-label={p.metro.on ? "parar claqueta" : "claqueta"} onClick={() => p.metro.setOn(!p.metro.on)}
-          className={cx(btn, "font-sans text-lg", p.metro.on && "!bg-senal !text-noche", p.metro.on && p.metro.beat === 0 && "scale-110")}>♩</button>
+          className={cx(btn, "font-sans text-lg", p.metro.on && "!bg-senal !text-noche", p.metro.on && p.metro.beat === 0 && "scale-110")}><Icon name="metronomo" size={18} /></button>
         {p.metro.on && (
           <span aria-hidden="true" className="flex gap-1 px-1">
             {[0, 1, 2, 3].map(i => <span key={i} className={cx("size-1.5 rounded-full transition-colors", p.metro.beat === i ? (i === 0 ? "bg-senal" : "bg-crema") : "bg-crema/20")} />)}
@@ -166,7 +167,7 @@ export function SongControl(p: ControlProps & { floating?: boolean }) {
         <button type="button" aria-label="bajar medio tono" onClick={() => p.onSemis(p.semis - 1)} className={cx(btn, "text-lg")}>♭</button>
         <span className={cx("font-mono text-[13px] w-7 text-center", p.semis ? "text-senal-suave" : "text-crema/70")} aria-live="polite">{p.semis > 0 ? `+${p.semis}` : p.semis}</span>
         <button type="button" aria-label="subir medio tono" onClick={() => p.onSemis(p.semis + 1)} className={cx(btn, "text-lg")}>♯</button>
-        <button type="button" aria-label="volver al tono original" onClick={() => p.onSemis(0)} disabled={!p.semis} className={btn}>⟳</button>
+        <button type="button" aria-label="volver al tono original" onClick={() => p.onSemis(0)} disabled={!p.semis} className={btn}><Icon name="reiniciar" size={16} /></button>
       </span>
 
       {/* letra */}

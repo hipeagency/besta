@@ -9,6 +9,7 @@ import type { Song } from "@/data/types";
 import { cx } from "@/lib/format";
 import { setlistItems } from "./extra";
 import { displayKey, durationSecs, mmss, shownSections, usePase, usePref, useTranspose, useView, useWakeLock } from "./lib";
+import { Icon, Punto } from "@/components/ui/icons";
 
 const MIN = 0.5, MAX = 2;
 
@@ -194,13 +195,13 @@ export function Directo() {
 
       <header className="flex justify-between items-center gap-3 px-3 md:px-7 py-2 md:py-3 font-mono text-[13px] md:text-[15px]">
         <span className="flex items-center gap-2 min-w-0">
-          <button type="button" onClick={exit} aria-label="Salir del modo directo" className="size-11 shrink-0 rounded-full grid place-items-center text-crema/70 hover:bg-crema/10">✕</button>
+          <button type="button" onClick={exit} aria-label="Salir del modo directo" className="size-11 shrink-0 rounded-full grid place-items-center text-crema/70 hover:bg-crema/10"><Icon name="x" size={18} /></button>
           <span className="truncate text-crema/70">{list.length > 1 ? `${idx + 1} / ${list.length}` : "canción suelta"}{sl ? ` · ${sl.name.toUpperCase()}` : ""}</span>
         </span>
         <span className="hidden sm:flex gap-4 md:gap-5 shrink-0">
           <span>{displayKey(song.key, semis, latin)}</span>
           {song.bpm ? <span>{song.bpm} BPM</span> : null}
-          <span className={auto ? "text-senal" : "text-crema/60"}>{auto ? "● auto " : ""}{estrofas ? `estrofa ${secIdx + 1} / ${sections.length}` : `${mmss(frac * secs)} / ${mmss(secs)}`}</span>
+          <span className={auto ? "text-senal" : "text-crema/60"}>{auto && <><Punto className="mr-1.5" />auto </>}{estrofas ? `estrofa ${secIdx + 1} / ${sections.length}` : `${mmss(frac * secs)} / ${mmss(secs)}`}</span>
         </span>
         <span className="flex items-center gap-2 min-w-0 justify-end">
           <button type="button" onClick={() => { setAuto(false); setPase(estrofas ? "continuo" : "estrofas"); }}
@@ -223,7 +224,7 @@ export function Directo() {
             {secIdx === 0 && <>
               {around.block && <p className="font-mono uppercase tracking-[.16em] text-senal mb-2" style={{ fontSize: Math.max(12, fs(15)) }}>{around.block}</p>}
               <p className="font-extrabold tracking-[-.02em] text-crema/50 mb-4" style={{ fontSize: fs(24) }}>{song.title}</p>
-              {around.notes && <p className="text-crema/75 mb-4" style={{ fontSize: fs(20) }}>▸ {around.notes}</p>}
+              {around.notes && <p className="text-crema/75 mb-4" style={{ fontSize: fs(20) }}><Icon name="flecha" size={16} className="inline align-[-2px] mr-1.5" />{around.notes}</p>}
             </>}
             {cur$ && (
               <section className="flex flex-col" style={{ gap: fs(16) }}>
@@ -245,7 +246,7 @@ export function Directo() {
           className="relative flex-1 min-w-0 overflow-y-auto no-scrollbar py-[18vh]">
           {around.block && <p className="font-mono uppercase tracking-[.16em] text-senal mb-2" style={{ fontSize: Math.max(12, fs(15)) }}>{around.block}</p>}
           <h1 className="font-extrabold tracking-[-.02em] text-crema/60 mb-6" style={{ fontSize: fs(30) }}>{song.title}</h1>
-          {around.notes && <p className="text-crema/75 mb-4" style={{ fontSize: fs(20) }}>▸ {around.notes}</p>}
+          {around.notes && <p className="text-crema/75 mb-4" style={{ fontSize: fs(20) }}><Icon name="flecha" size={16} className="inline align-[-2px] mr-1.5" />{around.notes}</p>}
           <div className="flex flex-col" style={{ gap: fs(22) }}>
             {sections.map(({ sec, lines }) => (
               <section key={sec.id} className="flex flex-col" style={{ gap: fs(14) }}>
@@ -285,7 +286,7 @@ export function Directo() {
             <span className="font-mono text-xs md:text-sm text-crema/60">LUEGO · </span>{nextSec.sec.name}
           </> : around.moments.length ? <>
             <span className="font-mono text-xs md:text-sm text-crema/60">LUEGO · </span><i>{around.moments.join(" · ")}</i>
-            {next && <span className="text-crema/60"> → {next.title}</span>}
+            {next && <span className="text-crema/60"> <Icon name="flecha" size={14} className="inline align-[-2px]" /> {next.title}</span>}
           </> : next ? <>
             <span className="font-mono text-xs md:text-sm text-crema/60">SIGUIENTE · </span>{next.title}{" "}
             <span className="font-mono text-senal">{displayKey(next.key, 0, latin)}</span>
@@ -297,7 +298,7 @@ export function Directo() {
           <button type="button" aria-label="Letra más grande" onClick={() => setScale(Math.min(MAX, +(scale + 0.1).toFixed(2)))} disabled={scale >= MAX}
             className="h-12 px-4 md:px-[18px] rounded-full border-[1.5px] border-crema/30 font-semibold text-lg">A+</button>
           <button type="button" aria-pressed={auto} onClick={() => setAuto(!auto)}
-            className="h-12 px-5 md:px-[22px] rounded-full bg-senal text-noche font-semibold text-lg">{auto ? "❚❚ pausa" : "▶ auto"}</button>
+            className="h-12 px-5 md:px-[22px] rounded-full bg-senal text-noche font-semibold text-lg"><span className="inline-flex items-center gap-2"><Icon name={auto ? "pause" : "play"} size={16} />{auto ? "pausa" : "auto"}</span></button>
         </span>
       </footer>
     </div>

@@ -13,6 +13,7 @@ import { ago, cx } from "@/lib/format";
 import { IdeaDetail, STATUS } from "./composicion/IdeaDetail";
 import { VoiceNote } from "./composicion/VoiceNote";
 import { canRecord, useMedia } from "./composicion/audio";
+import { Icon } from "@/components/ui/icons";
 
 export default function Composicion() {
   const { me } = useMe();
@@ -38,7 +39,7 @@ export default function Composicion() {
   return (
     <Page title="composición" actions={<>
       <Button onClick={() => setRecording(true)} disabled={!mic} title={mic ? undefined : "Este navegador no deja grabar"}>
-        <span className="text-senal" aria-hidden="true">●</span>grabar nota de voz
+        <Icon name="grabar" size={16} className="text-senal" />grabar nota de voz
       </Button>
       <Button variant="primary" onClick={newIdea} disabled={create.pending}>+ nueva idea</Button>
     </>}>
@@ -88,8 +89,8 @@ function IdeaCard({ idea, active, onClick }: { idea: Idea; active: boolean; onCl
       <span className="text-base font-semibold leading-snug">{idea.title}</span>
       <span className="text-[13px] text-crema/70">{meta}</span>
       <span className="flex gap-2.5 font-mono text-[11px] text-crema/65">
-        <span aria-label={`${idea.demos.length} demos`}>♪ {idea.demos.length}</span>
-        <span aria-label={`${idea.comments.length} comentarios`}>✎ {idea.comments.length}</span>
+        <span aria-label={`${idea.demos.length} demos`} className="inline-flex items-center gap-1"><Icon name="nota" size={13} />{idea.demos.length}</span>
+        <span aria-label={`${idea.comments.length} comentarios`} className="inline-flex items-center gap-1"><Icon name="comentario" size={13} />{idea.comments.length}</span>
         <span className="ml-auto">{ago(idea.updatedAt)}</span>
       </span>
     </button>

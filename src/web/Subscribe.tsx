@@ -5,6 +5,7 @@ import { useState } from "react";
 import { api } from "@/data/api";
 import type { Topic } from "@/data/types";
 import { cx } from "@/lib/format";
+import { Icon } from "@/components/ui/icons";
 
 const TOPICS: { value: Topic; label: string }[] = [
   { value: "fechas", label: "conciertos nuevos" },
@@ -49,7 +50,7 @@ export function SubscribeForm({ initial = ["fechas", "merch", "lanzamientos"], s
             <button key={t.value} type="button" aria-pressed={on} onClick={() => setTopics(on ? topics.filter(x => x !== t.value) : [...topics, t.value])}
               className={cx("h-10 px-4 rounded-full text-sm border-[1.5px] transition",
                 on ? (light ? "bg-noche text-crema border-noche" : "bg-crema text-noche border-crema") : (light ? "border-noche/25" : "border-crema/25 text-crema/80"))}>
-              {on ? "✓ " : ""}{t.label}
+              {on && <Icon name="check" size={14} className="inline align-[-2px] mr-1" />}{t.label}
             </button>
           );
         })}

@@ -58,7 +58,7 @@ async function merch(db: Admin, b: Record<string, unknown>) {
   // Mismos mensajes que api.requestMerch. El stock no se aparta aquí:
   // lo hace la banda al confirmar (reserva en la suite).
   const prod = await getRow<Product>(db, "products", productId);
-  const v = prod && !prod.doc.archived ? prod.doc.variants?.find(x => x.id === variantId) : undefined;
+  const v = prod && prod.doc.published && !prod.doc.archived ? prod.doc.variants?.find(x => x.id === variantId) : undefined;
   if (!prod || !v) throw new HttpError("Esa talla ya no está disponible.");
   if (v.stock < qty) throw new HttpError(v.stock ? `Solo quedan ${v.stock}.` : "Esa talla está agotada.");
   const mail = email(b.email, "Revisa el email: ahí te escribimos.");

@@ -78,7 +78,7 @@ export default function Finanzas() {
               <ul>
                 {rows.map(r => (
                   <li key={r.id} className="flex items-center gap-3 py-2.5 border-t border-crema/8">
-                    <span className={cx("size-9 rounded-[10px] grid place-items-center shrink-0 text-sm", r.cents > 0 ? "bg-senal/15 text-senal-suave" : "bg-crema/8")}>{r.cents > 0 ? "↓" : "↑"}</span>
+                    <span className={cx("size-9 rounded-[10px] grid place-items-center shrink-0 text-sm", r.cents > 0 ? "bg-senal/15 text-senal-suave" : "bg-crema/8")}><Icon name={r.cents > 0 ? "abajo" : "arriba"} size={14} /></span>
                     <span className="flex-1 min-w-0"><span className="block truncate">{r.title}</span><span className="block text-xs text-crema/60 truncate">{r.meta}</span></span>
                     <span className={cx("font-mono shrink-0", r.cents > 0 && "text-senal-suave")}>{r.cents > 0 ? "+ " : "− "}{eur(Math.abs(r.cents))}</span>
                   </li>
@@ -160,7 +160,7 @@ function Balances({ bal, max, plan }: { bal: ReturnType<typeof balances>; max: n
         {plan.length === 0 && <p className="text-sm text-crema/60">Todo cuadrado.</p>}
         {plan.map(p => (
           <div key={p.from.id + p.to.id} className="flex items-center justify-between gap-3 py-2.5 border-t border-crema/8">
-            <span>{p.from.name} → {p.to.name}</span>
+            <span className="inline-flex items-center gap-1.5">{p.from.name} <Icon name="flecha" size={14} /> {p.to.name}</span>
             <span className="flex items-center gap-3">
               <span className="font-mono">{eur(p.cents)}</span>
               <Button size="sm" onClick={async () => { await settle.run(p.from.id, p.to.id, p.cents); toast("Pago apuntado", "ok"); }}>pagado</Button>

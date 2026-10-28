@@ -87,7 +87,7 @@ export default function MyTickets() {
           <button type="button" onClick={() => window.print()} className="flex-1 h-12 rounded-full border-[1.5px] border-crema/30">guardar / imprimir</button>
           <a href={mapsUrl} target="_blank" rel="noopener" className="flex-1 h-12 rounded-full border-[1.5px] border-crema/30 grid place-items-center">cómo llegar</a>
         </div>
-        <p className="text-center text-[13px] text-crema/65">Cada QR vale para una persona y se escanea una sola vez. Sube el brillo en la puerta ☀</p>
+        <p className="text-center text-[13px] text-crema/65">Cada QR vale para una persona y se escanea una sola vez. Sube el brillo en la puerta.</p>
       </div>
     </div>
   );

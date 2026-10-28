@@ -12,6 +12,19 @@ import { Icon } from "@/components/ui/icons";
 import { NewGig } from "./Bolos";
 import { cx, dateLong, dateShort, daysUntil, eur, isPast } from "@/lib/format";
 
+/* En la web: oculto, en secreto (teaser con lo desvelado) o público. */
+type WebMode = "oculto" | "secreto" | "publico";
+const webMode = (g: Gig): WebMode => !g.published ? "oculto" : g.teaser ? "secreto" : "publico";
+const webPatch = (g: Gig, m: WebMode): Partial<Gig> =>
+  m === "oculto" ? { published: false }
+  : m === "secreto" ? { published: true, teaser: g.teaser ?? { date: "mes", city: true, venue: false } }
+  : { published: true, teaser: null };
+const WEB_TOAST: Record<WebMode, string> = {
+  oculto: "Oculto en la web",
+  secreto: "En la web en secreto: elige qué se desvela",
+  publico: "Ahora sale en la web con todo",
+};
+
 type Tab = "resumen" | "entradas" | "setlist" | "rider" | "merch" | "dinero";
 
 export default function Bolo() {
@@ -46,11 +59,15 @@ export default function Bolo() {
       </span>}
       title={g.city}
       actions={<>
-        <Toggle checked={g.published} onChange={v => { patch.run({ published: v }); toast(v ? "Ahora sale en la web" : "Oculto en la web", "ok"); }} label="visible en la web" />
+        <Segmented size="sm" value={webMode(g)} onChange={m => { patch.run(webPatch(g, m)); toast(WEB_TOAST[m], "ok"); }} options={[
+          { value: "oculto", label: "oculto" }, { value: "secreto", label: "secreto" }, { value: "publico", label: "en la web" },
+        ]} />
         <Button onClick={() => setEditing(true)}><Icon name="editar" size={16} />editar</Button>
       </>}
     >
       <p className="-mt-3 text-crema/70">{g.venue}{g.address ? ` · ${g.address}` : ""}{g.capacity ? ` · aforo ${g.capacity}` : ""}</p>
+
+      {g.published && g.teaser && <Teaser g={g} onChange={p => patch.run(p)} />}
 
       {/* otros bolos */}
       <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1">
@@ -84,8 +101,8 @@ export default function Bolo() {
               </div>
               <div className="flex flex-wrap gap-2 mt-4">
                 {g.deal && <Pill>{g.deal}</Pill>}
-                {g.quoteId && <Link to={`/presupuestos/${g.quoteId}`}><Pill tone="senal">presupuesto {quotes.find(q => q.id === g.quoteId)?.number} →</Pill></Link>}
-                {(g.address || g.venue) && <a href={`https://www.google.com/maps/search/${encodeURIComponent(`${g.venue} ${g.address ?? ""} ${g.city}`)}`} target="_blank" rel="noopener"><Pill>cómo llegar ↗</Pill></a>}
+                {g.quoteId && <Link to={`/presupuestos/${g.quoteId}`}><Pill tone="senal">presupuesto {quotes.find(q => q.id === g.quoteId)?.number} <Icon name="flecha" size={14} className="inline align-[-2px]" /></Pill></Link>}
+                {(g.address || g.venue) && <a href={`https://www.google.com/maps/search/${encodeURIComponent(`${g.venue} ${g.address ?? ""} ${g.city}`)}`} target="_blank" rel="noopener"><Pill>cómo llegar <Icon name="externo" size={14} className="inline align-[-2px]" /></Pill></a>}
               </div>
             </Card>
             <Card>
@@ -133,7 +150,7 @@ export default function Bolo() {
 function LinkCard({ mod, main, pct, onClick }: { mod: string; main: string; pct: number; onClick: () => void }) {
   return (
     <button type="button" onClick={onClick} className="text-left rounded-[18px] bg-tubo hover:bg-tubo-alto p-4 flex flex-col gap-2">
-      <span className="flex justify-between font-mono text-[11px] tracking-wider text-crema/60"><span>{mod}</span><span>→</span></span>
+      <span className="flex justify-between font-mono text-[11px] tracking-wider text-crema/60"><span>{mod}</span><Icon name="flecha" size={14} /></span>
       <span className="text-lg font-semibold">{main}</span>
       <Progress value={pct} />
     </button>
@@ -178,7 +195,7 @@ function TicketsTab({ g, ev }: { g: Gig; ev?: TicketEvent }) {
     await api.update("gigs", g.id, { ticketing: "propia" });
     return e;
   });
-  if (g.ticketing === "externa") return <Card><p>Las entradas las vende otro. {g.externalUrl && <a className="underline" href={g.externalUrl} target="_blank" rel="noopener">Ver enlace ↗</a>}</p></Card>;
+  if (g.ticketing === "externa") return <Card><p>Las entradas las vende otro. {g.externalUrl && <a className="underline" href={g.externalUrl} target="_blank" rel="noopener">Ver enlace <Icon name="externo" size={14} className="inline align-[-2px]" /></a>}</p></Card>;
   if (!ev) return <Empty title="Este bolo no tiene venta de entradas" action={<Button variant="primary" onClick={async () => { const e = await create.run(); nav(`/entradas/${e.id}`); }}>crear venta de entradas</Button>}>Se crea cerrada: revisa precio y aforo y actívala cuando quieras.</Empty>;
   const s = eventStats(ev, { orders, tickets });
   return (
@@ -299,7 +316,7 @@ function Bandsintown({ g, ev }: { g: Gig; ev?: TicketEvent }) {
   if (g.bandsintownId) return (
     <a href={`https://www.bandsintown.com/e/${g.bandsintownId}`} target="_blank" rel="noopener" className="rounded-[18px] bg-tubo hover:bg-tubo-alto p-4 flex items-center justify-between gap-3">
       <span><span className="block font-mono text-[11px] tracking-wider text-crema/60">BANDSINTOWN</span><span className="font-semibold">publicado · sale en Spotify</span></span>
-      <span className="text-crema/60">↗</span>
+      <Icon name="externo" size={16} className="text-crema/60 shrink-0" />
     </a>
   );
   const text = [
@@ -313,8 +330,38 @@ function Bandsintown({ g, ev }: { g: Gig; ev?: TicketEvent }) {
       <Button size="sm" className="self-start" onClick={async () => {
         try { await navigator.clipboard.writeText(text); toast("Datos copiados: pégalos en Bandsintown", "ok"); } catch { /* sin portapapeles */ }
         window.open("https://artists.bandsintown.com/", "_blank", "noopener");
-      }}>copiar datos y abrir Bandsintown ↗</Button>
+      }}>copiar datos y abrir Bandsintown <Icon name="externo" size={14} className="inline align-[-2px]" /></Button>
       <span className="text-xs text-crema/55">Al día siguiente se enlaza solo con la importación.</span>
     </div>
+  );
+}
+
+/* Qué se ve del bolo mientras está en secreto. Lo no desvelado ni siquiera
+   llega a la web; allí sale borroso con un «avísame». */
+function Teaser({ g, onChange }: { g: Gig; onChange: (p: Partial<Gig>) => void }) {
+  const t = g.teaser!;
+  const set = (p: Partial<typeof t>) => onChange({ teaser: { ...t, ...p } });
+  const when = t.date === "exacta" ? dateShort(g.date) : t.date === "mes" ? dateLong(g.date).split(" ").slice(2).join(" ") : "fecha secreta";
+  return (
+    <Card className="flex flex-col gap-4 border border-senal/40">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <CardTitle>en la web, en secreto</CardTitle>
+        <Button size="sm" variant="primary" onClick={() => onChange({ teaser: null })}>desvelar todo</Button>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-crema/70">fecha</span>
+          <Segmented size="sm" value={t.date} onChange={date => set({ date })} options={[
+            { value: "oculta", label: "oculta" }, { value: "mes", label: "solo el mes" }, { value: "exacta", label: "exacta" },
+          ]} />
+        </div>
+        <Toggle checked={t.city} onChange={city => set({ city })} label="ciudad" />
+        <Toggle checked={t.venue} onChange={venue => set({ venue })} label="sala" />
+      </div>
+      <p className="text-sm text-crema/70">
+        Así sale: <b className="text-crema">{when} · {t.city ? g.city : "ciudad secreta"}{t.venue ? ` · ${g.venue}` : ""}</b>.
+        Lo que no está desvelado sale borroso, con un botón de avísame. Las entradas no se venden hasta que lo desveléis todo.
+      </p>
+    </Card>
   );
 }

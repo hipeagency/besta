@@ -44,13 +44,13 @@ export default function EntradasEvento() {
       actions={<>
         <Toggle checked={ev.salesEnabled} label="venta activa"
           onChange={v => { patch.run({ salesEnabled: v }); toast(v ? "Venta abierta en la web" : "Venta cerrada", "ok"); }} />
-        <a href="/#directo" className="inline-flex items-center h-11 px-[18px] rounded-full border-[1.5px] border-crema/25 hover:border-crema/60 text-[15px]">ver en la web ↗</a>
+        <a href="/#directo" className="inline-flex items-center h-11 px-[18px] rounded-full border-[1.5px] border-crema/25 hover:border-crema/60 text-[15px]">ver en la web&nbsp;<Icon name="externo" size={14} /></a>
         <Link to={`/puerta/${ev.id}`} className="inline-flex items-center gap-2 h-11 px-[18px] rounded-full bg-senal text-noche font-semibold text-[15px] hover:brightness-110">
           <Icon name="puerta" size={16} />abrir puerta
         </Link>
       </>}
     >
-      {g && <Link to={`/bolos/${g.id}`} className="-mt-3 self-start text-sm text-crema/70 hover:text-crema">ficha del bolo →</Link>}
+      {g && <Link to={`/bolos/${g.id}`} className="-mt-3 self-start text-sm text-crema/70 hover:text-crema">ficha del bolo <Icon name="flecha" size={14} className="inline align-[-2px]" /></Link>}
 
       <div className="flex flex-wrap gap-4 items-start">
         <div className="flex-[2_1_520px] min-w-0 flex flex-col gap-4">
@@ -157,7 +157,7 @@ function Orders({ orders, tickets, initialQ }: { orders: Order[]; tickets: Ticke
                   <td className="px-1.5 py-2.5"><span className="inline-flex items-center gap-2"><Dot tone={st.tone === "senal" ? "senal" : st.tone} />{st.label}</span></td>
                   <td className="px-1.5 py-1 text-right">
                     <button type="button" onClick={e => { e.stopPropagation(); setOpenId(o.id); }} aria-label={`Abrir pedido ${orderNo(o.number)}`}
-                      className="size-9 rounded-full hover:bg-crema/10 font-mono">⋯</button>
+                      className="size-9 rounded-full hover:bg-crema/10 grid place-items-center"><Icon name="mas" size={18} /></button>
                   </td>
                 </tr>
               );
@@ -381,7 +381,7 @@ function Invites({ ev, tickets }: { ev: TicketEvent; tickets: Ticket[] }) {
                   <span className="block font-mono text-xs text-crema/60 truncate">{gr.list.map(t => t.code).join(" · ")}</span>
                 </span>
                 <span className="font-mono text-sm shrink-0">{valid}{used ? <span className="text-crema/60"> · {used} dentro</span> : null}</span>
-                <span className="shrink-0 text-crema/60" aria-hidden="true">QR →</span>
+                <span className="shrink-0 text-crema/60 inline-flex items-center gap-1" aria-hidden="true">QR <Icon name="flecha" size={14} /></span>
               </button>
             </li>
           );

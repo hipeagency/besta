@@ -165,8 +165,8 @@ export function IdeaDetail({ idea, onDeleted }: { idea: Idea; onDeleted: () => v
           onChange={e => { const f = e.target.files?.[0]; if (f) void upload(f); e.target.value = ""; }} />
         <Button onClick={() => file.current?.click()} className="flex-1"><Icon name="subir" size={16} />subir demo</Button>
         {idea.songId
-          ? <Link to={`/ensayos/${idea.songId}`} className="flex-1 inline-flex items-center justify-center h-11 px-[18px] rounded-full bg-crema text-noche font-semibold text-[15px] whitespace-nowrap">abrir en ensayos →</Link>
-          : <Button variant="light" className="flex-1" disabled={toSong.pending} onClick={pass}>pasar a ensayos →</Button>}
+          ? <Link to={`/ensayos/${idea.songId}`} className="flex-1 inline-flex items-center justify-center h-11 px-[18px] rounded-full bg-crema text-noche font-semibold text-[15px] whitespace-nowrap">abrir en ensayos <Icon name="flecha" size={14} className="ml-1.5" /></Link>
+          : <Button variant="light" className="flex-1" disabled={toSong.pending} onClick={pass}>pasar a ensayos <Icon name="flecha" size={14} className="inline align-[-2px]" /></Button>}
       </div>
       <button type="button" className="self-start h-11 font-mono text-xs text-crema/55 hover:text-crema"
         onClick={async () => { if (confirm(`¿Borrar «${idea.title}»?`)) { await remove.run(idea.id); onDeleted(); toast("Idea borrada", "ok"); } }}>

@@ -138,7 +138,7 @@ export function ticketsEmail(ctx: OrderContext): Mail {
       }),
       button(link, "ver mis entradas"),
       ...tickets.map((t, i) => qrBlock(t, i, tickets.length)),
-      small("Cada QR vale para una persona y se escanea una sola vez. Sube el brillo en la puerta ☀"),
+      small("Cada QR vale para una persona y se escanea una sola vez. Sube el brillo del móvil en la puerta."),
       gig ? small(`<a href="${esc(mapsUrl(gig))}" style="color:${C.senal};">cómo llegar</a>`) : "",
     ].join("\n"),
   });
@@ -200,7 +200,7 @@ export function reminderEmail(ctx: OrderContext): Mail {
     body: [
       card({ mono: when(gig, false), title: name, sub: where(gig) || undefined, extra: table }),
       button(link, "abrir mis entradas"),
-      gig ? small(`<a href="${esc(mapsUrl(gig))}" style="color:${C.senal};">cómo llegar</a> · Sube el brillo del móvil en la puerta ☀`) : "",
+      gig ? small(`<a href="${esc(mapsUrl(gig))}" style="color:${C.senal};">cómo llegar</a> · Sube el brillo del móvil en la puerta.`) : "",
     ].join("\n"),
   });
   const text = [

@@ -619,7 +619,7 @@ function transformMerch(src, ctx) {
     const doc = clean({
       id: p.id, name: str(p.name), priceCents: cents(p.price), costCents: cents(p.cost),
       variants: vs.filter(v => !v.archived).map(v => ({ id: v.id, label: str(v.label), stock: Number(v.stock) || 0 })),
-      archived: !!p.archived, color: "senal", info: str(p.info).trim() || undefined,
+      archived: !!p.archived, published: !p.archived, color: "senal", info: str(p.info).trim() || undefined,
     });
     return { id: p.id, doc, legacy: { ...p, variants: vs }, created_at: isoOf(p.created_at) };
   });

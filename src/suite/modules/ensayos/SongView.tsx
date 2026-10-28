@@ -30,7 +30,7 @@ export function SongRoute() {
   if (loading) return null;
   if (!song) return (
     <main className="flex-1 p-6">
-      <Link to="/ensayos" className="md:hidden font-mono text-xs text-crema/80">← canciones</Link>
+      <Link to="/ensayos" className="md:hidden font-mono text-xs text-crema/80 inline-flex items-center gap-1.5"><Icon name="atras" size={14} />canciones</Link>
       <div className="mt-4"><Empty title={songs.length ? "Esta canción ya no existe" : "Aún no hay canciones"}>Crea una o pega una letra desde la biblioteca.</Empty></div>
     </main>
   );
@@ -113,7 +113,7 @@ function SongView({ song }: { song: Song }) {
       title="modo concierto: letra grande, pantalla siempre encendida (⇧C)"
       className={cx("inline-flex items-center gap-1.5 h-11 px-3.5 rounded-full text-sm font-medium transition",
         concert ? "bg-senal text-noche" : "text-crema/80 hover:text-crema hover:bg-crema/5")}>
-      <span aria-hidden="true">★</span>{concert ? "salir de concierto" : "concierto"}
+      <Icon name="estrella" size={16} />{concert ? "salir de concierto" : "concierto"}
     </button>
   );
 
@@ -123,7 +123,7 @@ function SongView({ song }: { song: Song }) {
         concert ? "pb-36 lg:pb-8 max-w-[1100px] mx-auto w-full" : "pb-[270px] lg:pb-6")}>
         {/* móvil: volver y estado */}
         <div className={cx("md:hidden flex items-center justify-between gap-3 -mt-1 print:hidden", concert && "hidden")}>
-          <Link to="/ensayos" className="font-mono text-xs text-crema/80 h-11 inline-flex items-center">← canciones</Link>
+          <Link to="/ensayos" className="font-mono text-xs text-crema/80 h-11 inline-flex items-center gap-1.5"><Icon name="atras" size={14} />canciones</Link>
           <SaveStatus />
         </div>
 
