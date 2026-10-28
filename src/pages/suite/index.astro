@@ -1,0 +1,10 @@
+---
+import Base from "@/layouts/Base.astro";
+import App from "@/suite/App";
+import { themeBootScript } from "@/suite/theme";
+---
+<Base title="besta · suite" noindex>
+  <link rel="manifest" href="/suite.webmanifest" slot="head" />
+  <script is:inline slot="head" set:html={themeBootScript} />
+  <App client:only="react" />
+</Base>

@@ -1,0 +1,38 @@
+---
+import Base from "@/layouts/Base.astro";
+
+/* Borradores. Los textos definitivos los revisa la gestoría antes de vender. */
+export function getStaticPaths() {
+  return [
+    { params: { doc: "condiciones" }, props: { title: "condiciones de venta", body: [
+      "Vende: [Nombre y apellidos] · NIF [NIF] · [dirección fiscal] · besta@besta.es.",
+      "Las entradas se compran en besta.es y se pagan con tarjeta a través de Stripe. Al confirmarse el pago recibes un email con un QR por entrada.",
+      "Cada QR permite una sola entrada. No compartas tus entradas: la primera que se escanea es la que vale.",
+      "Si el concierto se cancela, se devuelve el importe íntegro a la misma tarjeta. Si se aplaza, la entrada vale para la nueva fecha o puedes pedir la devolución.",
+      "[Política de devoluciones por desistimiento: confirmar con la gestoría. Los servicios de ocio con fecha concreta suelen quedar fuera del derecho de desistimiento.]",
+    ] } },
+    { params: { doc: "cookies" }, props: { title: "cookies", body: [
+      "Necesarias (siempre activas): guardan tu elección de cookies y, en la suite interna, la sesión. No sirven para seguirte.",
+      "Analítica (solo si aceptas): Google Analytics, para saber cuánta gente visita la web y qué mira. Sin datos que te identifiquen.",
+      "Publicidad (solo si aceptas): el píxel de Meta, para medir nuestros anuncios en Instagram y Facebook y enseñárselos a gente parecida.",
+      "Las tipografías se sirven desde besta.es: no cargamos nada de Google mientras no aceptes la analítica.",
+      "Puedes cambiar tu elección cuando quieras desde «cookies», abajo del todo en la web.",
+    ] } },
+    { params: { doc: "privacidad" }, props: { title: "privacidad", body: [
+      "Responsable: [Nombre y apellidos] · NIF [NIF] · besta@besta.es.",
+      "Usamos tu email para mandarte las entradas y avisos del concierto que has comprado. Solo te escribimos para novedades si marcas la casilla de la newsletter.",
+      "Los pagos los procesa Stripe; nunca vemos los datos de tu tarjeta. Los emails los envía Brevo.",
+      "Puedes pedir acceso, rectificación o borrado de tus datos en besta@besta.es.",
+    ] } },
+  ];
+}
+const { title, body } = Astro.props;
+---
+<Base title={`${title} · besta`}>
+  <main class="max-w-[720px] mx-auto px-5 py-16 flex flex-col gap-6">
+    <a href="/" class="logo-crop w-24"><img src="/img/logo-crema.png" alt="besta" /></a>
+    <h1 class="text-5xl font-extrabold tracking-[-.03em]">{title}</h1>
+    <p class="kicker text-senal text-xs">borrador · pendiente de revisar</p>
+    {body.map((p: string) => <p class="text-lg leading-relaxed text-crema/85">{p}</p>)}
+  </main>
+</Base>

@@ -1,0 +1,10 @@
+---
+/* /vacio: la web sin fechas ni merch. Solo en desarrollo; en el build no
+   genera ninguna página. */
+import Home from "@/web/Home.astro";
+
+export function getStaticPaths() {
+  return import.meta.env.DEV ? [{ params: { demo: "vacio" } }] : [];
+}
+---
+<Home empty />

@@ -1,0 +1,105 @@
+/* Tipografías servidas desde besta.es: sin pedir nada a Google
+   (cada visita a Google Fonts le pasa la IP del visitante). */
+@import "@fontsource/jost/400.css";
+@import "@fontsource/jost/500.css";
+@import "@fontsource/jost/600.css";
+@import "@fontsource/jost/700.css";
+@import "@fontsource/jost/800.css";
+@import "@fontsource/dm-mono/400.css";
+@import "@fontsource/dm-mono/500.css";
+@import "tailwindcss";
+
+/* =========================================================
+   «señal» — el sistema de marca de besta.
+   Cuatro colores y nada más. Verde y rojo solo como estado.
+   ========================================================= */
+@theme {
+  --color-noche: #0F0B08;   /* fondo */
+  --color-tubo: #1C1510;    /* superficies */
+  --color-marco: #241A13;   /* marco de las pantallas CRT, nav lateral */
+  --color-senal: #E8662C;   /* acento único */
+  --color-senal-suave: #F08A57; /* texto naranja sobre fondo oscuro */
+  --color-crema: #F6E6CC;   /* texto y logo */
+  --color-lateral: #140F0B; /* barra lateral de la suite */
+  --color-tubo-alto: #241B15; /* superficie al pasar el ratón */
+  --color-ok: #2FBF71;      /* solo estados */
+  --color-error: #E5484D;   /* solo estados */
+
+  --font-sans: "Jost", system-ui, -apple-system, sans-serif;
+  --font-mono: "DM Mono", ui-monospace, Menlo, monospace;
+}
+
+/* ---------- tema claro (solo la suite) ----------
+   Los nombres se mantienen («noche» es el fondo, «crema» el texto);
+   en claro cambian los valores. El naranja se oscurece un punto para
+   que el texto claro encima siga leyéndose. */
+:root[data-theme="light"] {
+  --color-noche: #F7F0E4;
+  --color-tubo: #FFFAF2;
+  --color-marco: #E6D8C2;
+  --color-lateral: #EFE5D4;
+  --color-tubo-alto: #F3E9D9;
+  --color-crema: #1A130E;
+  --color-senal: #C04D19;
+  --color-senal-suave: #A8431A;
+  color-scheme: light;
+}
+:root { color-scheme: dark; }
+/* El logotipo es un PNG crema: en claro se oscurece. */
+:root[data-theme="light"] .logo-crop > img { filter: brightness(.12); }
+
+/* ---------- barra de scroll propia ----------
+   Fina, del color del texto con poca opacidad, sin carril. */
+* { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--color-crema) 22%, transparent) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--color-crema) 22%, transparent); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+*::-webkit-scrollbar-thumb:hover { background-color: color-mix(in srgb, var(--color-crema) 40%, transparent); }
+*::-webkit-scrollbar-corner { background: transparent; }
+
+@layer base {
+  html { background: var(--color-noche); color: var(--color-crema); -webkit-text-size-adjust: 100%; }
+  body { margin: 0; font-family: var(--font-sans); background: var(--color-noche); color: var(--color-crema); -webkit-font-smoothing: antialiased; }
+  ::selection { background: var(--color-senal); color: var(--color-noche); }
+  :focus-visible { outline: 2px solid var(--color-senal); outline-offset: 2px; }
+  button { cursor: pointer; }
+  button:disabled { cursor: not-allowed; opacity: .5; }
+  input, textarea, select { font: inherit; color: inherit; }
+}
+
+/* ---------- recursos de marca ---------- */
+@utility scan {
+  background-image: repeating-linear-gradient(0deg, rgba(0,0,0,.22) 0 1px, transparent 1px 3px);
+  pointer-events: none;
+}
+@utility vig {
+  box-shadow: inset 0 0 120px rgba(0,0,0,.65);
+}
+@utility kicker {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+@keyframes ticker { from { transform: translateX(0) } to { transform: translateX(-50%) } }
+.ticker { display: flex; width: max-content; animation: ticker 28s linear infinite; }
+
+@keyframes sheet-in { from { transform: translateY(100%) } to { transform: translateY(0) } }
+@keyframes drawer-in { from { transform: translateX(100%) } to { transform: translateX(0) } }
+@keyframes fade-in { from { opacity: 0 } to { opacity: 1 } }
+/* Utilidades (no clases sueltas) para que funcionen con md:, sm:… */
+@utility anim-sheet { animation: sheet-in .22s cubic-bezier(.2,.8,.2,1); }
+@utility anim-drawer { animation: drawer-in .24s cubic-bezier(.2,.8,.2,1); }
+@utility anim-fade { animation: fade-in .18s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; }
+}
+
+/* El logotipo viene en un PNG cuadrado con mucho aire: esto recorta la palabra. */
+.logo-crop { position: relative; display: block; overflow: hidden; aspect-ratio: 906 / 277; }
+.logo-crop > img { position: absolute; width: 119.21%; left: -11.59%; top: -130.32%; max-width: none; }
+
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
