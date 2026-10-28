@@ -10,7 +10,7 @@ import { Button, Card, CardTitle, Pill, Toggle } from "@/components/ui";
 import { dateLabel, daysUntil } from "@/lib/format";
 import { useMedia } from "./composicion/audio";
 
-const STUDIO = "https://besta.es/suite/visuales.html";
+const STUDIO = "/suite/estudio-visuales.html";
 
 export default function Visuales() {
   const { data: gigs } = useCollection("gigs");
