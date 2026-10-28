@@ -4,15 +4,19 @@ no estén en supabase_migrations.schema_migrations. Cada una va en su
 propia transacción: si falla, no queda a medias y el script se para.
 
 Uso (desde besta-v2):  python3 scripts/apply-migrations.py
+Sin supabase/.env.local (en GitHub Actions) toma SUPABASE_PROJECT_REF y
+SUPABASE_ACCESS_TOKEN del entorno.
 """
 import json, os, sys, urllib.error, urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-env = {}
-for l in open(os.path.join(ROOT, "supabase", ".env.local")):
-    if "=" in l and not l.lstrip().startswith("#"):
-        k, v = l.rstrip("\n").split("=", 1)
-        env[k.strip()] = v.strip()
+env = {k: os.environ[k] for k in ("SUPABASE_PROJECT_REF", "SUPABASE_ACCESS_TOKEN", "CF_DEPLOY_HOOK") if os.environ.get(k)}
+local = os.path.join(ROOT, "supabase", ".env.local")
+if os.path.exists(local):
+    for l in open(local):
+        if "=" in l and not l.lstrip().startswith("#"):
+            k, v = l.rstrip("\n").split("=", 1)
+            env[k.strip()] = v.strip()
 P = env["SUPABASE_PROJECT_REF"]
 
 

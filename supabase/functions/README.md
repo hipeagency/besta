@@ -68,6 +68,13 @@ supabase secrets set \
 
 ## Desplegar
 
+Solo: al subir a `v2` algo de `supabase/`, el workflow
+`.github/workflows/supabase.yml` aplica las migraciones pendientes y despliega
+todas las funciones (también a mano desde Actions → supabase → Run workflow).
+Necesita el secreto del repo `SUPABASE_ACCESS_TOKEN`.
+
+A mano:
+
 ```sh
 supabase functions deploy checkout stripe-webhook ticket-qr public-forms \
   order-actions invite-user bandsintown-import reminders
