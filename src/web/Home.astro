@@ -2,12 +2,12 @@
 import Base from "@/layouts/Base.astro";
 import WebIslands from "@/web/WebIslands";
 import MerchRequest from "@/web/MerchRequest";
-import { createSeed } from "@/data/seed";
+import { loadSiteData } from "@/web/siteData";
 import { platforms, socials, single, bio, radioUrl, contactEmail } from "@/web/content";
 import { dateLabel, dayNum, mon, eur, isPast } from "@/lib/format";
 
-/* En el build se leen los bolos publicados. Con backend: de Supabase. */
-const db = createSeed();
+/* En el build se leen los bolos publicados (seed o Supabase, ver siteData). */
+const db = await loadSiteData();
 /* La web entera. `empty` la enseña sin fechas ni merch (solo en /vacio,
    que existe en desarrollo) para revisar cómo queda. */
 interface Props { empty?: boolean }
@@ -94,8 +94,8 @@ const jsonLd = {
     <section id="inicio" class="mx-auto max-w-[1240px] px-4 sm:px-6 pt-6 sm:pt-8">
       <div class="vig relative overflow-hidden rounded-[28px] sm:rounded-[40px] border-[10px] sm:border-[14px] border-marco min-h-[560px] sm:min-h-[620px] flex items-end">
         <picture>
-          <source srcset="/img/directo/01.jpg" media="(max-width: 640px)" />
-          <img src="/img/escenario-azul.jpg" alt="besta en el escenario, con el público delante" fetchpriority="high" class="absolute inset-0 size-full object-cover object-[center_72%]" />
+          <source srcset="/img/directo/13.jpg" media="(max-width: 640px)" />
+          <img src="/img/catxull/06.jpg" alt="Los seis de besta en el escenario, con todo el público detrás" fetchpriority="high" class="absolute inset-0 size-full object-cover object-[center_40%]" />
         </picture>
         <div class="absolute inset-0 bg-gradient-to-b from-transparent from-25% via-noche/70 via-60% to-noche"></div>
         <div class="absolute inset-0 bg-gradient-to-r from-noche/70 to-transparent to-60%"></div>
@@ -233,10 +233,10 @@ const jsonLd = {
         <a href={socials[0].url} target="_blank" rel="noopener" class="font-mono text-[13px] text-crema/75 hover:text-crema underline">más en Instagram ↗</a>
       </div>
       <ul class="flex gap-4 overflow-x-auto snap-x snap-mandatory no-scrollbar px-4 sm:px-[max(24px,calc((100vw-1240px)/2+24px))] pb-2">
-        {Array.from({ length: 13 }, (_, i) => String(i + 1).padStart(2, "0")).map((n, i) => (
+        {["catxull/08", "directo/05", "directo/08", "directo/07", "directo/04", "directo/10", "directo/02", "directo/11", "directo/12", "directo/13"].map((n, i) => (
           <li class="snap-start shrink-0">
             <div class={`vig relative w-[64vw] sm:w-[300px] aspect-[3/4] rounded-[24px] border-[8px] border-marco overflow-hidden ${i % 2 ? "sm:mt-10" : ""}`}>
-              <img src={`/img/directo/${n}.jpg`} alt={`besta en directo, foto ${i + 1}`} loading="lazy" class="size-full object-cover" />
+              <img src={`/img/${n}.jpg`} alt={`besta en directo, foto ${i + 1}`} loading="lazy" class="size-full object-cover" />
               <div class="scan absolute inset-0"></div>
             </div>
           </li>

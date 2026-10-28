@@ -4,3 +4,7 @@ dist/
 .env
 .env.*
 .DS_Store
+
+# traspaso de datos: contienen datos y emails reales
+scripts/out/
+scripts/members-map.json

@@ -1,7 +1,7 @@
 /* Hooks de datos para las pantallas. Cada colección es una query;
    cualquier cambio en el almacén las invalida todas (la de prueba es
    instantánea; con Supabase lo hará Realtime). */
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, subscribe, type Collection, type DB } from "./api";
 
@@ -32,4 +32,18 @@ export function useAction<A extends unknown[], R>(fn: (...args: A) => Promise<R>
     pending: m.isPending,
     error: m.error as Error | null,
   };
+}
+
+/* URL utilizable de un archivo guardado: los privados («sb://…») se
+   piden firmados y caducan; el resto se usa tal cual. */
+export function useFileUrl(url?: string) {
+  const [resolved, setResolved] = useState<string | undefined>(url?.startsWith("sb://") ? undefined : url);
+  useEffect(() => {
+    let alive = true;
+    if (!url) { setResolved(undefined); return; }
+    if (!url.startsWith("sb://")) { setResolved(url); return; }
+    api.fileUrl(url).then(u => { if (alive) setResolved(u); }).catch(() => { if (alive) setResolved(undefined); });
+    return () => { alive = false; };
+  }, [url]);
+  return resolved;
 }

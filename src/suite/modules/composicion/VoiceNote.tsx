@@ -1,8 +1,8 @@
 /* Nota de voz: grabar con el micro y que nazca una idea nueva con
    su demo v1. El audio queda solo en esta pestaña hasta que haya backend. */
 import { useEffect, useRef, useState } from "react";
-import { api, uid } from "@/data/api";
-import type { Idea } from "@/data/types";
+import { api, uid, DATA_MODE } from "@/data/api";
+import type { Idea, IdeaDemo } from "@/data/types";
 import { useMe } from "@/suite/session";
 import { Button, Sheet, useToast } from "@/components/ui";
 import { dateShort } from "@/lib/format";
@@ -57,8 +57,9 @@ export function VoiceNote({ open, onClose, onCreated }: { open: boolean; onClose
 
   async function save(blob: Blob) {
     const today = new Date().toISOString().slice(0, 10);
-    const demo = { id: uid("d"), version: 1, by: me.name, date: today };
-    rememberDemoUrl(demo.id, URL.createObjectURL(blob));
+    const url = await api.uploadFile("musica", new File([blob], `nota-de-voz-${today}.webm`, { type: blob.type || "audio/webm" }));
+    const demo: IdeaDemo = { id: uid("d"), version: 1, by: me.name, date: today };
+    if (DATA_MODE === "supabase") demo.url = url; else rememberDemoUrl(demo.id, url);
     const idea: Idea = {
       id: uid("i"), title: `nota de voz · ${dateShort(today)}`, status: "idea", author: me.name,
       lyrics: "", sections: [], demos: [demo], comments: [], updatedAt: new Date().toISOString(),

@@ -5,7 +5,7 @@ import { Page } from "@/suite/Shell";
 import { useMe } from "@/suite/session";
 import { NAV, TABS, can, canSee } from "@/suite/nav";
 import { useAction } from "@/data/hooks";
-import { api } from "@/data/api";
+import { api, DATA_MODE } from "@/data/api";
 import { Button, Segmented, useToast } from "@/components/ui";
 import { useTheme, type ThemePref } from "@/suite/theme";
 import { Icon } from "@/components/ui/icons";
@@ -41,10 +41,10 @@ export default function Mas() {
         <span className="text-sm text-crema/75">tema</span>
         <Segmented<ThemePref> value={theme.pref} onChange={theme.setPref} size="sm" options={[{ value: "auto", label: "automático" }, { value: "claro", label: "claro" }, { value: "oscuro", label: "oscuro" }]} />
       </div>
-      <div className="rounded-2xl border border-dashed border-crema/20 p-4 flex flex-col gap-2 text-sm text-crema/70">
+      {DATA_MODE === "prueba" && <div className="rounded-2xl border border-dashed border-crema/20 p-4 flex flex-col gap-2 text-sm text-crema/70">
         <p><b className="text-crema">Modo de prueba.</b> Los datos son de ejemplo y viven en este navegador.</p>
         <Button size="sm" className="self-start" onClick={async () => { if (confirm("¿Volver a los datos de ejemplo? Se pierde lo que hayas cambiado.")) { await reset.run(); toast("Datos de prueba reiniciados", "ok"); } }}>reiniciar datos de prueba</Button>
-      </div>
+      </div>}
     </Page>
   );
 }

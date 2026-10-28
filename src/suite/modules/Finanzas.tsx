@@ -180,6 +180,7 @@ function ExpenseSheet({ open, onClose }: { open: boolean; onClose: () => void })
   const { data: gigs } = useCollection("gigs");
   const { data: categories } = useCollection("categories");
   const [photo, setPhoto] = useState<string>("");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [amount, setAmount] = useState("");
   const [title, setTitle] = useState("");
   const [payer, setPayer] = useState(me.id);
@@ -190,7 +191,7 @@ function ExpenseSheet({ open, onClose }: { open: boolean; onClose: () => void })
 
   useEffect(() => {
     if (!open) return;
-    setPhoto(""); setAmount(""); setTitle(""); setPayer(members.some(m => m.id === me.id) ? me.id : members[0]?.id ?? "");
+    setPhoto(""); setPhotoFile(null); setAmount(""); setTitle(""); setPayer(members.some(m => m.id === me.id) ? me.id : members[0]?.id ?? "");
     setParts(members.map(m => m.id)); setCategory("otros"); setDate(new Date().toISOString().slice(0, 10));
     setGigId(upcomingGigs(gigs)[0]?.id ?? "");
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -204,7 +205,7 @@ function ExpenseSheet({ open, onClose }: { open: boolean; onClose: () => void })
     ev.preventDefault();
     const cents = Math.round(parseFloat(amount.replace(",", ".")) * 100);
     if (!cents || cents <= 0) { toast("Pon el importe", "error"); return; }
-    await save.run({ id: uid("e-"), title: title || category, amountCents: cents, payerId: payer, participantIds: parts, category, gigId: gigId || undefined, date, receipt: photo ? "foto adjunta" : undefined });
+    await save.run({ id: uid("e-"), title: title || category, amountCents: cents, payerId: payer, participantIds: parts, category, gigId: gigId || undefined, date, receipt: photoFile ? await api.uploadFile("recibos", photoFile) : undefined });
     toast("Gasto guardado", "ok");
     onClose();
   }
@@ -217,7 +218,7 @@ function ExpenseSheet({ open, onClose }: { open: boolean; onClose: () => void })
             : <span className="w-[72px] h-[96px] rounded-lg border border-dashed border-crema/30 grid place-items-center"><Icon name="camara" /></span>}
           <span className="flex-1 text-sm"><b className="block font-semibold">{photo ? "ticket adjunto" : "foto del ticket"}</b><span className="text-crema/65">{photo ? "toca para repetir" : "opcional · abre la cámara en el móvil"}</span></span>
           <input type="file" accept="image/*" capture="environment" className="sr-only"
-            onChange={e => { const f = e.target.files?.[0]; if (f) setPhoto(URL.createObjectURL(f)); }} />
+            onChange={e => { const f = e.target.files?.[0]; if (f) { setPhoto(URL.createObjectURL(f)); setPhotoFile(f); } }} />
         </label>
 
         <div className="flex flex-col items-center gap-1">

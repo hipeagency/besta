@@ -3,8 +3,8 @@ import react from "@astrojs/react";
 import tailwindcss from "@tailwindcss/vite";
 import { fileURLToPath } from "node:url";
 
-/* La suite es una SPA: cualquier /suite/... la sirve /suite/ (en producción, con las reglas de public/_redirects).
-   En producción lo hace public/_redirects (Cloudflare Pages);
+/* La suite es una SPA: cualquier /suite/... la sirve /suite/.
+   En producción lo hacen las reglas de public/_redirects (Cloudflare);
    en desarrollo, este middleware. */
 const suiteFallback = {
   name: "besta-suite-fallback",

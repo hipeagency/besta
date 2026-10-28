@@ -2,10 +2,11 @@
    y links. Los de YouTube se incrustan; el iframe solo se carga al darle
    al play para no traerse YouTube entero al abrir la canción. */
 import { useEffect, useRef, useState } from "react";
-import { uid } from "@/data/api";
+import { api, uid } from "@/data/api";
 import type { Song } from "@/data/types";
 import { Button, IconButton, Input } from "@/components/ui";
 import { Icon } from "@/components/ui/icons";
+import { StoredAudio } from "@/components/ui/StoredAudio";
 import { isAudioUrl, songLinks, sx, youTubeId, type SongAudio, type SongLink } from "./extra";
 
 export function hasMaterial(song: Song) {
@@ -23,7 +24,7 @@ export function MaterialView({ song }: { song: Song }) {
       {audios.map(a => (
         <div key={a.id} className="flex flex-col gap-1">
           <span className="font-mono text-xs text-crema/70">{a.name || "audio"}</span>
-          <audio controls preload="none" src={a.url} className="w-full h-10" />
+          <StoredAudio url={a.url} className="w-full h-10" />
         </div>
       ))}
       {videos.map(v => <YouTube key={v.id} link={v} />)}
@@ -78,12 +79,13 @@ export function MaterialEditor({ audios, links, onAudios, onLinks }: {
   const audiosRef = useRef(audios);
   audiosRef.current = audios;
 
-  const add = (files: FileList | null) => {
+  const add = async (files: FileList | null) => {
     if (!files?.length) return;
     const next = [...audios];
     for (const f of Array.from(files)) {
-      const url = URL.createObjectURL(f);
-      made.current.push(url);
+      // Con datos reales se sube al almacenamiento privado de la banda.
+      const url = await api.uploadFile("musica", f);
+      if (url.startsWith("blob:")) made.current.push(url);
       next.push({ id: uid("a"), name: f.name.replace(/\.[^.]+$/, ""), url });
     }
     onAudios(next);
@@ -101,7 +103,7 @@ export function MaterialEditor({ audios, links, onAudios, onLinks }: {
                 placeholder="ensayo, demo, referencia…" className="!bg-tubo h-10 text-sm" />
               <IconButton label={`Quitar ${a.name || "audio"}`} onClick={() => onAudios(audios.filter((_, j) => j !== i))}><Icon name="basura" size={16} /></IconButton>
             </div>
-            <audio controls preload="none" src={a.url} className="w-full h-9" />
+            <StoredAudio url={a.url} className="w-full h-9" />
           </div>
         ))}
         <input ref={file} type="file" accept="audio/*" multiple className="sr-only" tabIndex={-1} onChange={e => { add(e.target.files); e.target.value = ""; }} />

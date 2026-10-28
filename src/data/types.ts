@@ -18,6 +18,7 @@ export interface Member {
   instrument: string;      // «voz», «gtr solo», «puerta y merch»…
   role: Role;
   email?: string;
+  userId?: string;         // cuenta de acceso (Supabase Auth); sin ella, invitación pendiente
   scopes?: string[];       // módulos a mano; sin esto, los de su rol
   band?: boolean;          // de la banda: entra en finanzas y en el reparto
   active?: boolean;        // false = sin acceso, se conserva el historial

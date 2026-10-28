@@ -18,7 +18,7 @@ export default function MerchRequest({ products: initial, gigs, empty = false }:
   const [open, setOpen] = useState<Product | null>(null);
 
   // El stock de verdad se lee al cargar (el HTML se generó en el build).
-  useEffect(() => { if (!empty) api.list("products").then(setProducts).catch(() => {}); }, [empty]);
+  useEffect(() => { if (!empty) api.publicProducts().then(setProducts).catch(() => {}); }, [empty]);
 
   const available = empty ? [] : products.filter(p => !p.archived && p.variants.some(v => v.stock > 0));
 

@@ -4,6 +4,7 @@ import { useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } f
 import type { IdeaComment, IdeaDemo } from "@/data/types";
 import { Icon } from "@/components/ui/icons";
 import { cx } from "@/lib/format";
+import { useFileUrl } from "@/data/hooks";
 import { bars, demoUrl, fmtTime, parseTime } from "./audio";
 
 export interface PlayerHandle { seek: (sec: number) => void }
@@ -13,7 +14,7 @@ export function DemoPlayer({ demo, comments, onTime, ref }: { demo?: IdeaDemo; c
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
   const [dur, setDur] = useState(0);
-  const url = demoUrl(demo);
+  const url = useFileUrl(demoUrl(demo));   // las guardadas en el almacenamiento van firmadas
   const shape = useMemo(() => bars(demo?.id ?? "vacía"), [demo?.id]);
 
   // Sin audio no sabemos cuánto dura: estiramos hasta el último comentario.

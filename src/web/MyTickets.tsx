@@ -21,9 +21,7 @@ export default function MyTickets() {
     (async () => {
       const r = await api.orderByToken(token);
       if (!r) { setData(null); return; }
-      const [evs, gigs] = await Promise.all([api.list("events"), api.list("gigs")]);
-      const ev = evs.find(e => e.id === r.order.eventId);
-      setData({ ...r, ev, gig: gigs.find(g => g.id === ev?.gigId) });
+      setData({ order: r.order, tickets: r.tickets, ev: r.event, gig: r.gig });
     })();
   }, []);
 

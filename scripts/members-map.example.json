@@ -1,0 +1,9 @@
+{
+  "_comment": "Copia este archivo a scripts/members-map.json (no se sube a git) y rellena los emails con los de cada cuenta de Supabase Auth. financeMemberName = nombre en public.finance_members; legacyRoleKeys = rol de la app antigua de ensayos (voice, guitar_lead, guitar_rhythm, piano, bass, drums).",
+  "maxim":     { "name": "Maxim",     "instrument": "voz",       "email": "", "financeMemberName": "MAX",       "legacyRoleKeys": ["voice"],         "role": "admin", "band": true },
+  "pau":       { "name": "Pau",       "instrument": "gtr solo",  "email": "", "financeMemberName": "PAU",       "legacyRoleKeys": ["guitar_lead"],   "role": "admin", "band": true },
+  "albert":    { "name": "Albert",    "instrument": "gtr acomp", "email": "", "financeMemberName": "ALBERT",    "legacyRoleKeys": ["guitar_rhythm"], "role": "admin", "band": true },
+  "carlinhos": { "name": "Carlinhos", "instrument": "piano",     "email": "", "financeMemberName": "CARLINHOS", "legacyRoleKeys": ["piano"],         "role": "admin", "band": true },
+  "lars":      { "name": "Lars",      "instrument": "bajo",      "email": "", "financeMemberName": "LARS",      "legacyRoleKeys": ["bass"],          "role": "admin", "band": true },
+  "victor":    { "name": "Víctor",    "instrument": "batería",   "email": "", "financeMemberName": "VICTOR",    "legacyRoleKeys": ["drums"],         "role": "admin", "band": true }
+}

@@ -1,8 +1,7 @@
 /* Utilidades de audio de composición.
-   Las demos que se suben o se graban hoy viven solo en esta pestaña
-   (URL.createObjectURL): guardarlas de verdad es cosa del backend
-   (Supabase Storage). Por eso no van al almacén: un blob: muerto tras
-   recargar sería peor que no tener nada. */
+   Con datos reales las demos se suben al almacenamiento (demo.url =
+   «sb://musica/…»). En modo de prueba viven solo en esta pestaña y no
+   se guardan en el doc: un blob: muerto tras recargar sería peor que nada. */
 import { useEffect, useState } from "react";
 import type { IdeaDemo } from "@/data/types";
 

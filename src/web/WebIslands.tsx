@@ -67,13 +67,7 @@ function TicketDrawer({ ev, onClose }: { ev: IslandEvent; onClose: () => void })
   const [error, setError] = useState("");
 
   useEffect(() => {
-    Promise.all([api.list("events"), api.list("tickets"), api.list("orders")]).then(([evs, tickets, orders]) => {
-      const e = evs.find(x => x.id === ev.id);
-      if (!e) return;
-      const taken = tickets.filter(t => t.eventId === ev.id && t.status !== "cancelada").length
-        + orders.filter(o => o.eventId === ev.id && o.status === "pendiente").reduce((s, o) => s + o.qty, 0);
-      setLeft(Math.max(0, e.capacity - taken));
-    });
+    api.availability(ev.id).then(setLeft).catch(() => setLeft(null));
   }, [ev.id]);
 
   useEffect(() => {

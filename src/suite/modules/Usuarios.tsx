@@ -7,7 +7,7 @@ import { Page } from "@/suite/Shell";
 import { useMe } from "@/suite/session";
 import { NAV, ROLES, ROLE_SCOPES, scopesOf } from "@/suite/nav";
 import { useAction, useCollection } from "@/data/hooks";
-import { api, uid } from "@/data/api";
+import { api, uid, DATA_MODE } from "@/data/api";
 import type { Member, Role } from "@/data/types";
 import { Button, Card, Field, Input, Pill, Sheet, Toggle, useToast } from "@/components/ui";
 import { Icon } from "@/components/ui/icons";
@@ -75,7 +75,7 @@ function UserSheet({ member, onClose }: { member: Member | "nuevo" | null; onClo
   const custom = f.role !== "admin" && f.scopes !== undefined;
 
   const save = useAction(async (m: Member) => {
-    if (isNew) await api.insert("members", { ...m, id: uid("u-"), invitedAt: new Date().toISOString() });
+    if (isNew) await api.inviteMember({ ...m, id: uid("u-") });
     else await api.update("members", m.id, m);
   });
   const remove = useAction((id: string) => api.remove("members", id));
@@ -92,7 +92,7 @@ function UserSheet({ member, onClose }: { member: Member | "nuevo" | null; onClo
       <form className="flex flex-col gap-4 pt-1" onSubmit={async e => {
         e.preventDefault();
         await save.run(f);
-        toast(isNew ? `Invitación lista para ${f.email || f.name} (de prueba: no se envía)` : "Guardado", "ok");
+        toast(isNew ? (DATA_MODE === "supabase" ? `Invitación enviada a ${f.email}` : `Invitación lista para ${f.email || f.name} (de prueba: no se envía)`) : "Guardado", "ok");
         onClose();
       }}>
         <Field label="nombre">{id => <Input id={id} required value={f.name} onChange={e => set("name", e.target.value)} />}</Field>

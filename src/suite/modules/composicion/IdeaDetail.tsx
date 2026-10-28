@@ -3,8 +3,8 @@
 import { useRef, useState } from "react";
 import { Link } from "react-router";
 import { useAction } from "@/data/hooks";
-import { api, uid } from "@/data/api";
-import type { Idea, IdeaStatus } from "@/data/types";
+import { api, uid, DATA_MODE } from "@/data/api";
+import type { Idea, IdeaDemo, IdeaStatus } from "@/data/types";
 import { useMe } from "@/suite/session";
 import { Button, IconButton, Input, Segmented, Textarea, useToast } from "@/components/ui";
 import { Icon } from "@/components/ui/icons";
@@ -34,11 +34,13 @@ export function IdeaDetail({ idea, onDeleted }: { idea: Idea; onDeleted: () => v
 
   // ---------- demos ----------
   async function upload(f: File) {
-    const d = { id: uid("d"), version: latest + 1, by: me.name, date: new Date().toISOString().slice(0, 10) };
-    rememberDemoUrl(d.id, URL.createObjectURL(f));
+    const url = await api.uploadFile("musica", f);
+    const d: IdeaDemo = { id: uid("d"), version: latest + 1, by: me.name, date: new Date().toISOString().slice(0, 10) };
+    // De prueba el archivo solo vive en esta pestaña: no se guarda su URL.
+    if (DATA_MODE === "supabase") d.url = url; else rememberDemoUrl(d.id, url);
     await patch.run({ demos: [...idea.demos, d] });
     setVersion(d.version);
-    toast(`Demo v${d.version} subida (solo en este navegador hasta que haya backend)`, "ok");
+    toast(`Demo v${d.version} subida${DATA_MODE === "supabase" ? "" : " (solo en este navegador: modo de prueba)"}`, "ok");
   }
 
   // ---------- comentarios ----------
