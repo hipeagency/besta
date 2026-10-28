@@ -1,0 +1,11 @@
+// Despliegue en Cloudflare Workers (sitio estático).
+// La web se genera en dist/ con `pnpm build`; public/_redirects
+// hace que cualquier /suite/* sirva la app de la suite.
+{
+  "name": "besta",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "404-page"
+  }
+}
