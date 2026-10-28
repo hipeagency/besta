@@ -16,7 +16,7 @@ export function RiderDoc({ rider, onStage, selected, onSelect }: {
   const blocks = rider.blocks.filter(b => b.enabled);
   return (
     <article id="rider-doc" aria-label="Vista previa del rider"
-      className="bg-crema text-noche rounded-md p-5 sm:p-9 flex flex-col gap-[22px] shadow-[0_30px_60px_rgba(0,0,0,.4)]">
+      className="papel bg-crema text-noche rounded-md p-5 sm:p-9 flex flex-col gap-[22px] shadow-[0_30px_60px_rgba(0,0,0,.4)]">
       <header className="flex flex-wrap justify-between items-end gap-3 border-b-2 border-noche pb-3.5">
         <div>
           <p className="font-mono text-[11px] tracking-[.16em]">RIDER TÉCNICO · {rider.name.toUpperCase()} · v{rider.version}</p>

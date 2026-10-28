@@ -103,11 +103,11 @@ export default function Rider() {
           <div className="relative flex items-center gap-1.5">
             <Sections rider={r} current={block?.id} onPick={id => setBid(id)} onToggle={(id, v) => setBlock(id, { enabled: v })}
               onAdd={() => { const id = uid("b"); edit(x => ({ ...x, blocks: [...x.blocks, { id, name: "nuevo bloque", enabled: true, body: "" }] })); setBid(id); }} />
-            <IconButton label="Bloque anterior" disabled={pos <= 0} className="disabled:opacity-30" onClick={() => setBid(r.blocks[pos - 1].id)}><Icon name="arriba" size={16} /></IconButton>
-            <IconButton label="Bloque siguiente" disabled={pos >= r.blocks.length - 1} className="disabled:opacity-30" onClick={() => setBid(r.blocks[pos + 1].id)}><Icon name="abajo" size={16} /></IconButton>
+            <IconButton label="Bloque anterior" disabled={pos <= 0} className="shrink-0 disabled:opacity-30" onClick={() => setBid(r.blocks[pos - 1].id)}><Icon name="arriba" size={16} /></IconButton>
+            <IconButton label="Bloque siguiente" disabled={pos >= r.blocks.length - 1} className="shrink-0 disabled:opacity-30" onClick={() => setBid(r.blocks[pos + 1].id)}><Icon name="abajo" size={16} /></IconButton>
             {block && (
-              <Toggle checked={block.enabled} onChange={v => setBlock(block.id, { enabled: v })} className="ml-auto !h-10 !px-3 text-xs text-crema/75"
-                label={<span className="w-[52px] text-left">{block.enabled ? "incluido" : "oculto"}</span>} />
+              <Toggle checked={block.enabled} onChange={v => setBlock(block.id, { enabled: v })} className="shrink-0 sm:ml-auto !h-10 !px-3 text-xs text-crema/75"
+                label={<span className="max-sm:sr-only w-[52px] text-left">{block.enabled ? "incluido" : "oculto"}</span>} />
             )}
           </div>
 
@@ -140,7 +140,7 @@ export default function Rider() {
         </div>
 
         {/* papel */}
-        <div className={cx("min-w-0 print:block print:w-full", view !== "papel" && "max-lg:hidden")}>
+        <div className={cx("min-w-0 print:!block print:w-full", view !== "papel" && "max-lg:hidden")}>
           <RiderDoc rider={r} onStage={stage => edit(x => ({ ...x, stage }))} selected={block?.id}
             onSelect={id => { setBid(id); setView("editar"); }} />
           <p className="mt-2 text-xs text-crema/55 print:hidden">Lo que ves es lo que se imprime. Pincha un bloque para editarlo; a los músicos los puedes arrastrar aquí mismo.</p>
@@ -173,11 +173,11 @@ function Sections({ rider, current, onPick, onToggle, onAdd }: {
   const on = rider.blocks.filter(b => b.enabled).length;
 
   return (
-    <div ref={box} className="relative min-w-0">
+    <div ref={box} className="relative min-w-0 flex-1 sm:flex-none">
       <button type="button" aria-expanded={open} aria-haspopup="true" onClick={() => setOpen(o => !o)}
-        className="h-10 max-w-[260px] pl-4 pr-3 rounded-full bg-tubo border-[1.5px] border-crema/15 hover:border-crema/40 inline-flex items-center gap-2 text-sm font-medium">
+        className="h-10 w-full sm:w-auto sm:max-w-[260px] pl-4 pr-3 rounded-full bg-tubo border-[1.5px] border-crema/15 hover:border-crema/40 inline-flex items-center gap-2 text-sm font-medium">
         <Icon name="bloques" size={16} className="shrink-0 text-senal" />
-        <span className="truncate">{name}</span>
+        <span className="truncate flex-1 text-left">{name}</span>
         <span className="font-mono text-[11px] text-crema/60 shrink-0">{on}/{rider.blocks.length}</span>
         <Icon name="desplegar" size={14} className={cx("shrink-0 transition", open && "rotate-180")} />
       </button>

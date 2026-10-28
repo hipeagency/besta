@@ -71,7 +71,7 @@ function StageEditor({ rider, edit }: { rider: Rider; edit: (fn: (r: Rider) => R
       <label className="flex flex-col gap-1.5 text-[13px] text-crema/75">tamaño mínimo
         <Input value={rider.stageSize} onChange={e => edit(r => ({ ...r, stageSize: e.target.value }))} placeholder="6 × 4 m mín." className="font-mono" />
       </label>
-      <div className="rounded-xl bg-crema text-noche p-3">
+      <div className="papel rounded-xl bg-crema text-noche p-3">
         <StagePlot stage={rider.stage} onChange={stage => edit(r => ({ ...r, stage }))} />
       </div>
       <p className="text-xs text-crema/60">Arrastra a cada músico. Con el teclado: foco y flechas (mayúsculas para ir más rápido).</p>

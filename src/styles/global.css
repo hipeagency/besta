@@ -44,6 +44,11 @@
   --color-senal-suave: #A8431A;
   color-scheme: light;
 }
+/* Papel (rider, presupuestos): siempre crema con tinta, sea cual sea el tema. */
+.papel {
+  --color-noche: #0F0B08; --color-tubo: #1C1510; --color-crema: #F6E6CC;
+  --color-senal: #E8662C; --color-senal-suave: #F08A57; --color-tubo-alto: #241B15;
+}
 :root { color-scheme: dark; }
 /* El logotipo es un PNG crema: en claro se oscurece. */
 :root[data-theme="light"] .logo-crop > img { filter: brightness(.12); }

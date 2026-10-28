@@ -18,7 +18,7 @@ const PRINT_CSS = `
 export function QuotePrint({ q }: { q: Quote }) {
   const t = quoteTotals(q);
   return createPortal(
-    <div className="besta-print hidden print:block text-noche bg-white font-sans text-[11pt] leading-snug">
+    <div className="besta-print papel hidden print:block text-noche bg-white font-sans text-[11pt] leading-snug">
       <style>{PRINT_CSS}</style>
       <header className="flex justify-between items-start gap-8 pb-6 border-b-2 border-noche">
         <div>
