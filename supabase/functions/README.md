@@ -12,7 +12,7 @@ escriben en el esquema `besta` (ver `../migrations/20261029100000_besta_v2.sql`)
 | `order-actions` | suite (POST `{action: "refund" \| "resend", orderId}`) | sí, módulo `entradas` | devolución en Stripe / reenvío de entradas |
 | `invite-user` | suite (POST `{name, email, role, scopes?, instrument?, band?}`) | sí, admin | invitación de Supabase Auth + ficha en `besta.members` |
 | `bandsintown-import` | pg_cron, diario 06:00 Madrid | no (`x-cron-secret`) | conciertos de Bandsintown → `besta.gigs` |
-| `reminders` | pg_cron, cada hora | no (`x-cron-secret`) | recordatorio el día antes y «gracias» el día después |
+| `reminders` | pg_cron, cada hora | no (`x-cron-secret`) | «gracias» el día después del concierto |
 
 `_shared/` tiene lo común: secretos (`env.ts`), CORS y errores (`http.ts`),
 clientes de Supabase (`supabase.ts`), Stripe, Brevo, plantillas de email
@@ -126,7 +126,7 @@ respuesta en `net._http_response`.
 ## Notas
 
 - Los emails marcan en el pedido cuándo salieron (`emailSentAt`, `refundEmailAt`,
-  `reminderSentAt`, `thanksSentAt`): Stripe y el cron pueden repetir sin duplicar.
+  `thanksSentAt`): Stripe y el cron pueden repetir sin duplicar.
 - `stripe-webhook` responde 500 si algo falla a medias para que Stripe reintente;
   todo lo que hace aguanta repetirse.
 - `bandsintown-import` nunca borra bolos. Guarda lo último que vio en

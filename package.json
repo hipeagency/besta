@@ -7,7 +7,8 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "emails": "node scripts/email-previews.ts"
   },
   "dependencies": {
     "@astrojs/react": "^4.4.2",

@@ -63,8 +63,8 @@ async function merch(db: Admin, b: Record<string, unknown>) {
   if (v.stock < qty) throw new HttpError(v.stock ? `Solo quedan ${v.stock}.` : "Esa talla está agotada.");
   const mail = email(b.email, "Revisa el email: ahí te escribimos.");
 
-  const delivery = b.delivery === "envio" ? "envio" : b.delivery === "concierto" ? "concierto" : null;
-  if (!delivery) throw new HttpError("Elige cómo te lo damos.");
+  // La web ya no pregunta la entrega (se acuerda al confirmar); se acepta por si llega.
+  const delivery = b.delivery === "envio" ? "envio" : b.delivery === "concierto" ? "concierto" : undefined;
   const gigId = text(b.gigId, 100, "el concierto");
   const address = text(b.address, 400, "la dirección", delivery === "envio");
   let gig: Gig | undefined;

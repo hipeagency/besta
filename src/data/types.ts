@@ -95,6 +95,11 @@ export interface Order {
   newsletter: boolean;
   createdAt: ISODateTime;
   token: string;           // enlace secreto de «mis entradas»
+  // los pone el servidor al mandar cada email
+  emailSentAt?: ISODateTime;
+  resentAt?: ISODateTime;
+  thanksSentAt?: ISODateTime;
+  refundEmailAt?: ISODateTime;
 }
 
 export type TicketStatus = "valida" | "usada" | "cancelada";
@@ -249,7 +254,7 @@ export interface MerchRequest {
   name: string;
   email: string;
   phone?: string;
-  delivery: "concierto" | "envio";
+  delivery?: "concierto" | "envio"; // la web ya no lo pide: se acuerda al confirmar
   gigId?: ID;              // en qué concierto lo recoge
   address?: string;        // si es envío
   note?: string;

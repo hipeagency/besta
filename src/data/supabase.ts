@@ -229,7 +229,7 @@ export const supabaseApi = {
     const p = r && await get("products", r.productId);
     if (!r || !p) throw new Error("Esa solicitud ya no existe.");
     await adjust(p.id, r.variantId, -r.qty);
-    const m: MerchMove = { id: uid("m"), productId: p.id, variantId: r.variantId, kind: "reserva", qty: -r.qty, unitCents: p.priceCents, by, customer: `${r.name} · web`, gigId: r.gigId, open: true, note: r.delivery === "envio" ? "envío" : "recoge en concierto", at: new Date().toISOString() };
+    const m: MerchMove = { id: uid("m"), productId: p.id, variantId: r.variantId, kind: "reserva", qty: -r.qty, unitCents: p.priceCents, by, customer: `${r.name} · web`, gigId: r.gigId, open: true, note: r.delivery === "envio" ? "envío" : r.delivery === "concierto" ? "recoge en concierto" : undefined, at: new Date().toISOString() };
     await supabaseApi.insert("moves", m);
     await supabaseApi.update("requests", requestId, { status: "apartada", moveId: m.id });
   },

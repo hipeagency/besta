@@ -38,7 +38,7 @@ export function Requests() {
               <div className="flex justify-between gap-3">
                 <span className="min-w-0">
                   <span className="block font-medium">{r.qty} × {p?.name ?? "?"}{v?.label ? ` ${v.label}` : ""}</span>
-                  <span className="block text-[13px] text-crema/65 truncate">{r.name} · {r.delivery === "concierto" ? `recoge en ${g ? `${g.city} ${dateShort(g.date)}` : "un concierto"}` : `envío · ${r.address ?? ""}`}</span>
+                  <span className="block text-[13px] text-crema/65 truncate">{r.name}{r.delivery === "concierto" ? ` · recoge en ${g ? `${g.city} ${dateShort(g.date)}` : "un concierto"}` : r.delivery === "envio" ? ` · envío · ${r.address ?? ""}` : ""}</span>
                   {r.note && <span className="block text-[13px] text-crema/55 italic">«{r.note}»</span>}
                 </span>
                 <span className="text-right shrink-0">

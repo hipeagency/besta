@@ -6,7 +6,9 @@
   ],
   "exclude": [
     "dist",
-    "supabase/functions"
+    "supabase/functions",
+    "scripts/email-previews.ts",
+    "email-previews"
   ],
   "compilerOptions": {
     "jsx": "react-jsx",

@@ -65,7 +65,6 @@ function layout(o: { preheader: string; headline: string; body: string }): strin
 <tr><td style="padding:0 8px 18px;font-family:${FONT};font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-0.5px;color:${C.senal};">${esc(o.headline)}</td></tr>
 ${o.body}
 <tr><td style="padding:28px 8px 0;font-family:${FONT};font-size:12px;line-height:1.6;color:${C.tenue};">
-besta · pop-rock desde castelldefels<br>
 ¿dudas? responde a este email o escríbenos a <a href="mailto:${CONTACT}" style="color:${C.senal};">${CONTACT}</a>
 </td></tr>
 </table>
@@ -182,38 +181,6 @@ export function refundEmail(ctx: OrderContext): Mail {
   return { subject: `Devolución del pedido ${orderNo(order)}`, html, text };
 }
 
-export function reminderEmail(ctx: OrderContext): Mail {
-  const { order, event, gig } = ctx;
-  const name = event?.name ?? "besta";
-  const link = ticketsLink(order);
-  const rows: [string, string][] = [];
-  if (gig?.doors) rows.push(["puertas", gig.doors]);
-  if (gig?.time) rows.push(["besta", gig.time]);
-  rows.push(["merch", "en la entrada"]);
-  const table = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:12px;">${
-    rows.map(([a, b]) => `<tr><td style="padding:4px 0;font-family:${FONT};font-size:15px;color:${C.noche};">${esc(a)}</td><td align="right" style="padding:4px 0;font-family:${MONO};font-size:14px;color:${C.noche};">${esc(b)}</td></tr>`).join("")
-  }</table>`;
-
-  const html = layout({
-    preheader: `${name} · ${dateLabel(gig?.date)} · ten a mano tus entradas`,
-    headline: "mañana es el día.",
-    body: [
-      card({ mono: when(gig, false), title: name, sub: where(gig) || undefined, extra: table }),
-      button(link, "abrir mis entradas"),
-      gig ? small(`<a href="${esc(mapsUrl(gig))}" style="color:${C.senal};">cómo llegar</a> · Sube el brillo del móvil en la puerta.`) : "",
-    ].join("\n"),
-  });
-  const text = [
-    "mañana es el día.",
-    "",
-    `${name}${gig ? ` · ${dateLabel(gig.date)} · ${where(gig)}` : ""}`,
-    ...rows.map(([a, b]) => `${a}: ${b}`),
-    "",
-    `abrir mis entradas: ${link}`,
-  ].join("\n") + textFooter;
-  return { subject: `Mañana es el día: ${name}`, html, text };
-}
-
 export function thanksEmail(ctx: OrderContext): Mail {
   const name = ctx.event?.name ?? "besta";
   const avisame = `${siteUrl()}/#avisame`;
@@ -263,11 +230,15 @@ export function leadNotification(l: LeadInfo): Mail {
 export interface MerchInfo {
   product: string; variant: string; qty: number; priceCents: number;
   name: string; email: string; phone?: string;
-  delivery: "concierto" | "envio"; gigLabel?: string; address?: string; note?: string;
+  delivery?: "concierto" | "envio"; gigLabel?: string; address?: string; note?: string;
 }
 
 const deliveryLabel = (m: MerchInfo) =>
-  m.delivery === "envio" ? `envío${m.address ? ": " + m.address : ""}` : `recoger en concierto${m.gigLabel ? ": " + m.gigLabel : ""}`;
+  m.delivery === "envio" ? `envío${m.address ? ": " + m.address : ""}` : m.delivery === "concierto" ? `recoger en concierto${m.gigLabel ? ": " + m.gigLabel : ""}` : undefined;
+const merchNext = (m: MerchInfo) =>
+  m.delivery === "envio" ? "Te diremos cómo pagar y cuándo sale el envío."
+  : m.delivery === "concierto" ? "Se paga al recogerlo en el concierto (efectivo, bizum o tarjeta)."
+  : "Te contactamos para confirmar tu merch y acordar cómo te lo damos.";
 
 export function merchReceived(m: MerchInfo): Mail {
   const t = kv([["pedido", `${m.qty} × ${m.product} · ${m.variant}`], ["total", eur(m.qty * m.priceCents)], ["entrega", deliveryLabel(m)], ["nota", m.note]]);
@@ -280,12 +251,10 @@ export function merchReceived(m: MerchInfo): Mail {
       body: [
         p(`Hola, ${esc(first)}: nos ha llegado tu solicitud. Te escribimos en breve para confirmarla.`),
         t.html,
-        p(m.delivery === "envio" ? "Te diremos cómo pagar y cuándo sale el envío." : "Se paga al recogerlo en el concierto (efectivo, bizum o tarjeta)."),
+        p(merchNext(m)),
       ].join("\n"),
     }),
-    text: `recibido. te lo guardamos.\n\nHola, ${first}: nos ha llegado tu solicitud. Te escribimos en breve para confirmarla.\n\n${t.text}\n\n${
-      m.delivery === "envio" ? "Te diremos cómo pagar y cuándo sale el envío." : "Se paga al recogerlo en el concierto (efectivo, bizum o tarjeta)."
-    }` + textFooter,
+    text: `recibido. te lo guardamos.\n\nHola, ${first}: nos ha llegado tu solicitud. Te escribimos en breve para confirmarla.\n\n${t.text}\n\n${merchNext(m)}` + textFooter,
   };
 }
 

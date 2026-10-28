@@ -69,11 +69,11 @@ export default function EntradasEvento() {
           <Card>
             <CardTitle>emails automáticos</CardTitle>
             <ul className="flex flex-col gap-2.5 text-[15px]">
-              {[["confirmación + entradas", "al pagar"], ["recordatorio", "24 h antes"], ["gracias + newsletter", "día siguiente"]].map(([n, w]) => (
+              {[["confirmación + entradas", "al pagar"], ["gracias + newsletter", "día siguiente"]].map(([n, w]) => (
                 <li key={n} className="flex items-center gap-2.5"><Dot tone="ok" /><span className="flex-1">{n}</span><span className="font-mono text-xs text-crema/60">{w}</span></li>
               ))}
             </ul>
-            <p className="mt-3 text-xs text-crema/55">Salen solos. El texto se cambia en la plantilla de emails.</p>
+            <p className="mt-3 text-xs text-crema/55">Salen solos. En cada pedido ves cuándo le llegó cada uno y puedes reenviar las entradas.</p>
           </Card>
         </div>
       </div>
@@ -203,10 +203,17 @@ function OrderSheet({ order, tickets, onClose }: { order?: Order; tickets: Ticke
   const refund = useAction((id: string) => api.refundOrder(id));
   const cancel = useAction((code: string) => api.cancelTicket(code));
   const checkIn = useAction((code: string) => api.checkInManual(code, me.name));
+  const [qr, setQr] = useState<string | null>(null);
 
   if (!order) return null;
   const st = orderState(order);
   const live = tickets.filter(t => t.status !== "cancelada");
+  const copy = (text: string, what: string) => { navigator.clipboard?.writeText(text).then(() => toast(`${what} copiado`, "ok"), () => {}); };
+  // Lo mismo que el botón del email: abre sus entradas sin cuenta.
+  const link = `${location.origin}/entradas/?pedido=${encodeURIComponent(order.token)}`;
+  const mails = ([
+    ["entradas", order.emailSentAt], ["reenvío", order.resentAt], ["gracias", order.thanksSentAt], ["devolución", order.refundEmailAt],
+  ] as [string, string | undefined][]).filter((m): m is [string, string] => !!m[1]);
   return (
     <Sheet open onClose={onClose} title={`pedido ${orderNo(order.number)}`}
       footer={order.status === "pagado" ? (
@@ -234,6 +241,22 @@ function OrderSheet({ order, tickets, onClose }: { order?: Order; tickets: Ticke
           </div>
         </div>
 
+        {order.status === "pagado" && (
+          <div className="rounded-2xl bg-noche p-3.5 flex flex-col gap-2.5">
+            <p className="font-mono text-xs tracking-wider text-crema/65 uppercase">emails</p>
+            {mails.length ? (
+              <ul className="flex flex-col gap-1.5 text-[15px]">
+                {mails.map(([n, at]) => (
+                  <li key={n} className="flex items-center gap-2.5"><Dot tone="ok" /><span className="flex-1">{n}</span>
+                    <span className="font-mono text-xs text-crema/60" title={new Date(at).toLocaleString("es-ES")}>{ago(at)}</span></li>
+                ))}
+              </ul>
+            ) : <p className="text-sm text-crema/70">Todavía no consta ningún email enviado. Reenvíale las entradas.</p>}
+            <Button size="sm" className="self-start" onClick={() => copy(link, "Enlace")}><Icon name="copiar" size={15} />copiar enlace a sus entradas</Button>
+            <p className="text-xs text-crema/55">Si no encuentra el email, pásale el enlace por WhatsApp: abre sus entradas sin cuenta.</p>
+          </div>
+        )}
+
         {order.status === "pendiente" && <p className="text-sm text-crema/70 rounded-xl bg-noche p-3">Está en la pasarela de pago. Si no paga en 30 min, el pedido caduca y las plazas vuelven a la venta.</p>}
         {order.status === "devuelto" && <p className="text-sm text-crema/70 rounded-xl bg-noche p-3">Devuelto: las entradas ya no valen en la puerta.</p>}
 
@@ -249,6 +272,18 @@ function OrderSheet({ order, tickets, onClose }: { order?: Order; tickets: Ticke
                       <span className="block text-xs text-crema/60">{kindLabel(t)}{t.checkedInAt ? ` · entró ${hhmm(t.checkedInAt)}${t.checkedInBy ? ` · ${t.checkedInBy}` : ""}` : ""}</span>
                     </span>
                     <Pill tone={ts.tone === "senal" ? "senal" : ts.tone}>{ts.label}</Pill>
+                  </div>
+                  {qr === t.code && (
+                    <div className="flex flex-col items-center gap-2 py-1">
+                      <QR code={t.code} size={200} />
+                      <p className="text-xs text-crema/55 text-center">Se puede escanear desde esta pantalla en la puerta.</p>
+                    </div>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    {t.status !== "cancelada" && (
+                      <Button size="sm" onClick={() => setQr(qr === t.code ? null : t.code)}>{qr === t.code ? "ocultar QR" : "ver QR"}</Button>
+                    )}
+                    <Button size="sm" onClick={() => copy(t.code, "Código")}><Icon name="copiar" size={15} />copiar código</Button>
                   </div>
                   {t.status === "valida" && (
                     <div className="flex flex-wrap gap-2">

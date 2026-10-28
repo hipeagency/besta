@@ -9,3 +9,6 @@ dist/
 scripts/out/
 scripts/members-map.json
 deno.lock
+
+# vista previa de los emails (pnpm emails)
+email-previews/

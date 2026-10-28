@@ -1,20 +1,18 @@
 /* Merch en la web: de momento no se paga online. Eliges producto y
-   talla, nos dejas tus datos y te escribimos para confirmar; se paga
-   al recogerlo en un concierto o antes de enviarlo. */
+   talla, nos dejas tus datos y te escribimos para confirmar y acordar
+   cómo te lo damos y cómo pagar. */
 import { useEffect, useState } from "react";
 import { api } from "@/data/api";
 import type { Product } from "@/data/types";
-import { Button, Field, Input, Modal, Select, Stepper, Textarea } from "@/components/ui";
-import { cx, dateShort, eur } from "@/lib/format";
+import { Button, Field, Input, Modal, Select, Stepper } from "@/components/ui";
+import { cx, eur } from "@/lib/format";
 import { Icon, Punto } from "@/components/ui/icons";
-
-export interface WebGig { id: string; city: string; date: string }
 
 const tone: Record<Product["color"], string> = {
   senal: "bg-senal text-noche", crema: "bg-crema text-noche", tubo: "bg-tubo text-crema", noche: "bg-marco text-crema",
 };
 
-export default function MerchRequest({ products: initial, gigs, empty = false }: { products: Product[]; gigs: WebGig[]; empty?: boolean }) {
+export default function MerchRequest({ products: initial, empty = false }: { products: Product[]; empty?: boolean }) {
   const [products, setProducts] = useState(initial);
   const [open, setOpen] = useState<Product | null>(null);
 
@@ -53,17 +51,15 @@ export default function MerchRequest({ products: initial, gigs, empty = false }:
           );
         })}
       </div>
-      {open && <RequestModal product={open} gigs={gigs} onClose={() => setOpen(null)} />}
+      {open && <RequestModal product={open} onClose={() => setOpen(null)} />}
     </>
   );
 }
 
-function RequestModal({ product, gigs, onClose }: { product: Product; gigs: WebGig[]; onClose: () => void }) {
+function RequestModal({ product, onClose }: { product: Product; onClose: () => void }) {
   const inStock = product.variants.filter(v => v.stock > 0);
   const [variantId, setVariantId] = useState(inStock[0]?.id ?? "");
   const [qty, setQty] = useState(1);
-  const [delivery, setDelivery] = useState<"concierto" | "envio">(gigs.length ? "concierto" : "envio");
-  const [gigId, setGigId] = useState(gigs[0]?.id ?? "");
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -77,9 +73,7 @@ function RequestModal({ product, gigs, onClose }: { product: Product; gigs: WebG
     try {
       await api.requestMerch({
         productId: product.id, variantId, qty, name: String(f.get("name")), email: String(f.get("email")),
-        phone: String(f.get("phone") || "") || undefined, delivery,
-        gigId: delivery === "concierto" ? gigId : undefined,
-        address: delivery === "envio" ? String(f.get("address")) : undefined,
+        phone: String(f.get("phone") || "") || undefined,
         note: String(f.get("note") || "") || undefined,
       });
       setSent(true);
@@ -90,7 +84,7 @@ function RequestModal({ product, gigs, onClose }: { product: Product; gigs: WebG
   return (
     <Modal open onClose={onClose} title={sent ? "apuntado." : product.name} tone="crema">
       {sent ? (
-        <p className="text-lg leading-relaxed">Te escribimos en un par de días para confirmarlo y decirte cómo pagar. {delivery === "concierto" ? "Te lo guardamos para el concierto." : "Los gastos de envío dependen de dónde vivas."}</p>
+        <p className="text-lg leading-relaxed">Nos ponemos en contacto contigo para confirmar tu merch y acordar cómo te lo damos y cómo pagar.</p>
       ) : (
         <form onSubmit={submit} className="grid grid-cols-1 sm:grid-cols-2 gap-3 [&_label]:text-noche/75">
           {product.variants.some(x => x.label) && (
@@ -108,27 +102,11 @@ function RequestModal({ product, gigs, onClose }: { product: Product; gigs: WebG
           <Field label="email">{id => <Input id={id} name="email" type="email" required autoComplete="email" className={light} />}</Field>
           <Field label="teléfono (opcional)" className="sm:col-span-2">{id => <Input id={id} name="phone" type="tel" autoComplete="tel" className={light} />}</Field>
 
-          <div className="sm:col-span-2 flex flex-col gap-2">
-            <span className="text-[13px] text-noche/75">cómo te lo damos</span>
-            <div className="grid grid-cols-2 gap-2">
-              {gigs.length > 0 && <button type="button" aria-pressed={delivery === "concierto"} onClick={() => setDelivery("concierto")} className={cx("h-12 rounded-xl font-semibold", delivery === "concierto" ? "bg-noche text-crema" : "bg-white border border-noche/25")}>en un concierto</button>}
-              <button type="button" aria-pressed={delivery === "envio"} onClick={() => setDelivery("envio")} className={cx("h-12 rounded-xl font-semibold", delivery === "envio" ? "bg-noche text-crema" : "bg-white border border-noche/25", !gigs.length && "col-span-2")}>envío a casa</button>
-            </div>
-          </div>
-          {delivery === "concierto" ? (
-            <Field label="en qué concierto" className="sm:col-span-2">{id => (
-              <Select id={id} value={gigId} onChange={e => setGigId(e.target.value)} className="h-12 bg-white border-noche/25 text-noche">
-                {gigs.map(g => <option key={g.id} value={g.id}>{g.city} · {dateShort(g.date)}</option>)}
-              </Select>
-            )}</Field>
-          ) : (
-            <Field label="dirección de envío" className="sm:col-span-2">{id => <Textarea id={id} name="address" rows={2} required className="bg-white border-noche/25 text-noche" />}</Field>
-          )}
           <Field label="algo más (opcional)" className="sm:col-span-2">{id => <Input id={id} name="note" className={light} />}</Field>
 
           {error && <p role="alert" className="sm:col-span-2 rounded-xl bg-noche text-crema px-4 py-3 text-sm">{error}</p>}
           <Button type="submit" variant="primary" size="lg" block className="sm:col-span-2" disabled={busy || !v || v.stock === 0}>{busy ? "enviando…" : "pedirlo"}</Button>
-          <p className="sm:col-span-2 text-xs text-noche/65">No pagas nada ahora. Usamos tus datos solo para esta petición (<a href="/legal/privacidad/" className="underline">privacidad</a>).</p>
+          <p className="sm:col-span-2 text-xs text-noche/65">No pagas nada ahora: nos ponemos en contacto contigo para confirmar tu merch. Usamos tus datos solo para esta petición (<a href="/legal/privacidad/" className="underline">privacidad</a>).</p>
         </form>
       )}
     </Modal>

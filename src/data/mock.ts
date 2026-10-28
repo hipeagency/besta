@@ -202,8 +202,11 @@ export const mockApi = {
     return out;
   },
 
-  /* De verdad: reenvía el email por Brevo. De prueba: no hace nada. */
-  async resendTickets(_orderId: ID): Promise<void> { return; },
+  /* De verdad: reenvía el email por Brevo. De prueba: solo apunta cuándo. */
+  async resendTickets(orderId: ID): Promise<void> {
+    const o = load().orders.find(x => x.id === orderId);
+    if (o) { o.emailSentAt ??= now(); o.resentAt = now(); save(); }
+  },
 
   // ---------- avísame / newsletter ----------
   /* De verdad: Edge Function → Brevo (contacto + intereses + email de
@@ -328,7 +331,7 @@ export const mockApi = {
     if (!r || !p || !v) throw new Error("Esa solicitud ya no existe.");
     if (v.stock < r.qty) throw new Error(`No hay stock: quedan ${v.stock}.`);
     v.stock -= r.qty;
-    const m: MerchMove = { id: uid("m"), productId: p.id, variantId: v.id, kind: "reserva", qty: -r.qty, unitCents: p.priceCents, by, customer: `${r.name} · web`, gigId: r.gigId, open: true, note: r.delivery === "envio" ? "envío" : "recoge en concierto", at: now() };
+    const m: MerchMove = { id: uid("m"), productId: p.id, variantId: v.id, kind: "reserva", qty: -r.qty, unitCents: p.priceCents, by, customer: `${r.name} · web`, gigId: r.gigId, open: true, note: r.delivery === "envio" ? "envío" : r.delivery === "concierto" ? "recoge en concierto" : undefined, at: now() };
     d.moves.unshift(m);
     r.status = "apartada"; r.moveId = m.id;
     save();
