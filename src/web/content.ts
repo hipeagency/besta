@@ -34,4 +34,5 @@ export const trackers = {
   metaPixelId: "",         // id del píxel de Meta (Instagram/Facebook Ads)
 };
 
-export const radioUrl = "https://besta.es/radio.html";
+/* Entrevista en Ràdio Castelldefels 98.0 FM (antes en /radio.html). */
+export const radioAudio = "/audio/entrevista-radio-castelldefels.m4a";

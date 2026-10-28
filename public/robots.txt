@@ -1,0 +1,5 @@
+User-agent: *
+Disallow: /suite/
+Disallow: /entradas/
+
+Sitemap: https://besta.es/sitemap.xml

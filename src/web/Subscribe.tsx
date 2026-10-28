@@ -12,7 +12,7 @@ const TOPICS: { value: Topic; label: string }[] = [
   { value: "lanzamientos", label: "canciones nuevas" },
 ];
 
-export function SubscribeForm({ initial = ["fechas", "lanzamientos"], source, tone = "dark", compact = false }: { initial?: Topic[]; source: string; tone?: "dark" | "crema"; compact?: boolean }) {
+export function SubscribeForm({ initial = ["fechas", "merch", "lanzamientos"], source, tone = "dark", compact = false }: { initial?: Topic[]; source: string; tone?: "dark" | "crema"; compact?: boolean }) {
   const [topics, setTopics] = useState<Topic[]>(initial);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
@@ -68,7 +68,7 @@ export function SubscribeForm({ initial = ["fechas", "lanzamientos"], source, to
         <button type="submit" disabled={busy} className={cx("h-[52px] px-6 rounded-full font-semibold", light ? "bg-senal text-noche" : "bg-crema text-noche")}>{busy ? "…" : "avísame"}</button>
       </div>
       {error && <p role="alert" className="text-sm">{error}</p>}
-      <p className={cx("text-xs", light ? "text-noche/65" : "text-crema/55")}>Solo para avisarte de lo que marques. Te das de baja con un clic. <a href="/legal/privacidad" className="underline">Privacidad</a>.</p>
+      <p className={cx("text-xs", light ? "text-noche/65" : "text-crema/55")}>Solo para avisarte de lo que marques. Te das de baja con un clic. <a href="/legal/privacidad/" className="underline">Privacidad</a>.</p>
     </form>
   );
 }

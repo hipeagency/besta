@@ -54,7 +54,7 @@ export default function Cookies() {
             <Button onClick={() => decide(analitica, publicidad)}>guardar</Button>
             <Button variant="light" onClick={() => decide(true, true)}>aceptar todo</Button>
           </div>
-          <a href="/legal/cookies" className="text-sm underline text-crema/75">más detalle</a>
+          <a href="/legal/cookies/" className="text-sm underline text-crema/75">más detalle</a>
         </div>
       </Modal>
     </>

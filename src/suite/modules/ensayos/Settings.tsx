@@ -1,11 +1,12 @@
 /* Ajustes de ensayos (⚙): notación, diagramas, tema, directo sin
    internet y cuenta. Todo es de este aparato salvo la sesión. */
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useCollection } from "@/data/hooks";
 import { Button, Segmented, Sheet, useToast } from "@/components/ui";
 import { ago } from "@/lib/format";
 import { useTheme, type ThemePref } from "@/suite/theme";
 import { useMe } from "@/suite/session";
+import { appSaved, downloadApp } from "@/suite/offline";
 import { readOffline, useOfflineAt, useOnline, usePase, useView, writeOffline, type Pase } from "./lib";
 
 function Row({ label, hint, children }: { label: string; hint?: ReactNode; children: ReactNode }) {
@@ -25,12 +26,24 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
   const [pase, setPase] = usePase();
   const { data: songs } = useCollection("songs");
   const { data: setlists } = useCollection("setlists");
+  const { data: members } = useCollection("members");
   const offlineAt = useOfflineAt();
+  const online = useOnline();
   const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const [app, setApp] = useState<boolean | null>(null);
+  useEffect(() => { if (open) appSaved().then(setApp); }, [open, offlineAt]);
 
-  const prepare = () => {
-    if (writeOffline(songs, setlists)) toast("Directo preparado en este aparato", "ok");
-    else toast("No cabe en este navegador", "error");
+  /* Primero la app (la parte que pesa y puede fallar), luego las canciones. */
+  const download = async () => {
+    setBusy(true);
+    const appOk = await downloadApp();
+    const copy = writeOffline(songs, setlists, members, me.userId);
+    setBusy(false);
+    setApp(await appSaved());
+    if (!copy) toast("No caben las canciones en este navegador", "error");
+    else if (!appOk) toast("Canciones guardadas, pero la app no se ha descargado. Repite con buena conexión", "error");
+    else toast(`Listo: app y ${copy.songs.length} canciones en este aparato`, "ok");
   };
 
   return (
@@ -55,10 +68,14 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
           { value: "continuo", label: "scroll continuo" }, { value: "estrofas", label: "por estrofas" },
         ]} />
       </Row>
-      <Row label="directo sin internet" hint="guarda una copia de canciones y setlists en este aparato para tocar sin cobertura.">
-        <Button variant="ghost" block onClick={prepare} disabled={!songs.length}>preparar directo</Button>
+      <Row label="directo sin internet" hint="descarga la app, las canciones y los setlists en este aparato para abrir la suite y tocar sin cobertura. hazlo antes del bolo, con wifi; mientras haya conexión la copia se mantiene al día sola.">
+        <Button variant="primary" block onClick={download} disabled={busy || !online || !songs.length}>
+          {busy ? "descargando…" : offlineAt ? "volver a descargar" : "descargar para el directo"}
+        </Button>
         <p role="status" className="font-mono text-xs text-crema/70">
-          {offlineAt ? <>preparado · {ago(offlineAt)} · {readOffline()?.songs.length ?? 0} canciones</> : "sin preparar"}
+          {offlineAt
+            ? <>{app === false ? "falta la app · " : ""}descargado · {ago(offlineAt)} · {readOffline()?.songs.length ?? 0} canciones</>
+            : online ? "sin descargar" : "sin descargar · hace falta conexión"}
         </p>
       </Row>
       <Row label="cuenta">
@@ -73,10 +90,12 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
 export function useKeepOfflineFresh() {
   const { data: songs, loading: l1 } = useCollection("songs");
   const { data: setlists, loading: l2 } = useCollection("setlists");
+  const { data: members, loading: l3 } = useCollection("members");
+  const { me } = useMe();
   const online = useOnline();
   useEffect(() => {
-    if (l1 || l2 || !online || !readOffline()) return;
-    const t = setTimeout(() => writeOffline(songs, setlists), 1500);
+    if (l1 || l2 || l3 || !online || !readOffline()) return;
+    const t = setTimeout(() => writeOffline(songs, setlists, members, me.userId), 1500);
     return () => clearTimeout(t);
-  }, [songs, setlists, online, l1, l2]);
+  }, [songs, setlists, members, me.userId, online, l1, l2, l3]);
 }

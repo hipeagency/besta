@@ -4,9 +4,12 @@
 import { useEffect, useState } from "react";
 import { QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, subscribe, type Collection, type DB } from "./api";
+import { offlineList, withOffline } from "./offline";
 
+/* networkMode "always": sin conexión React Query dejaría las consultas en
+   pausa (y la suite en «cargando…»); así fallan y tiran de la copia del directo. */
 export const queryClient = new QueryClient({
-  defaultOptions: { queries: { staleTime: Infinity, refetchOnWindowFocus: false, retry: 1 } },
+  defaultOptions: { queries: { staleTime: Infinity, refetchOnWindowFocus: false, retry: 1, networkMode: "always" } },
 });
 
 /* Llamar una vez arriba del árbol. */
@@ -16,7 +19,7 @@ export function useLiveData() {
 }
 
 export function useCollection<K extends Collection>(k: K) {
-  const q = useQuery({ queryKey: [k], queryFn: () => api.list(k) });
+  const q = useQuery({ queryKey: [k], queryFn: () => withOffline(offlineList(k) as DB[K] | null, api.list(k)) });
   return { data: (q.data ?? []) as DB[K], loading: q.isPending, error: q.error };
 }
 

@@ -8,6 +8,9 @@ import { SessionGate, useMe } from "./session";
 import { Shell } from "./Shell";
 import { can, scopesOf, NAV } from "./nav";
 import { ThemeProvider } from "./theme";
+import { registerOffline } from "./offline";
+
+registerOffline();
 
 const Inicio = lazy(() => import("./modules/Inicio"));
 const Bolos = lazy(() => import("./modules/Bolos"));

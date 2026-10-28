@@ -52,7 +52,6 @@ export default function MerchRequest({ products: initial, gigs, empty = false }:
           );
         })}
       </div>
-      <p className="mt-6 text-sm text-crema/65">No se paga aquí: nos lo pides, te lo apartamos y lo pagas al recogerlo en un concierto (o antes del envío).</p>
       {open && <RequestModal product={open} gigs={gigs} onClose={() => setOpen(null)} />}
     </>
   );
@@ -128,7 +127,7 @@ function RequestModal({ product, gigs, onClose }: { product: Product; gigs: WebG
 
           {error && <p role="alert" className="sm:col-span-2 rounded-xl bg-noche text-crema px-4 py-3 text-sm">{error}</p>}
           <Button type="submit" variant="primary" size="lg" block className="sm:col-span-2" disabled={busy || !v || v.stock === 0}>{busy ? "enviando…" : "pedirlo"}</Button>
-          <p className="sm:col-span-2 text-xs text-noche/65">No pagas nada ahora. Usamos tus datos solo para esta petición (<a href="/legal/privacidad" className="underline">privacidad</a>).</p>
+          <p className="sm:col-span-2 text-xs text-noche/65">No pagas nada ahora. Usamos tus datos solo para esta petición (<a href="/legal/privacidad/" className="underline">privacidad</a>).</p>
         </form>
       )}
     </Modal>

@@ -2,7 +2,8 @@
    la letra», cómo se enseña una canción (modo, tono, notación, quién
    la mira) y las preferencias que viven en este dispositivo. */
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import type { ID, Setlist, Song, SongLine, SongSection } from "@/data/types";
+import type { ID, Member, Setlist, Song, SongLine, SongSection } from "@/data/types";
+import { OFFLINE_KEY, readOffline, type OfflineCopy } from "@/data/offline";
 import { toLatin, transposeKey, transposeLine } from "@/lib/chords";
 import { useMe } from "@/suite/session";
 import { uid } from "@/data/api";
@@ -235,17 +236,12 @@ export const useConcert = () => useSyncExternalStore(
 );
 
 // ---------- copia para el directo sin internet ----------
-/* De momento es una copia en localStorage; con el despliegue llega
-   el service worker que guarda también la app. */
-export const OFFLINE_KEY = "besta:ensayos:offline";
-export interface OfflineCopy { at: string; songs: Song[]; setlists: Setlist[] }
+/* La copia vive en @/data/offline (la leen los datos y la sesión);
+   aquí se escribe y se sigue su fecha. La app la guarda el service worker. */
+export { OFFLINE_KEY, readOffline } from "@/data/offline";
 
-export function readOffline(): OfflineCopy | null {
-  try { const r = localStorage.getItem(OFFLINE_KEY); return r ? (JSON.parse(r) as OfflineCopy) : null; } catch { return null; }
-}
-
-export function writeOffline(songs: Song[], setlists: Setlist[]) {
-  const copy: OfflineCopy = { at: new Date().toISOString(), songs, setlists };
+export function writeOffline(songs: Song[], setlists: Setlist[], members: Member[], userId?: string) {
+  const copy: OfflineCopy = { at: new Date().toISOString(), userId, songs, setlists, members };
   try { localStorage.setItem(OFFLINE_KEY, JSON.stringify(copy)); } catch { return null; }
   window.dispatchEvent(new CustomEvent(EVT, { detail: OFFLINE_KEY }));
   return copy;

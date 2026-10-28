@@ -1,38 +1,58 @@
 ---
 import Base from "@/layouts/Base.astro";
 
-/* Borradores. Los textos definitivos los revisa la gestoría antes de vender. */
+/* Textos legales de besta.es. Al cambiar algo, actualiza la fecha de abajo. */
 export function getStaticPaths() {
+  /* Quien vende y factura (autónomo). La banda no es una sociedad.
+     Va aquí dentro: Astro ejecuta getStaticPaths aparte del resto del archivo. */
+  const OWNER = "Màxim Esteban Calvo · NIF 20568012D · Carrer de l'Ancianitat, 28, 08225 Terrassa (Barcelona) · besta@besta.es";
   return [
-    { params: { doc: "condiciones" }, props: { title: "condiciones de venta", body: [
-      "Vende: [Nombre y apellidos] · NIF [NIF] · [dirección fiscal] · besta@besta.es.",
-      "Las entradas se compran en besta.es y se pagan con tarjeta a través de Stripe. Al confirmarse el pago recibes un email con un QR por entrada.",
+    { params: { doc: "aviso-legal" }, props: { description: "Titular de besta.es, datos de contacto y derechos sobre la música, las fotos y el logo de besta.", title: "aviso legal", body: [
+      `Titular de besta.es: ${OWNER}.`,
+      "besta es el nombre artístico de un grupo de música. Desde esta web se informa de sus conciertos y canciones, se venden entradas para sus conciertos y se atienden peticiones de contratación y de merch.",
+      "Las fotos, la música, los textos y el logo son de besta o de sus autores, que nos los ceden. No se pueden usar sin permiso; si quieres algo para prensa, escríbenos.",
+      "Los enlaces a plataformas externas (Spotify, Instagram, venta de entradas de otros…) llevan a webs que no controlamos.",
+    ] } },
+    { params: { doc: "condiciones" }, props: { description: "Cómo funciona la compra de entradas de besta: pago, QR, cancelaciones y devoluciones.", title: "condiciones de venta", body: [
+      `Vende: ${OWNER}.`,
+      "Las entradas se compran en besta.es y se pagan con tarjeta a través de Stripe. Al confirmarse el pago recibes un email con un QR por entrada y la factura. El precio incluye el IVA.",
       "Cada QR permite una sola entrada. No compartas tus entradas: la primera que se escanea es la que vale.",
       "Si el concierto se cancela, se devuelve el importe íntegro a la misma tarjeta. Si se aplaza, la entrada vale para la nueva fecha o puedes pedir la devolución.",
-      "[Política de devoluciones por desistimiento: confirmar con la gestoría. Los servicios de ocio con fecha concreta suelen quedar fuera del derecho de desistimiento.]",
+      "Al ser entradas para un concierto con fecha concreta, no hay derecho de desistimiento (art. 103.l de la Ley General para la Defensa de los Consumidores y Usuarios), salvo cancelación o aplazamiento.",
+      "Si pierdes el email, desde el enlace «mis entradas» puedes volver a ver tus QR, o escríbenos y te los reenviamos.",
+      "La sala puede tener sus propias normas de acceso (edad mínima, derecho de admisión, objetos prohibidos). Si las hay, las indicamos en la ficha del concierto.",
+      "Está prohibido revender las entradas por encima de su precio. Las entradas compradas fuera de besta.es no tienen garantía.",
+      "Solo vendemos entradas en besta.es. Nunca te pediremos que pagues por mensaje directo, Bizum o WhatsApp.",
+      "Si tienes cualquier queja, escríbenos a besta@besta.es y te contestamos lo antes posible. También puedes acudir a la oficina de consumo de tu municipio o a la Agència Catalana del Consum. Se aplica la ley española.",
     ] } },
-    { params: { doc: "cookies" }, props: { title: "cookies", body: [
+    { params: { doc: "cookies" }, props: { description: "Qué cookies usa besta.es y cómo cambiar tu elección.", title: "cookies", body: [
       "Necesarias (siempre activas): guardan tu elección de cookies y, en la suite interna, la sesión. No sirven para seguirte.",
       "Analítica (solo si aceptas): Google Analytics, para saber cuánta gente visita la web y qué mira. Sin datos que te identifiquen.",
       "Publicidad (solo si aceptas): el píxel de Meta, para medir nuestros anuncios en Instagram y Facebook y enseñárselos a gente parecida.",
       "Las tipografías se sirven desde besta.es: no cargamos nada de Google mientras no aceptes la analítica.",
-      "Puedes cambiar tu elección cuando quieras desde «cookies», abajo del todo en la web.",
+      "Tu elección se guarda en tu navegador. Puedes cambiarla cuando quieras desde «cookies», abajo del todo en la web.",
+      "El pago de las entradas se hace en la página de Stripe, que usa sus propias cookies para evitar fraudes.",
     ] } },
-    { params: { doc: "privacidad" }, props: { title: "privacidad", body: [
-      "Responsable: [Nombre y apellidos] · NIF [NIF] · besta@besta.es.",
-      "Usamos tu email para mandarte las entradas y avisos del concierto que has comprado. Solo te escribimos para novedades si marcas la casilla de la newsletter.",
-      "Los pagos los procesa Stripe; nunca vemos los datos de tu tarjeta. Los emails los envía Brevo.",
-      "Puedes pedir acceso, rectificación o borrado de tus datos en besta@besta.es.",
+    { params: { doc: "privacidad" }, props: { description: "Qué datos recoge besta.es, para qué los usa, quién los trata y cómo ejercer tus derechos.", title: "privacidad", body: [
+      `Responsable: ${OWNER}.`,
+      "Entradas: tu nombre y email, para mandarte las entradas, la factura y avisos de ese concierto (cambios de hora, aplazamientos). Base: el contrato de compra. Las facturas se guardan los años que exige la ley fiscal.",
+      "Contratación y prensa: lo que nos escribes en el formulario, para contestarte y preparar el presupuesto. Base: tu petición. Se guarda mientras dure la conversación y, si hay concierto, lo que exija la ley.",
+      "Merch: nombre, email, teléfono y, si pides envío, la dirección, para apartarte el pedido y dártelo. Base: tu pedido.",
+      "Avisos y newsletter: tu email (y nombre y ciudad si los das), solo si te apuntas y lo confirmas desde el email que te mandamos. Base: tu consentimiento. Te puedes dar de baja con el enlace de cada email.",
+      "Quién nos ayuda (encargados del tratamiento): Stripe (pagos; nunca vemos los datos de tu tarjeta), Brevo (envío de emails), Supabase (base de datos, alojada en la UE) y Cloudflare (alojamiento de la web). No vendemos ni cedemos tus datos a nadie más.",
+      "Algunos de estos proveedores son empresas de EE. UU. y podrían acceder a datos desde allí. Lo hacen con las garantías que exige el RGPD: el Marco de Privacidad de Datos UE-EE. UU. o las cláusulas contractuales tipo de la Comisión Europea.",
+      "No tomamos decisiones automáticas sobre ti ni hacemos perfiles. Si tienes menos de 14 años, necesitas el permiso de tus padres o tutores para darnos tus datos.",
+      "Puedes pedir acceso, rectificación, borrado, limitación, oposición o portabilidad de tus datos en besta@besta.es, y retirar tu consentimiento cuando quieras. Si no te contestamos bien, puedes reclamar ante la Agencia Española de Protección de Datos (aepd.es).",
     ] } },
   ];
 }
-const { title, body } = Astro.props;
+const { title, description, body } = Astro.props;
 ---
-<Base title={`${title} · besta`}>
+<Base title={`${title} · besta`} description={description}>
   <main class="max-w-[720px] mx-auto px-5 py-16 flex flex-col gap-6">
     <a href="/" class="logo-crop w-24"><img src="/img/logo-crema.png" alt="besta" /></a>
     <h1 class="text-5xl font-extrabold tracking-[-.03em]">{title}</h1>
-    <p class="kicker text-senal text-xs">borrador · pendiente de revisar</p>
+    <p class="kicker text-crema/60 text-xs">actualizado el 29 de octubre de 2026</p>
     {body.map((p: string) => <p class="text-lg leading-relaxed text-crema/85">{p}</p>)}
   </main>
 </Base>

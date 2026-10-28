@@ -7,6 +7,8 @@ import type { Member } from "@/data/types";
 import { useCollection } from "@/data/hooks";
 import { DATA_MODE } from "@/data/api";
 import { sb } from "@/data/supabase";
+import { readOffline } from "@/data/offline";
+import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { Button, Field, Input, Logo } from "@/components/ui";
 
 const KEY = "besta:sesion-prueba";
@@ -78,7 +80,16 @@ function RealGate({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const client = sb();
-    client.auth.getSession().then(({ data }) => {
+    /* Sin cobertura la sesión caducada no se puede renovar (y Supabase
+       reintenta ~30 s). Con el directo descargado se entra con la copia. */
+    const copy = readOffline();
+    let settled = false;
+    const enterOffline = () => { settled = true; setUserId(copy!.userId!); setPhase("dentro"); };
+    const slow = copy?.userId ? setTimeout(() => { if (!settled) enterOffline(); }, 4000) : undefined;
+    client.auth.getSession().then(({ data, error }) => {
+      clearTimeout(slow);
+      if (!data.session && copy?.userId && (settled || (error && isAuthRetryableFetchError(error)))) { if (!settled) enterOffline(); return; }
+      settled = true;
       setUserId(data.session?.user.id ?? null);
       setPhase(data.session ? (arrivedFor ? "contraseña" : "dentro") : "fuera");
     });
@@ -88,7 +99,7 @@ function RealGate({ children }: { children: ReactNode }) {
       else if (event === "SIGNED_OUT") setPhase("fuera");
       else if (session) setPhase(p => (p === "contraseña" ? p : "dentro"));
     });
-    return () => sub.subscription.unsubscribe();
+    return () => { clearTimeout(slow); sub.subscription.unsubscribe(); };
   }, []);
 
   const logout = () => { sb().auth.signOut(); };

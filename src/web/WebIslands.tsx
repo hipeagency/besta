@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import { api } from "@/data/api";
 import type { Topic } from "@/data/types";
 import { SubscribeForm } from "./Subscribe";
+import { radioAudio } from "./content";
 import Cookies from "./Cookies";
 import { Button, Field, Input, Modal, Stepper, Textarea, ToastProvider } from "@/components/ui";
 import { dateLabel, eur } from "@/lib/format";
@@ -21,24 +22,29 @@ export default function WebIslands({ events }: { events: IslandEvent[] }) {
   const [avisame, setAvisame] = useState<Topic | null>(null);
   const [gallery, setGallery] = useState(false);
   const [nlSlot, setNlSlot] = useState<Element | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
+  const [radio, setRadio] = useState(false);
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
-      const el = (e.target as HTMLElement).closest<HTMLElement>("[data-tickets],[data-avisame],[data-contact],[data-gallery]");
+      const el = (e.target as HTMLElement).closest<HTMLElement>("[data-tickets],[data-avisame],[data-contact],[data-gallery],[data-radio]");
       if (!el) return;
       if (el.dataset.tickets) setEventId(el.dataset.tickets);
       else if (el.dataset.avisame) setAvisame(el.dataset.avisame as Topic);
       else if ("gallery" in el.dataset) setGallery(true);
+      else if ("radio" in el.dataset) setRadio(true);
       else setContact(true);
-      // cierra el menú móvil si estaba abierto
-      document.querySelectorAll("details[open]").forEach(d => d.removeAttribute("open"));
     };
     document.addEventListener("click", onClick);
     setNlSlot(document.querySelector("[data-newsletter]"));
-    // los enlaces del menú móvil también lo cierran
-    const closeMenu = (e: Event) => { if ((e.target as HTMLElement).closest("details a")) document.querySelectorAll("details[open]").forEach(d => d.removeAttribute("open")); };
-    document.addEventListener("click", closeMenu);
-    return () => { document.removeEventListener("click", onClick); document.removeEventListener("click", closeMenu); };
+    // Vuelta del email de doble confirmación de Brevo (?suscrito=1).
+    const url = new URL(location.href);
+    if (url.searchParams.has("suscrito")) {
+      setConfirmed(true);
+      url.searchParams.delete("suscrito");
+      history.replaceState(null, "", url.pathname + url.search + url.hash);
+    }
+    return () => document.removeEventListener("click", onClick);
   }, []);
 
   const ev = events.find(e => e.id === eventId) ?? null;
@@ -50,7 +56,14 @@ export default function WebIslands({ events }: { events: IslandEvent[] }) {
       {gallery && <Gallery onClose={() => setGallery(false)} />}
       {nlSlot && createPortal(<SubscribeForm source="pie" compact />, nlSlot)}
       <Modal open={!!avisame} onClose={() => setAvisame(null)} title={avisame === "merch" ? "te avisamos del merch" : "te avisamos"} tone="crema">
-        {avisame && <SubscribeForm key={avisame} initial={[avisame]} source={`avisame-${avisame}`} tone="crema" />}
+        {avisame && <SubscribeForm key={avisame} source={`avisame-${avisame}`} tone="crema" />}
+      </Modal>
+      <Modal open={radio} onClose={() => setRadio(false)} title="besta en la radio">
+        <p className="text-[15px] leading-relaxed mb-4">Nuestra entrevista en Ràdio Castelldefels 98.0 FM.</p>
+        {radio && <audio src={radioAudio} controls autoPlay preload="none" className="w-full" />}
+      </Modal>
+      <Modal open={confirmed} onClose={() => setConfirmed(false)} title="¡confirmado!" tone="crema">
+        <p className="text-[17px] leading-relaxed">Ya estás dentro. Te escribiremos solo cuando haya algo que contar: fechas nuevas, preventa y lanzamientos.</p>
       </Modal>
       <Cookies />
     </ToastProvider>
@@ -144,7 +157,7 @@ function TicketDrawer({ ev, onClose }: { ev: IslandEvent; onClose: () => void })
             <Button type="submit" variant="primary" size="lg" block disabled={soldOut}>pagar con tarjeta</Button>
             <p className="text-center text-[13px] leading-relaxed text-crema/65">
               Pago seguro con Stripe · Apple Pay · Google Pay<br />
-              Al pagar aceptas las <a href="/legal/condiciones" className="underline">condiciones de venta</a>
+              Al pagar aceptas las <a href="/legal/condiciones/" className="underline">condiciones de venta</a>
             </p>
           </form>
         ) : (
@@ -191,6 +204,7 @@ function ContactModal({ open, onClose }: { open: boolean; onClose: () => void })
           <Field label="Email" className="sm:col-span-2">{id => <Input id={id} name="email" type="email" required autoComplete="email" className={light} />}</Field>
           <Field label="Qué tienes en mente" className="sm:col-span-2">{id => <Textarea id={id} name="message" rows={3} required className="bg-white border-noche/25 text-noche" />}</Field>
           <Button type="submit" variant="primary" size="lg" block className="sm:col-span-2 mt-1" disabled={busy}>{busy ? "enviando…" : "enviar"}</Button>
+          <p className="sm:col-span-2 text-xs text-noche/65">Usamos tus datos solo para contestarte y preparar el presupuesto (<a href="/legal/privacidad/" className="underline">privacidad</a>).</p>
         </form>
       )}
     </Modal>

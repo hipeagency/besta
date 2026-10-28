@@ -1,0 +1,44 @@
+<!-- Plantilla de Brevo para la doble confirmación de la newsletter.
+     Se pega en Brevo (plantilla de tipo «double opt-in», editor de código)
+     y su id va en el secreto BREVO_DOI_TEMPLATE_ID.
+     {{ doubleoptin }} lo cambia Brevo por el enlace de confirmar. -->
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>confirma que quieres enterarte</title>
+</head>
+<body style="margin:0;padding:0;background:#0F0B08;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0F0B08;">
+    <tr>
+      <td align="center" style="padding:40px 16px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#1C1510;border-radius:24px;">
+          <tr>
+            <td style="padding:36px 32px 8px;">
+              <img src="https://besta.es/img/logo-crema.png" alt="besta" width="120" style="display:block;border:0;" />
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 32px 0;font-family:Helvetica,Arial,sans-serif;color:#F6E6CC;">
+              <h1 style="margin:0 0 14px;font-size:30px;line-height:1.05;font-weight:800;letter-spacing:-0.5px;">un clic y estás dentro.</h1>
+              <p style="margin:0 0 26px;font-size:16px;line-height:1.55;color:#F6E6CCcc;">Confirma que quieres que te avisemos de fechas nuevas, preventa de entradas y lanzamientos. Solo te escribimos cuando hay algo que contar.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 32px 32px;">
+              <a href="{{ doubleoptin }}" style="display:inline-block;background:#E8662C;color:#0F0B08;font-family:Helvetica,Arial,sans-serif;font-size:17px;font-weight:700;text-decoration:none;padding:15px 28px;border-radius:999px;">sí, avisadme</a>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 32px 30px;border-top:1px solid #F6E6CC1f;font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:1.5;color:#F6E6CC99;">
+              Si no te has apuntado tú, ignora este email: sin confirmar no te escribiremos.<br />
+              besta · <a href="https://besta.es" style="color:#F6E6CC99;">besta.es</a> · <a href="https://besta.es/legal/privacidad" style="color:#F6E6CC99;">privacidad</a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

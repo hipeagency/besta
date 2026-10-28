@@ -1,3 +1,18 @@
+# Direcciones de la web antigua (GitHub Pages): que los enlaces viejos no den 404.
+/radio.html                /#banda           301
+/no-me-sale-olvidarte.html /                 301
+/propuesta.html            /                 301
+/propuesta-tv.html         /                 301
+/ensayos.html              /suite/ensayos    301
+/visuales.html             /suite/visuales   301
+/suite/ensayos.html        /suite/ensayos    301
+/suite/composicion.html    /suite/composicion 301
+/suite/rider.html          /suite/rider      301
+/suite/visuales.html       /suite/visuales   301
+/suite/merch.html          /suite/merch      301
+/suite/finanzas.html       /suite/finanzas   301
+/suite/presupuestos.html   /suite/presupuestos 301
+
 # La suite es una app de una sola página: cualquier ruta suya la sirve /suite/.
 # Una regla por módulo (no /suite/*: esa también coincide con /suite/ y Cloudflare la ve como bucle).
 # Al añadir un módulo a src/suite/nav.ts, añadir aquí sus dos líneas.
