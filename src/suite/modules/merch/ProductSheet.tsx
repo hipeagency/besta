@@ -11,6 +11,7 @@ import { Icon } from "@/components/ui/icons";
 import { MoneyInput } from "../presupuestos/money";
 import { ALL_PAYMENTS, LOW, heldOf, isOpenReserve, money, stockOf } from "./shared";
 import { MoveRow } from "./Moves";
+import { NotifyButton } from "@/suite/NotifyList";
 import { ReservationRow } from "./Reservations";
 import { cx, eur } from "@/lib/format";
 
@@ -251,7 +252,16 @@ function Settings({ p, onClose }: { p: Product; onClose: () => void }) {
           <Segmented size="sm" value={p.color} onChange={color => patch.run({ color })} className="self-start"
             options={(["senal", "crema", "tubo", "noche"] as const).map(c => ({ value: c, label: c === "senal" ? "señal" : c }))} />
         </div>
-        {!p.archived && <Toggle checked={p.published} onChange={v => { patch.run({ published: v }); toast(v ? "Ahora sale en la web" : "Oculto en la web", "ok"); }} label="visible en la web" className="self-start" />}
+        {!p.archived && (
+          <div className="flex flex-wrap items-center gap-3">
+            <Toggle checked={p.published} onChange={v => { patch.run({ published: v }); toast(v ? "Ahora sale en la web" : "Oculto en la web", "ok"); }} label="visible en la web" />
+            {p.published && <NotifyButton size="sm" draft={{
+              topic: "merch", subject: `merch nuevo de besta: ${p.name}`, title: p.name.toLowerCase(),
+              body: `Ya tenemos ${p.name} por ${eur(p.priceCents)}.\n\nPídelo en la web y lo recoges en el próximo concierto, o te lo mandamos.`,
+              ctaLabel: "lo quiero", ctaUrl: "https://besta.es/#merch",
+            }} />}
+          </div>
+        )}
 
         <div className="flex flex-col gap-2">
           <span className="text-[13px] text-crema/75">tallas</span>

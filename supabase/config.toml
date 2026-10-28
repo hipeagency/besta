@@ -439,3 +439,6 @@ verify_jwt = true
 
 [functions.invite-user]
 verify_jwt = true
+
+[functions.newsletter]
+verify_jwt = true

@@ -13,7 +13,7 @@ import type { Collection, DB } from "./mock";
 import { uid } from "./mock";
 import type {
   ID, Order, Ticket, ScanResult, Quote, Lead, Gig, Song, MerchMove, MerchRequest, PayMethod,
-  Subscriber, Member, Product, TicketEvent,
+  Subscriber, Member, Product, TicketEvent, NewsInput, NewsStats,
 } from "./types";
 
 const URL_ = import.meta.env.PUBLIC_SUPABASE_URL as string;
@@ -279,6 +279,11 @@ export const supabaseApi = {
   // ---------- usuarios ----------
   async inviteMember(m: Member): Promise<void> {
     await invoke("invite-user", { name: m.name, email: m.email, role: m.role, scopes: m.scopes, instrument: m.instrument, band: m.band });
+  },
+  // ---------- avisos a la lista ----------
+  async newsletterStats(): Promise<NewsStats> { return invoke("newsletter", { action: "stats" }); },
+  async newsletterSend(input: NewsInput, test?: string): Promise<{ recipients?: number }> {
+    return invoke("newsletter", { ...input, action: test ? "test" : "send", to: test });
   },
 };
 

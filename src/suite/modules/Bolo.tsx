@@ -6,10 +6,11 @@ import { Page } from "@/suite/Shell";
 import { useAction, useCollection } from "@/data/hooks";
 import { api, uid } from "@/data/api";
 import { eventStats, gigChecklist, setlistMinutes, upcomingGigs } from "@/data/selectors";
-import type { Gig, TicketEvent } from "@/data/types";
+import type { Gig, NewsInput, TicketEvent } from "@/data/types";
 import { Button, Card, CardTitle, Empty, Input, Pill, Progress, Segmented, Select, Stat, Textarea, Toggle, useToast } from "@/components/ui";
 import { Icon } from "@/components/ui/icons";
 import { NewGig, applySoldOut } from "./Bolos";
+import { NotifyButton } from "@/suite/NotifyList";
 import { cx, dateLong, dateShort, daysUntil, eur, isPast } from "@/lib/format";
 
 /* En la web: oculto, en secreto (teaser con lo desvelado) o público. */
@@ -70,6 +71,7 @@ export default function Bolo() {
             toast(on ? (ev?.salesEnabled ? "Sold out: venta cerrada y cartel en la web" : "Sold out: cartel en la web") : "Quitado el sold out. La venta sigue cerrada: ábrela en entradas si quieres.", "ok");
           }}>{g.soldOut ? "sold out ✓" : "sold out"}</Button>
         )}
+        {g.published && !isPast(g.date) && <NotifyButton draft={gigDraft(g, ev)} />}
         <Button onClick={() => setEditing(true)}><Icon name="editar" size={16} />editar</Button>
       </>}
     >
@@ -379,4 +381,26 @@ function Teaser({ g, onChange }: { g: Gig; onChange: (p: Partial<Gig>) => void }
       </p>
     </Card>
   );
+}
+
+/* Borrador del aviso a la lista: en secreto, solo lo desvelado. */
+function gigDraft(g: Gig, ev?: TicketEvent): NewsInput {
+  const t = g.teaser;
+  const city = !t || t.city ? g.city : "";
+  const date = !t || t.date === "exacta" ? dateLong(g.date) : t.date === "mes" ? dateLong(g.date).split(" ").slice(2).join(" ") : "";
+  const venue = !t || t.venue ? g.venue : "";
+  if (t) return {
+    topic: "fechas", subject: `besta prepara algo${city ? ` en ${city}` : ""}`, title: city ? `algo se cuece en ${city}` : "concierto secreto a la vista",
+    body: [`Tenemos concierto nuevo${date ? ` en ${date}` : ""} y aún no lo podemos contar todo.`, "Te avisaremos antes que a nadie cuando lo desvelemos."].join("\n\n"),
+    ctaLabel: "ver en la web", ctaUrl: "https://besta.es/#directo", image: "/img/escenario-azul.jpg",
+  };
+  const own = g.ticketing === "propia" && ev;
+  return {
+    topic: "fechas", subject: `besta en ${city} · ${dateShort(g.date)}`, title: `nos vemos en ${city}`,
+    body: [`${date[0]?.toUpperCase()}${date.slice(1)}${venue ? `, ${venue}` : ""}${g.time ? `. Empezamos a las ${g.time}` : ""}.`,
+      own ? "Las entradas ya están a la venta en besta.es: te llegan al momento con tu QR." : g.externalUrl ? "Entradas e info en el enlace de abajo." : "Te esperamos."].join("\n\n"),
+    ctaLabel: own ? "comprar entradas" : g.externalUrl ? "entradas e info" : "ver en la web",
+    ctaUrl: own ? "https://besta.es/#directo" : g.externalUrl || "https://besta.es/#directo",
+    image: ev?.image || "/img/escenario-azul.jpg",
+  };
 }

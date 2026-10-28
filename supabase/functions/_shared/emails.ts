@@ -48,7 +48,7 @@ function when(g?: Gig, doors = true) {
 const where = (g?: Gig) => (g ? [g.venue, g.city].filter(Boolean).join(" · ") : "");
 
 // ---------- piezas ----------
-function layout(o: { preheader: string; headline: string; body: string }): string {
+function layout(o: { preheader: string; headline: string; body: string; footer?: string; kicker?: string }): string {
   return `<!doctype html>
 <html lang="es" xmlns="http://www.w3.org/1999/xhtml">
 <head>
@@ -62,10 +62,11 @@ function layout(o: { preheader: string; headline: string; body: string }): strin
 <tr><td align="center" style="padding:28px 12px;">
 <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:560px;">
 <tr><td style="padding:0 8px 22px;"><img src="${siteUrl()}/img/logo-email.png" width="180" height="55" alt="besta" style="display:block;width:180px;height:55px;border:0;font-family:${FONT};font-size:30px;font-weight:700;color:${C.crema};"></td></tr>
+${o.kicker ? `<tr><td style="padding:0 8px 8px;font-family:${MONO};font-size:12px;letter-spacing:1px;font-weight:600;color:${C.tenue};">${esc(o.kicker)}</td></tr>` : ""}
 <tr><td style="padding:0 8px 18px;font-family:${FONT};font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-0.5px;color:${C.senal};">${esc(o.headline)}</td></tr>
 ${o.body}
 <tr><td style="padding:28px 8px 0;font-family:${FONT};font-size:12px;line-height:1.6;color:${C.tenue};">
-¿dudas? responde a este email o escríbenos a <a href="mailto:${CONTACT}" style="color:${C.senal};">${CONTACT}</a>
+¿dudas? responde a este email o escríbenos a <a href="mailto:${CONTACT}" style="color:${C.senal};">${CONTACT}</a>${o.footer ?? ""}
 </td></tr>
 </table>
 </td></tr>
@@ -266,4 +267,31 @@ export function merchNotification(m: MerchInfo): Mail {
     html: layout({ preheader: `${m.name} pide ${m.product}`, headline: "nueva solicitud de merch.", body: [t.html, p("Apártalo desde merch en la suite. Responde a este email para escribirle."), button(suite, "abrir en la suite")].join("\n") }),
     text: `nueva solicitud de merch.\n\n${t.text}\n\nApártalo desde merch en la suite: ${suite}`,
   };
+}
+
+// ---------- avisos a la lista ----------
+export type NewsTopic = "fechas" | "merch" | "lanzamientos";
+export interface NewsInfo { topic: NewsTopic; subject: string; title: string; body: string; ctaLabel?: string; ctaUrl?: string; image?: string }
+
+const NEWS_KICKER: Record<NewsTopic, string> = { fechas: "NUEVO CONCIERTO", merch: "MERCH NUEVO", lanzamientos: "CANCIÓN NUEVA" };
+const NEWS_WHY: Record<NewsTopic, string> = { fechas: "conciertos", merch: "merch", lanzamientos: "canciones nuevas" };
+
+/* Aviso de campaña (Brevo). {{ unsubscribe }} lo rellena Brevo: es obligatorio. */
+export function newsletterEmail(n: NewsInfo, unsubscribe = "{{ unsubscribe }}"): Mail {
+  const paras = n.body.split(/\n\s*\n/).map(x => x.trim()).filter(Boolean);
+  const img = n.image ? (n.image.startsWith("http") ? n.image : `${siteUrl()}${n.image.startsWith("/") ? "" : "/"}${n.image}`) : "";
+  const html = layout({
+    preheader: paras[0]?.slice(0, 110) ?? n.title,
+    headline: n.title,
+    kicker: NEWS_KICKER[n.topic],
+    body: [
+      img ? `<tr><td style="padding:0 8px 18px;"><img src="${esc(img)}" width="544" alt="" style="display:block;width:100%;max-width:544px;height:auto;border:0;border-radius:18px;"></td></tr>` : "",
+      ...paras.map(x => p(esc(x).replace(/\n/g, "<br>"))),
+      n.ctaUrl && n.ctaLabel ? button(n.ctaUrl, n.ctaLabel) : "",
+    ].join("\n"),
+    footer: `<br>Te llega porque pediste avisos de ${NEWS_WHY[n.topic]} en besta.es. <a href="${unsubscribe}" style="color:${C.tenue};">Darte de baja</a>.`,
+  });
+  const text = [n.title, "", ...paras, ...(n.ctaUrl ? ["", `${n.ctaLabel ?? "más info"}: ${n.ctaUrl}`] : []), textFooter,
+    `Te llega porque pediste avisos de ${NEWS_WHY[n.topic]}. Darte de baja: ${unsubscribe}`].join("\n");
+  return { subject: n.subject, html, text };
 }

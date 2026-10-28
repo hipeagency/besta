@@ -6,7 +6,7 @@
    ========================================================= */
 import { createSeed, type DB } from "./seed";
 import type {
-  ID, Order, Ticket, ScanResult, Quote, Lead, Gig, Song, MerchMove, MerchRequest, PayMethod, Subscriber, Member, Product, TicketEvent,
+  ID, Order, Ticket, ScanResult, Quote, Lead, Gig, Song, MerchMove, MerchRequest, PayMethod, Subscriber, Member, Product, TicketEvent, NewsInput, NewsStats, Topic,
 } from "./types";
 
 export type Collection = keyof DB;
@@ -368,6 +368,19 @@ export const mockApi = {
     d.moves = d.moves.filter(x => x.id !== moveId);
     d.requests.forEach(r => { if (r.moveId === moveId) r.status = "cancelada"; });
     save();
+  },
+  // ---------- avisos a la lista ----------
+  /* De prueba: cuenta los suscriptores del navegador; enviar no manda nada. */
+  async newsletterStats(): Promise<NewsStats> {
+    const subs = load().subscribers;
+    const by = (t: Topic) => subs.filter(s => s.topics.includes(t)).length;
+    return { total: subs.length, byTopic: { fechas: by("fechas"), merch: by("merch"), lanzamientos: by("lanzamientos") }, recent: [] };
+  },
+  async newsletterSend(input: NewsInput, test?: string): Promise<{ recipients?: number }> {
+    if (test) return {};
+    const n = load().subscribers.filter(s => s.topics.includes(input.topic)).length;
+    if (!n) throw new Error("Nadie de la lista ha pedido este tipo de aviso todavía.");
+    return { recipients: n };
   },
 };
 

@@ -46,6 +46,9 @@ const mails: { file: string; who: string; when: string; mail: { subject: string;
   { file: "merch-recibido", who: "fan", when: "al pedir merch en la web", mail: e.merchReceived(merch) },
   { file: "merch-aviso-banda", who: "banda (NOTIFY_EMAILS)", when: "al pedir merch en la web", mail: e.merchNotification(merch) },
   { file: "contratacion-aviso-banda", who: "banda (NOTIFY_EMAILS)", when: "al rellenar el formulario de contratación", mail: e.leadNotification(lead) },
+  { file: "aviso-concierto", who: "lista (interés fechas)", when: "al avisar de un bolo desde la suite", mail: e.newsletterEmail({ topic: "fechas", subject: "besta en Barcelona · 12 dic", title: "nos vemos en Barcelona", body: "Sábado 12 de diciembre, Sala Apolo. Puertas a las 21:00.\n\nLas entradas ya están a la venta en besta.es: con QR al momento y sin gastos de gestión.", ctaLabel: "comprar entradas", ctaUrl: "https://besta.es/#directo", image: "/img/escenario-azul.jpg" }, "#baja") },
+  { file: "aviso-merch", who: "lista (interés merch)", when: "al avisar de merch nuevo desde la suite", mail: e.newsletterEmail({ topic: "merch", subject: "merch nuevo de besta", title: "camiseta nueva", body: "Ya está la camiseta de la gira. Pídela en la web y la recoges en el próximo concierto.", ctaLabel: "la quiero", ctaUrl: "https://besta.es/#merch" }, "#baja") },
+  { file: "aviso-cancion", who: "lista (interés lanzamientos)", when: "al avisar de una canción nueva desde la suite", mail: e.newsletterEmail({ topic: "lanzamientos", subject: "«No me sale olvidarte» ya está fuera", title: "«No me sale olvidarte»", body: "Nuestra canción nueva ya está en todas las plataformas.", ctaLabel: "escuchar en Spotify", ctaUrl: "https://open.spotify.com/", image: "/img/no-me-sale-olvidarte.jpg" }, "#baja") },
 ];
 
 const out = new URL("../email-previews/", import.meta.url);

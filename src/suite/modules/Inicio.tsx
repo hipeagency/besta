@@ -8,6 +8,8 @@ import { eventStats, gigChecklist, salesByDay, upcomingGigs, balances } from "@/
 import { Button, Card, CardTitle, Dot, Pill, Stat } from "@/components/ui";
 import { ago, cx, dateShort, daysUntil, eur, eur0, maskEmail, todayLabel } from "@/lib/format";
 import { Icon } from "@/components/ui/icons";
+import { NotifyButton, TOPIC_LABEL, useNewsStats } from "@/suite/NotifyList";
+import type { Topic } from "@/data/types";
 
 export default function Inicio() {
   const { me } = useMe();
@@ -135,8 +137,48 @@ export default function Inicio() {
             <span className="font-mono text-[32px] leading-tight">{eur0(cash)}</span>
             <span className="text-[13px] text-noche/70">{myBalance && Math.abs(myBalance.cents) > 50 ? (myBalance.cents > 0 ? `te deben ${eur(myBalance.cents)}` : `debes ${eur(-myBalance.cents)}`) : "estás en paz con todos"}</span>
           </Link>}
+          {me.role === "admin" && <Newsletter />}
         </div>
       </div>
     </Page>
+  );
+}
+
+/* La lista de la web: cuánta gente hay por interés, últimos avisos y
+   el de canción nueva (los de bolo y merch salen en su ficha). */
+function Newsletter() {
+  const stats = useNewsStats();
+  const d = stats.data;
+  return (
+    <Card className="flex flex-col gap-3">
+      <CardTitle>newsletter</CardTitle>
+      {stats.isPending && <p className="text-sm text-crema/60">contando…</p>}
+      {stats.error && <p className="text-sm text-crema/60">No se ha podido leer la lista de Brevo.</p>}
+      {d && <>
+        <p className="text-sm text-crema/75"><b className="text-crema">{d.total}</b> {d.total === 1 ? "persona apuntada" : "personas apuntadas"}</p>
+        <div className="grid grid-cols-3 gap-2">
+          {(Object.keys(TOPIC_LABEL) as Topic[]).map(t => (
+            <div key={t} className="rounded-xl bg-noche px-3 py-2">
+              <div className="font-mono text-lg leading-tight">{d.byTopic[t]}</div>
+              <div className="text-[11px] text-crema/60">{TOPIC_LABEL[t]}</div>
+            </div>
+          ))}
+        </div>
+        {d.recent.length > 0 && <ul className="flex flex-col">
+          {d.recent.slice(0, 3).map(c => (
+            <li key={c.id} className="flex items-center justify-between gap-3 py-2 border-t border-crema/8 text-sm">
+              <span className="min-w-0 truncate">{c.subject}</span>
+              <span className="shrink-0 font-mono text-[11px] text-crema/60">{c.sentAt ? ago(c.sentAt) : ""} · {c.opened}/{c.delivered}</span>
+            </li>
+          ))}
+        </ul>}
+      </>}
+      <NotifyButton size="sm" label="avisar de canción nueva" draft={{
+        topic: "lanzamientos", subject: "canción nueva de besta", title: "canción nueva",
+        body: "Ya está fuera nuestra canción nueva, en todas las plataformas.\n\nPonla alta.",
+        ctaLabel: "escuchar en Spotify", ctaUrl: "https://open.spotify.com/intl-es/artist/14kN0Ny6BdnaWg1dShpZSe",
+      }} />
+      <p className="text-xs text-crema/55">Los avisos de bolos y merch están en la ficha de cada uno.</p>
+    </Card>
   );
 }

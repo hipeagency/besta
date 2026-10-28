@@ -293,3 +293,11 @@ export interface Income {
 export interface Settlement { id: ID; fromId: ID; toId: ID; amountCents: number; date: ISODate; note?: string }
 
 export interface AuditEntry { id: ID; who: string; action: string; at: ISODateTime }
+
+// ---------- avisos a la lista (newsletter) ----------
+export interface NewsInput { topic: Topic; subject: string; title: string; body: string; ctaLabel?: string; ctaUrl?: string; image?: string }
+export interface NewsStats {
+  total: number;
+  byTopic: Record<Topic, number>;
+  recent: { id: number; name: string; subject: string; sentAt?: string; delivered: number; opened: number }[];
+}
