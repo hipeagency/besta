@@ -1,7 +1,9 @@
 # Supabase al día con el repo: al subir a v2 algo de supabase/, aplica
 # las migraciones pendientes y despliega todas las Edge Functions
 # (verify_jwt de cada una en supabase/config.toml).
-# Secreto del repo: SUPABASE_ACCESS_TOKEN.
+# Secretos del repo: SUPABASE_ACCESS_TOKEN; opcionales CF_DEPLOY_HOOK (va a
+# Vault, para que la web se recompile sola) y BANDSINTOWN_APP_ID (secreto
+# de la función de importación).
 name: supabase
 
 on:
@@ -24,6 +26,8 @@ jobs:
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_PROJECT_REF: vjydiddybwutbcfigtie  # público: va en la URL de la API
+      CF_DEPLOY_HOOK: ${{ secrets.CF_DEPLOY_HOOK }}
+      BANDSINTOWN_APP_ID: ${{ secrets.BANDSINTOWN_APP_ID }}
     steps:
       - uses: actions/checkout@v4
 
@@ -36,3 +40,7 @@ jobs:
 
       - name: Edge Functions
         run: supabase functions deploy --project-ref "$SUPABASE_PROJECT_REF" --use-api
+
+      - name: Secreto de Bandsintown
+        if: env.BANDSINTOWN_APP_ID != ''
+        run: supabase secrets set --project-ref "$SUPABASE_PROJECT_REF" BANDSINTOWN_APP_ID="$BANDSINTOWN_APP_ID"
