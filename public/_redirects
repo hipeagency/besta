@@ -1,1 +1,27 @@
-/suite/*  /suite/index.html  200
+# La suite es una app de una sola página: cualquier ruta suya la sirve /suite/.
+# Una regla por módulo (no /suite/*: esa también coincide con /suite/ y Cloudflare la ve como bucle).
+# Al añadir un módulo a src/suite/nav.ts, añadir aquí sus dos líneas.
+/suite/ensayos    /suite/  200
+/suite/ensayos/*  /suite/  200
+/suite/composicion    /suite/  200
+/suite/composicion/*  /suite/  200
+/suite/bolos    /suite/  200
+/suite/bolos/*  /suite/  200
+/suite/rider    /suite/  200
+/suite/rider/*  /suite/  200
+/suite/visuales    /suite/  200
+/suite/visuales/*  /suite/  200
+/suite/puerta    /suite/  200
+/suite/puerta/*  /suite/  200
+/suite/entradas    /suite/  200
+/suite/entradas/*  /suite/  200
+/suite/presupuestos    /suite/  200
+/suite/presupuestos/*  /suite/  200
+/suite/merch    /suite/  200
+/suite/merch/*  /suite/  200
+/suite/finanzas    /suite/  200
+/suite/finanzas/*  /suite/  200
+/suite/usuarios    /suite/  200
+/suite/usuarios/*  /suite/  200
+/suite/mas    /suite/  200
+/suite/mas/*  /suite/  200
