@@ -61,7 +61,7 @@ function layout(o: { preheader: string; headline: string; body: string }): strin
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${C.noche}" style="background:${C.noche};">
 <tr><td align="center" style="padding:28px 12px;">
 <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:560px;">
-<tr><td style="padding:0 8px 22px;font-family:${FONT};font-size:30px;line-height:1;font-weight:700;letter-spacing:-1px;color:${C.crema};">besta</td></tr>
+<tr><td style="padding:0 8px 22px;"><img src="${siteUrl()}/img/logo-email.png" width="180" height="55" alt="besta" style="display:block;width:180px;height:55px;border:0;font-family:${FONT};font-size:30px;font-weight:700;color:${C.crema};"></td></tr>
 <tr><td style="padding:0 8px 18px;font-family:${FONT};font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-0.5px;color:${C.senal};">${esc(o.headline)}</td></tr>
 ${o.body}
 <tr><td style="padding:28px 8px 0;font-family:${FONT};font-size:12px;line-height:1.6;color:${C.tenue};">
