@@ -1,7 +1,7 @@
 /* Cálculos derivados. Funciones puras: las usan las pantallas
    y, el día de mañana, las mismas cuentas vivirán en vistas SQL. */
 import type { DB } from "./seed";
-import type { Gig, ID, TicketEvent, Member, Expense, Settlement, Song } from "./types";
+import type { Gig, ID, TicketEvent, Member, Expense, Settlement, Song, Settings, Task } from "./types";
 import { isPast } from "@/lib/format";
 
 /** Comisión estimada de Stripe con tarjeta europea: 1,5 % + 0,25 € por pedido. */
@@ -37,15 +37,28 @@ export function salesByDay(evId: ID, d: Pick<DB, "orders">, days = 21) {
   return out;
 }
 
+/* Los que aún no tienen fecha van al final de los próximos. */
 export const upcomingGigs = (gigs: Gig[]) =>
-  gigs.filter(g => !isPast(g.date) && g.status !== "cancelado").sort((a, b) => a.date.localeCompare(b.date));
+  gigs.filter(g => !isPast(g.date) && g.status !== "cancelado").sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999"));
 export const pastGigs = (gigs: Gig[]) =>
   gigs.filter(g => isPast(g.date)).sort((a, b) => b.date.localeCompare(a.date));
 
-export interface CheckItem { key: string; name: string; done: boolean; auto: boolean }
+export interface CheckItem { key: string; name: string; done: boolean; auto: boolean; own?: boolean }
 
-/** Lo que se marca solo + lo que se marca a mano. */
-export function gigChecklist(g: Gig, d: Pick<DB, "quotes" | "riders" | "events" | "setlists">): CheckItem[] {
+/* Tareas a mano de todos los bolos mientras la banda no cambie la lista
+   (ajustes «checklist»). merch y furgo conservan su clave de siempre. */
+export const DEFAULT_TASKS: Task[] = [
+  { key: "merch", name: "stock de merch revisado" },
+  { key: "furgo", name: "furgo reservada" },
+  { key: "backline", name: "backline confirmado" },
+  { key: "horarios", name: "horarios de prueba y show confirmados" },
+  { key: "alojamiento", name: "alojamiento y dietas" },
+  { key: "factura", name: "factura enviada" },
+];
+export const commonTasks = (settings: Settings[]) => settings.find(s => s.id === "checklist")?.tasks ?? DEFAULT_TASKS;
+
+/** Lo que se marca solo + las tareas comunes + las de este bolo. */
+export function gigChecklist(g: Gig, d: Pick<DB, "quotes" | "riders" | "events" | "setlists" | "settings">): CheckItem[] {
   const quote = d.quotes.find(q => q.id === g.quoteId);
   const riderSent = d.riders.some(r => r.sentTo.some(s => s.gigId === g.id));
   const ev = d.events.find(e => e.gigId === g.id);
@@ -56,8 +69,8 @@ export function gigChecklist(g: Gig, d: Pick<DB, "quotes" | "riders" | "events" 
   ];
   if (g.ticketing === "propia") items.push({ key: "entradas", name: "entradas a la venta", done: !!ev?.salesEnabled, auto: true });
   items.push({ key: "setlist", name: "setlist cerrado", done: !!sl?.closed, auto: true });
-  items.push({ key: "merch", name: "stock de merch revisado", done: !!g.checklist.merch, auto: false });
-  items.push({ key: "furgo", name: "furgo reservada", done: !!g.checklist.furgo, auto: false });
+  for (const t of commonTasks(d.settings)) items.push({ ...t, done: !!g.checklist[t.key], auto: false });
+  for (const t of g.tasks ?? []) items.push({ ...t, done: !!g.checklist[t.key], auto: false, own: true });
   return items;
 }
 

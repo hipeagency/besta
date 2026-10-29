@@ -15,20 +15,39 @@ const WD_LONG = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes"
 
 const parse = (iso: string) => new Date(iso.length === 10 ? iso + "T12:00:00" : iso);
 
+/* Un bolo puede no tener fecha todavía (""): los formatos lo dicen en vez de romperse. */
 /** «12» */
-export const dayNum = (iso: string) => String(parse(iso).getDate()).padStart(2, "0");
+export const dayNum = (iso: string) => (iso ? String(parse(iso).getDate()).padStart(2, "0") : "");
 /** «DIC» */
-export const mon = (iso: string) => MON[parse(iso).getMonth()];
+export const mon = (iso: string) => (iso ? MON[parse(iso).getMonth()] : "");
 /** «SÁB 12 DIC» */
-export const dateLabel = (iso: string) => { const d = parse(iso); return `${WD[d.getDay()]} ${dayNum(iso)} ${MON[d.getMonth()]}`; };
+export const dateLabel = (iso: string) => { if (!iso) return "SIN FECHA"; const d = parse(iso); return `${WD[d.getDay()]} ${dayNum(iso)} ${MON[d.getMonth()]}`; };
 /** «12 dic» */
-export const dateShort = (iso: string) => `${parse(iso).getDate()} ${MON[parse(iso).getMonth()].toLowerCase()}`;
+export const dateShort = (iso: string) => (iso ? `${parse(iso).getDate()} ${MON[parse(iso).getMonth()].toLowerCase()}` : "sin fecha");
 /** «sábado 12 dic 2026» */
-export const dateLong = (iso: string) => { const d = parse(iso); return `${WD_LONG[d.getDay()]} ${d.getDate()} ${MON[d.getMonth()].toLowerCase()} ${d.getFullYear()}`; };
+export const dateLong = (iso: string) => { if (!iso) return "sin fecha"; const d = parse(iso); return `${WD_LONG[d.getDay()]} ${d.getDate()} ${MON[d.getMonth()].toLowerCase()} ${d.getFullYear()}`; };
+/** «DIC 2026» */
+export const monYear = (iso: string) => (iso ? `${MON[parse(iso).getMonth()]} ${parse(iso).getFullYear()}` : "");
+/** «diciembre 2026» */
+export const monthLong = (iso: string) => (iso ? parse(iso).toLocaleDateString("es-ES", { month: "long", year: "numeric" }) : "");
+
+/* Fecha y hora de un bolo, con lo que se sepa. Con dateTbc solo vale el mes. */
+type GigWhen = { date: string; time?: string; dateTbc?: boolean };
+/** «SÁB 12 DIC», «DIC 2026 · DÍA POR CONFIRMAR» o «FECHA POR CONFIRMAR» */
+export const gigDate = (g: GigWhen) => (!g.date ? "FECHA POR CONFIRMAR" : g.dateTbc ? `${monYear(g.date)} · DÍA POR CONFIRMAR` : dateLabel(g.date));
+/** Para listas: «SÁB 12 DIC», «DIC 2026» o «SIN FECHA» */
+export const gigDateShort = (g: GigWhen) => (g.date && g.dateTbc ? monYear(g.date) : dateLabel(g.date));
+/** Cómo se llama un bolo en listas y títulos: la ciudad, o lo que se sepa. */
+export const gigTitle = (g: { city: string; venue: string; event?: string }) => g.city || g.event || g.venue || "bolo por confirmar";
+/** La línea de debajo: evento y sala que no estén ya en el título. */
+export const gigSub = (g: { city: string; venue: string; event?: string }) => [g.event, g.venue].filter(x => x && x !== gigTitle(g)).join(" · ");
+/** «SÁB 12 DIC · 21:30», con «hora por confirmar» si falta */
+export const gigWhen = (g: GigWhen) => `${gigDate(g)} · ${g.time || "hora por confirmar"}`;
 /** «MIÉRCOLES 28 OCT» */
 export const todayLabel = () => { const d = new Date(); return `${WD_LONG[d.getDay()].toUpperCase()} ${d.getDate()} ${MON[d.getMonth()]}`; };
 
-export const isPast = (iso: string) => parse(iso).getTime() < new Date(new Date().toDateString()).getTime();
+export const isPast = (iso: string) => !!iso && parse(iso).getTime() < new Date(new Date().toDateString()).getTime();
+/** NaN si no hay fecha. */
 export const daysUntil = (iso: string) => Math.round((parse(iso).getTime() - new Date(new Date().toDateString()).getTime() - 12 * 3600e3) / 86400e3);
 
 /** «hace 4 min», «ayer» */

@@ -5,7 +5,7 @@ import MerchRequest from "@/web/MerchRequest";
 import { loadSiteData } from "@/web/siteData";
 import { Icon, Punto } from "@/components/ui/icons";
 import { platforms, socials, single, bio, contactEmail } from "@/web/content";
-import { dateLabel, dayNum, mon, eur, isPast } from "@/lib/format";
+import { dateLabel, dayNum, mon, monYear, eur, isPast } from "@/lib/format";
 import type { Gig } from "@/data/types";
 
 /* En el build se leen los bolos publicados (seed o Supabase, ver siteData). */
@@ -36,15 +36,21 @@ const islandEvents = db.events.map(e => {
   return { id: e.id, name: e.name, city: g.city, venue: g.venue, date: g.date, time: g.time, priceCents: e.priceCents, maxPerOrder: e.maxPerOrder, image: e.image ?? "/img/escenario-azul.jpg" };
 });
 
+/* Lo que aún no se sabe sale «por confirmar». Solo el mes (dateTbc, o en
+   secreto con «mes»): mes y año, sin día ni hora. */
+const onlyMonth = (g: Gig) => !!g.dateTbc || g.teaser?.date === "mes";
+const webDate = (g: Gig) => (!g.date ? "POR CONFIRMAR" : g.dateTbc ? monYear(g.date) : dateLabel(g.date));
+/* «Sonorama Ribera · Plaza del Trigo · 22:00»: con festival, la sala que falte no hace falta decirla. */
+const place = (g: Gig) => [g.event, g.venue || (g.event ? "" : "sala por confirmar"), g.time].filter(Boolean).join(" · ");
+
 /* El teletipo: trozos de texto separados por un asterisco dibujado. */
 const tickerGig = (g: Gig) => {
-  const t = g.teaser;
-  const when = !t || t.date === "exacta" ? `${dayNum(g.date)} ${mon(g.date)}` : t.date === "mes" ? mon(g.date) : "fecha secreta";
+  const when = !g.date ? "próximamente" : onlyMonth(g) ? monYear(g.date) : `${dayNum(g.date)} ${mon(g.date)}`;
   return `${when} ${g.city ? g.city.toUpperCase() : "???"}`;
 };
 const ticker = ["besta en directo", ...(upcoming.length ? upcoming.map(tickerGig) : ["nuevas fechas muy pronto"]), `nuevo single «${single.title}»`];
 /* Lo que aún no se ha desvelado: un texto de relleno borroso (el dato real no llega a la web). */
-const secretWhen = (g: Gig) => g.teaser?.date === "mes" ? mon(g.date) : null;
+const secretWhen = (g: Gig) => g.teaser?.date === "mes" && g.date ? monYear(g.date) : null;
 
 /* Datos estructurados: quién es besta (Google, panel de conocimiento y
    asistentes de IA), la web, el single y cada concierto con su venta. */
@@ -65,12 +71,13 @@ const jsonLd = {
       track: { "@type": "MusicRecording", name: single.title, byArtist: band, url: single.spotify, image: `${SITE}${single.cover}` },
     },
     { "@type": "WebSite", "@id": `${SITE}/#web`, name: "besta", url: SITE, inLanguage: "es-ES", publisher: band },
-    ...upcoming.filter(g => !g.teaser).map(g => {
+    // Solo con fecha exacta: «startDate» no admite «diciembre, ya veremos».
+    ...upcoming.filter(g => !g.teaser && g.date && !g.dateTbc && g.city).map(g => {
       const ev = eventOf(g.id);
       return {
-        "@type": "MusicEvent", name: `besta en ${g.city}`, startDate: `${g.date}T${g.time}:00+01:00`,
+        "@type": "MusicEvent", name: g.event ? `besta en ${g.event}` : `besta en ${g.city}`, startDate: g.time ? `${g.date}T${g.time}:00+01:00` : g.date,
         eventStatus: "https://schema.org/EventScheduled", eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
-        location: { "@type": "Place", name: g.venue, address: g.address ?? g.city },
+        location: { "@type": "Place", name: g.venue || g.city, address: g.address ?? g.city },
         image: `${SITE}/img/og.jpg`,
         performer: band, organizer: band,
         ...(ev && g.ticketing === "propia" ? { offers: { "@type": "Offer", price: (ev.priceCents / 100).toFixed(2), priceCurrency: "EUR", availability: g.soldOut || (ev as { free?: number }).free === 0 ? "https://schema.org/SoldOut" : "https://schema.org/InStock", url: `${SITE}/#directo` } } : {}),
@@ -115,12 +122,12 @@ const jsonLd = {
               <>
                 <div class="flex items-center gap-4">
                   <div class="font-mono text-center leading-none px-3 py-2.5 rounded-2xl border-[1.5px] border-dashed border-senal text-senal">
-                    <div class="text-xs">{next.g.teaser.date === "oculta" ? "PRÓX" : mon(next.g.date)}</div>
-                    <div class="text-[30px] font-medium mt-1">{next.g.teaser.date === "exacta" ? dayNum(next.g.date) : <span class="blur-[6px] select-none" aria-hidden="true">17</span>}</div>
+                    <div class="text-xs">{next.g.date ? (onlyMonth(next.g) ? monYear(next.g.date) : mon(next.g.date)) : "PRÓX"}</div>
+                    <div class="text-[30px] font-medium mt-1">{next.g.date && !onlyMonth(next.g) ? dayNum(next.g.date) : <span class="blur-[6px] select-none" aria-hidden="true">17</span>}</div>
                   </div>
                   <div class="min-w-0">
                     <div class="text-xl font-semibold">{next.g.city || <><span class="blur-[7px] select-none" aria-hidden="true">Ciudad secreta</span><span class="sr-only">ciudad por desvelar</span></>}</div>
-                    <div class="text-[15px] text-crema/70">{next.g.venue || "se desvela pronto"}</div>
+                    <div class="text-[15px] text-crema/70">{[next.g.event, next.g.venue].filter(Boolean).join(" · ") || "se desvela pronto"}</div>
                   </div>
                 </div>
                 <button type="button" data-avisame="fechas" class="h-12 rounded-full bg-senal text-noche font-semibold">avísame cuando se desvele</button>
@@ -128,8 +135,12 @@ const jsonLd = {
             ) : next ? (
               <>
                 <div class="flex items-center gap-4">
-                  <div class="font-mono text-center leading-none px-3 py-2.5 rounded-2xl bg-senal text-noche"><div class="text-xs">{mon(next.g.date)}</div><div class="text-[30px] font-medium mt-1">{dayNum(next.g.date)}</div></div>
-                  <div class="min-w-0"><div class="text-xl font-semibold">{next.g.city}</div><div class="text-[15px] text-crema/70">{next.g.venue} · {next.g.time}</div></div>
+                  <div class="font-mono text-center leading-none px-3 py-2.5 rounded-2xl bg-senal text-noche">{!next.g.date
+                    ? <><div class="text-xs">PRÓX</div><div class="text-[30px] font-medium mt-1">?</div></>
+                    : next.g.dateTbc
+                    ? <><div class="text-xs">{mon(next.g.date)}</div><div class="text-[20px] font-medium mt-1.5">{next.g.date.slice(0, 4)}</div></>
+                    : <><div class="text-xs">{mon(next.g.date)}</div><div class="text-[30px] font-medium mt-1">{dayNum(next.g.date)}</div></>}</div>
+                  <div class="min-w-0"><div class="text-xl font-semibold">{next.g.city || "ciudad por confirmar"}</div><div class="text-[15px] text-crema/70">{place(next.g)}</div></div>
                 </div>
                 {next.own && <button type="button" data-tickets={next.ev!.id} class="h-12 rounded-full bg-senal text-noche font-semibold">comprar entradas · {eur(next.ev!.priceCents)}</button>}
                 {next.soldOut && <p class="h-12 rounded-full border-[1.5px] border-senal text-senal font-mono font-medium tracking-[.14em] flex items-center justify-center">SOLD OUT</p>}
@@ -162,11 +173,8 @@ const jsonLd = {
 
     <!-- DIRECTO -->
     <section id="directo" class="mx-auto max-w-[1240px] px-4 sm:px-6 pt-24 scroll-mt-16">
-      <div class="flex flex-wrap items-end justify-between gap-6 mb-7">
-        <div>
-          <h2 class="text-[clamp(40px,5vw,64px)] font-bold leading-[.95] tracking-[-.035em]">vente a vernos.</h2>
-        </div>
-        <p class="max-w-[360px] text-crema/70 leading-relaxed">Entradas directas, sin intermediarios. Te llegan al email con tu QR al momento.</p>
+      <div class="mb-7">
+        <h2 class="text-[clamp(40px,5vw,64px)] font-bold leading-[.95] tracking-[-.035em]">vente a vernos.</h2>
       </div>
       <ul class="border-t border-crema/15">
         {!upcoming.length && (
@@ -182,21 +190,21 @@ const jsonLd = {
         {rows.map(({ g, ev, own, soldOut, past }) => g.teaser ? (
           <li class="flex flex-wrap items-center gap-x-6 gap-y-3 py-5 px-2 border-b border-crema/15">
             <span class="w-[120px] font-mono text-[15px] tracking-wider text-senal">
-              {g.teaser.date === "exacta" ? dateLabel(g.date) : <>{secretWhen(g) ?? ""} <span class="blur-[5px] select-none" aria-hidden="true">{secretWhen(g) ? "17" : "SÁB 17 OCT"}</span><span class="sr-only">fecha por desvelar</span></>}
+              {g.teaser.date === "exacta" && g.date ? dateLabel(g.date) : secretWhen(g) ?? <><span class="blur-[5px] select-none" aria-hidden="true">SÁB 17 OCT</span><span class="sr-only">fecha por desvelar</span></>}
             </span>
             <div class="flex-[1_1_220px] min-w-0">
               <div class="text-[28px] sm:text-[30px] font-bold tracking-[-.02em] leading-tight">{g.city || <><span class="blur-[8px] select-none" aria-hidden="true">Ciudad secreta</span><span class="sr-only">ciudad por desvelar</span></>}</div>
-              <div class="text-[15px] text-crema/70">{g.venue ? `${g.venue}${g.time ? ` · ${g.time}` : ""}` : <>{g.time ? `${g.time} · ` : ""}<span class="blur-[5px] select-none" aria-hidden="true">sala misteriosa</span><span class="sr-only">sala por desvelar</span></>}</div>
+              <div class="text-[15px] text-crema/70">{g.venue ? place(g) : <>{[g.event, g.time].filter(Boolean).map(x => `${x} · `).join("")}<span class="blur-[5px] select-none" aria-hidden="true">sala misteriosa</span><span class="sr-only">sala por desvelar</span></>}</div>
             </div>
             <span class="font-mono text-xs px-2.5 py-1.5 rounded-full bg-senal/15 text-senal-suave inline-flex items-center gap-1.5"><Icon name="asterisco" size={12} />secreto</span>
             <button type="button" data-avisame="fechas" class="h-12 min-w-[168px] px-5 rounded-full border-[1.5px] border-senal text-senal font-semibold">avísame</button>
           </li>
         ) : (
           <li class="flex flex-wrap items-center gap-x-6 gap-y-3 py-5 px-2 border-b border-crema/15 hover:bg-crema/[.03]">
-            <span class="w-[120px] font-mono text-[15px] tracking-wider">{dateLabel(g.date)}</span>
+            <span class="w-[120px] font-mono text-[15px] tracking-wider">{webDate(g)}</span>
             <div class="flex-[1_1_220px] min-w-0">
-              <div class={`text-[28px] sm:text-[30px] font-bold tracking-[-.02em] leading-tight ${past ? "text-crema/70" : ""}`}>{g.city}</div>
-              <div class="text-[15px] text-crema/70">{g.venue} · {g.time}</div>
+              <div class={`text-[28px] sm:text-[30px] font-bold tracking-[-.02em] leading-tight ${past ? "text-crema/70" : ""}`}>{g.city || "ciudad por confirmar"}</div>
+              <div class="text-[15px] text-crema/70">{place(g)}</div>
             </div>
             {own && <span class="font-mono text-xs px-2.5 py-1.5 rounded-full bg-senal/15 text-senal-suave inline-flex items-center gap-1.5"><Punto />a la venta</span>}
             {soldOut && <span class="font-mono text-sm font-medium tracking-[.14em] px-3.5 py-2 rounded-full border-[1.5px] border-senal text-senal -rotate-2">SOLD OUT</span>}

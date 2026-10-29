@@ -12,7 +12,7 @@ import type {
 export type Collection = keyof DB;
 type Item<K extends Collection> = DB[K] extends (infer T)[] ? T : never;
 
-const KEY = "besta:datos-prueba:v9";  // subir la versión cuando cambie el seed
+const KEY = "besta:datos-prueba:v10";  // subir la versión cuando cambie el seed
 const isBrowser = typeof window !== "undefined";
 
 let db: DB | null = null;

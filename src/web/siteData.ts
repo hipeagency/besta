@@ -37,15 +37,18 @@ export async function loadSiteData(): Promise<SiteData> {
 function publicGig(g: Gig): Gig | null {
   if (!g.published || g.status === "cancelado") return null;
   const t = g.teaser;
-  if (!t) return g;
+  // Solo el mes: ni día ni hora. date ya es el último día del mes.
+  if (!t) return g.dateTbc ? { ...g, time: "", doors: undefined } : g;
+  const exact = t.date === "exacta" && !g.dateTbc;
   const d = new Date(`${g.date}T12:00:00`);
   const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
   const pad = (n: number) => String(n).padStart(2, "0");
   return {
-    id: `secreto-${[...g.id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7).toString(36)}`, status: "confirmado", ticketing: "ninguna", published: true, teaser: t,
-    date: t.date === "exacta" ? g.date : t.date === "mes" ? `${monthEnd.getFullYear()}-${pad(monthEnd.getMonth() + 1)}-${pad(monthEnd.getDate())}` : "",
-    time: t.date === "exacta" ? g.time : "",
-    city: t.city ? g.city : "", venue: t.venue ? g.venue : "",
+    id: `secreto-${[...g.id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7).toString(36)}`, status: "confirmado", ticketing: "ninguna", published: true,
+    teaser: { ...t, date: exact ? "exacta" : "mes" },
+    date: !g.date ? "" : exact ? g.date : `${monthEnd.getFullYear()}-${pad(monthEnd.getMonth() + 1)}-${pad(monthEnd.getDate())}`,
+    time: exact ? g.time : "",
+    city: t.city ? g.city : "", venue: t.venue ? g.venue : "", event: t.event ? g.event : undefined,
     schedule: [], contacts: [], checklist: {},
   };
 }

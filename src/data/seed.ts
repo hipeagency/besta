@@ -6,7 +6,7 @@
    ========================================================= */
 import type {
   Member, Gig, TicketEvent, Order, Ticket, Song, Setlist, Idea, Rider,
-  Quote, Lead, Product, MerchMove, MerchRequest, Subscriber, Expense, Income, Settlement, AuditEntry,
+  Quote, Lead, Product, MerchMove, MerchRequest, Subscriber, Expense, Income, Settlement, AuditEntry, Settings,
 } from "./types";
 
 export interface DB {
@@ -30,6 +30,7 @@ export interface DB {
   settlements: Settlement[];
   audit: AuditEntry[];
   categories: string[];
+  settings: Settings[];
 }
 
 const members: Member[] = [
@@ -353,6 +354,7 @@ export function createSeed(): DB {
     members, gigs, events, orders, tickets, songs, setlists, ideas, riders, quotes, leads,
     products, moves, requests, subscribers: [] as Subscriber[], expenses, incomes, settlements, audit,
     categories: ["traslado", "local", "instrumentos", "material", "comida", "directo", "otros"],
+    settings: [],  // sin documento, la checklist usa DEFAULT_TASKS
   };
 }
 

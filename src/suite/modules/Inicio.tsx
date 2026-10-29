@@ -6,7 +6,7 @@ import { can } from "@/suite/nav";
 import { useCollection } from "@/data/hooks";
 import { eventStats, gigChecklist, salesByDay, upcomingGigs, balances } from "@/data/selectors";
 import { Button, Card, CardTitle, Dot, Pill, Stat } from "@/components/ui";
-import { ago, cx, dateShort, daysUntil, eur, eur0, maskEmail, todayLabel } from "@/lib/format";
+import { ago, cx, dateShort, daysUntil, eur, eur0, gigSub, gigTitle, maskEmail, monYear, todayLabel } from "@/lib/format";
 import { Icon } from "@/components/ui/icons";
 import { NotifyButton, TOPIC_LABEL, useNewsStats } from "@/suite/NotifyList";
 import type { Topic } from "@/data/types";
@@ -26,6 +26,7 @@ export default function Inicio() {
   const { data: expenses } = useCollection("expenses");
   const { data: members } = useCollection("members");
   const { data: settlements } = useCollection("settlements");
+  const { data: settings } = useCollection("settings");
 
   const next = upcomingGigs(gigs)[0];
   const ev = next && events.find(e => e.gigId === next.id);
@@ -33,7 +34,7 @@ export default function Inicio() {
   const bars = ev ? salesByDay(ev.id, { orders }) : [];
   const maxBar = Math.max(1, ...bars.map(b => b.qty));
   const peak = bars.reduce((a, b) => (b.qty > a.qty ? b : a), bars[0] ?? { qty: 0, day: "" });
-  const checklist = next ? gigChecklist(next, { quotes, riders, events, setlists }) : [];
+  const checklist = next ? gigChecklist(next, { quotes, riders, events, setlists, settings }) : [];
   const newLeads = leads.filter(l => l.status === "nueva");
   const recent = orders.filter(o => o.status !== "caducado").slice(0, 5);
   const cash = incomes.reduce((s, i) => s + i.amountCents, 0) - expenses.reduce((s, e) => s + e.amountCents, 0);
@@ -58,9 +59,9 @@ export default function Inicio() {
           <div className="flex-[2_1_380px] p-5 sm:p-7 flex flex-col gap-4">
             <div className="flex flex-wrap justify-between gap-3">
               <div>
-                <p className="font-mono text-xs text-senal">PRÓXIMO BOLO · {daysUntil(next.date) === 0 ? "HOY" : `EN ${daysUntil(next.date)} DÍAS`}</p>
-                <h2 className="text-[26px] sm:text-[30px] font-bold tracking-[-.02em]">{next.city} · {dateShort(next.date)}</h2>
-                <p className="text-crema/70">{next.venue}{next.doors ? ` · puertas ${next.doors}` : ""}</p>
+                <p className="font-mono text-xs text-senal">PRÓXIMO BOLO{next.date && !next.dateTbc ? ` · ${daysUntil(next.date) === 0 ? "HOY" : `EN ${daysUntil(next.date)} DÍAS`}` : ""}</p>
+                <h2 className="text-[26px] sm:text-[30px] font-bold tracking-[-.02em]">{gigTitle(next)} · {next.dateTbc ? monYear(next.date).toLowerCase() : dateShort(next.date)}</h2>
+                <p className="text-crema/70">{[gigSub(next), next.doors && `puertas ${next.doors}`].filter(Boolean).join(" · ")}</p>
               </div>
               <span className="self-start h-10 px-4 rounded-full border-[1.5px] border-crema/25 grid place-items-center text-sm group-hover:border-crema/60">abrir ficha <Icon name="flecha" size={14} className="inline align-[-2px]" /></span>
             </div>

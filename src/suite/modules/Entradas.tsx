@@ -9,7 +9,7 @@ import { eventStats } from "@/data/selectors";
 import type { Gig, TicketEvent } from "@/data/types";
 import { Button, Empty, Field, Input, Pill, Progress, Select, Sheet, Stepper, useToast } from "@/components/ui";
 import { Icon } from "@/components/ui/icons";
-import { dateLabel, daysUntil, eur, eur0, isPast } from "@/lib/format";
+import { dateLabel, daysUntil, eur, eur0, gigWhen, isPast } from "@/lib/format";
 
 export default function Entradas() {
   const { data: events, loading } = useCollection("events");
@@ -46,7 +46,7 @@ export default function Entradas() {
               <Link to={`/entradas/${ev.id}`} className="h-full rounded-[20px] bg-tubo hover:bg-tubo-alto p-5 flex flex-col gap-4 transition">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="font-mono text-xs tracking-wider text-crema/65">{g ? `${dateLabel(g.date)} · ${g.time}` : "SIN BOLO"}</p>
+                    <p className="font-mono text-xs tracking-wider text-crema/65">{g ? gigWhen(g).toUpperCase() : "SIN BOLO"}</p>
                     <h2 className="text-[22px] font-bold tracking-[-.015em] truncate">{g?.city ?? ev.name}</h2>
                     <p className="text-sm text-crema/65 truncate">{g?.venue}</p>
                   </div>

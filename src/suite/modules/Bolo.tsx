@@ -5,21 +5,14 @@ import { Link, useNavigate, useParams } from "react-router";
 import { Page } from "@/suite/Shell";
 import { useAction, useCollection } from "@/data/hooks";
 import { api, uid } from "@/data/api";
-import { eventStats, gigChecklist, setlistMinutes, upcomingGigs } from "@/data/selectors";
-import type { Gig, NewsInput, TicketEvent } from "@/data/types";
-import { Button, Card, CardTitle, Empty, Input, Pill, Progress, Segmented, Select, Stat, Textarea, Toggle, useToast } from "@/components/ui";
+import { type CheckItem, DEFAULT_TASKS, commonTasks, eventStats, gigChecklist, setlistMinutes, upcomingGigs } from "@/data/selectors";
+import type { Gig, NewsInput, Settings, Task, TicketEvent } from "@/data/types";
+import { Button, Card, CardTitle, Empty, IconButton, Input, Pill, Progress, Segmented, Select, Sheet, Stat, Textarea, Toggle, useToast } from "@/components/ui";
 import { Icon } from "@/components/ui/icons";
-import { NewGig, applySoldOut } from "./Bolos";
+import { NewGig, WEB_OPTIONS, applySoldOut, webMode, webPatch, type WebMode } from "./Bolos";
 import { NotifyButton } from "@/suite/NotifyList";
-import { cx, dateLong, dateShort, daysUntil, eur, isPast } from "@/lib/format";
+import { cx, dateLong, dateShort, daysUntil, eur, gigSub, gigTitle, gigWhen, isPast, monthLong } from "@/lib/format";
 
-/* En la web: oculto, en secreto (teaser con lo desvelado) o público. */
-type WebMode = "oculto" | "secreto" | "publico";
-const webMode = (g: Gig): WebMode => !g.published ? "oculto" : g.teaser ? "secreto" : "publico";
-const webPatch = (g: Gig, m: WebMode): Partial<Gig> =>
-  m === "oculto" ? { published: false }
-  : m === "secreto" ? { published: true, teaser: g.teaser ?? { date: "mes", city: true, venue: false } }
-  : { published: true, teaser: null };
 const WEB_TOAST: Record<WebMode, string> = {
   oculto: "Oculto en la web",
   secreto: "En la web en secreto: elige qué se desvela",
@@ -38,6 +31,7 @@ export default function Bolo() {
   const { data: quotes } = useCollection("quotes");
   const { data: riders } = useCollection("riders");
   const { data: setlists } = useCollection("setlists");
+  const { data: settings } = useCollection("settings");
   const [tab, setTab] = useState<Tab>("resumen");
   const [editing, setEditing] = useState(false);
   const patch = useAction((p: Partial<Gig>) => api.update("gigs", id!, p));
@@ -47,7 +41,7 @@ export default function Bolo() {
   if (!g) return <Page title="bolo no encontrado" back={{ to: "/bolos", label: "bolos" }}><Empty title="Este bolo ya no existe" /></Page>;
 
   const ev = events.find(e => e.gigId === g.id);
-  const checklist = gigChecklist(g, { quotes, riders, events, setlists });
+  const checklist = gigChecklist(g, { quotes, riders, events, setlists, settings });
   const strip = [...upcomingGigs(gigs)].slice(0, 6);
   const d = daysUntil(g.date);
 
@@ -56,13 +50,12 @@ export default function Bolo() {
       back={{ to: "/bolos", label: "bolos" }}
       kicker={<span className="flex flex-wrap items-center gap-2">
         <Pill tone={g.status === "confirmado" ? "solid" : "mute"}>{g.status}</Pill>
-        <span>{dateLong(g.date).toUpperCase()}{!isPast(g.date) ? ` · ${d === 0 ? "HOY" : `EN ${d} DÍAS`}` : " · PASADO"}</span>
+        <span>{!g.date ? "FECHA POR CONFIRMAR" : g.dateTbc ? `${monthLong(g.date).toUpperCase()} · DÍA POR CONFIRMAR` : `${dateLong(g.date).toUpperCase()}${!isPast(g.date) ? ` · ${d === 0 ? "HOY" : `EN ${d} DÍAS`}` : " · PASADO"}`}{g.date && !g.time ? " · HORA POR CONFIRMAR" : ""}</span>
+        {gigSub(g) && <span className="normal-case">· {gigSub(g)}</span>}
       </span>}
-      title={g.city}
+      title={gigTitle(g)}
       actions={<>
-        <Segmented size="sm" value={webMode(g)} onChange={m => { patch.run(webPatch(g, m)); toast(WEB_TOAST[m], "ok"); }} options={[
-          { value: "oculto", label: "oculto" }, { value: "secreto", label: "secreto" }, { value: "publico", label: "en la web" },
-        ]} />
+        <Segmented size="sm" value={webMode(g)} onChange={m => { patch.run(webPatch(g, m)); toast(WEB_TOAST[m], "ok"); }} options={WEB_OPTIONS} />
         {g.ticketing !== "ninguna" && !isPast(g.date) && (
           <Button variant={g.soldOut ? "primary" : "ghost"} aria-pressed={!!g.soldOut} onClick={async () => {
             const on = !g.soldOut;
@@ -127,17 +120,7 @@ export default function Bolo() {
           </div>
 
           <div className="flex-[1_1_300px] min-w-0 flex flex-col gap-3">
-            <section className="rounded-[20px] bg-crema text-noche p-5 flex flex-col gap-2.5">
-              <h2 className="font-semibold">checklist</h2>
-              {checklist.map(c => (
-                <label key={c.key} className={cx("flex items-center gap-2.5 text-[15px]", c.auto ? "cursor-default" : "cursor-pointer")}>
-                  <input type="checkbox" checked={c.done} disabled={c.auto} className="size-5 accent-noche"
-                    onChange={e => patch.run({ checklist: { ...g.checklist, [c.key]: e.target.checked } })} />
-                  <span className="flex-1">{c.name}</span>
-                  {c.auto && <span className="font-mono text-[11px] text-noche/60">auto</span>}
-                </label>
-              ))}
-            </section>
+            <Checklist g={g} items={checklist} settings={settings} onChange={p => patch.run(p)} />
             <Bandsintown g={g} ev={ev} />
             <LinkCard onClick={() => setTab("entradas")} mod="ENTRADAS"
               main={ev ? `${eventStats(ev, { orders, tickets }).sold} / ${ev.capacity} vendidas` : g.ticketing === "externa" ? "las vende otro" : "sin venta"}
@@ -337,7 +320,7 @@ function Bandsintown({ g, ev }: { g: Gig; ev?: TicketEvent }) {
     </a>
   );
   const text = [
-    `Fecha: ${g.date} · ${g.time}`, `Sala: ${g.venue}`, `Ciudad: ${g.city}`, g.address ? `Dirección: ${g.address}` : "",
+    `Fecha: ${gigWhen(g).toLowerCase()}`, g.event ? `Festival: ${g.event}` : "", `Sala: ${g.venue || "por confirmar"}`, `Ciudad: ${g.city}`, g.address ? `Dirección: ${g.address}` : "",
     g.ticketing === "propia" && ev ? `Entradas: https://besta.es/#directo · ${eur(ev.priceCents)}` : g.externalUrl ? `Entradas: ${g.externalUrl}` : "",
   ].filter(Boolean).join("\n");
   return (
@@ -358,7 +341,9 @@ function Bandsintown({ g, ev }: { g: Gig; ev?: TicketEvent }) {
 function Teaser({ g, onChange }: { g: Gig; onChange: (p: Partial<Gig>) => void }) {
   const t = g.teaser!;
   const set = (p: Partial<typeof t>) => onChange({ teaser: { ...t, ...p } });
-  const when = t.date === "exacta" ? dateShort(g.date) : t.date === "mes" ? dateLong(g.date).split(" ").slice(2).join(" ") : "fecha secreta";
+  // Si del bolo solo se sabe el mes, «exacta» no puede desvelar más.
+  const exact = t.date === "exacta" && !g.dateTbc;
+  const when = !g.date ? "fecha por confirmar" : exact ? dateShort(g.date) : monthLong(g.date);
   return (
     <Card className="flex flex-col gap-4 border border-senal/40">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -368,15 +353,17 @@ function Teaser({ g, onChange }: { g: Gig; onChange: (p: Partial<Gig>) => void }
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
         <div className="flex items-center gap-3">
           <span className="text-sm text-crema/70">fecha</span>
-          <Segmented size="sm" value={t.date} onChange={date => set({ date })} options={[
-            { value: "oculta", label: "oculta" }, { value: "mes", label: "solo el mes" }, { value: "exacta", label: "exacta" },
+          <Segmented size="sm" value={exact ? "exacta" : "mes"} onChange={date => set({ date })} options={[
+            { value: "mes", label: "mes y año" }, { value: "exacta", label: "exacta" },
           ]} />
         </div>
         <Toggle checked={t.city} onChange={city => set({ city })} label="ciudad" />
         <Toggle checked={t.venue} onChange={venue => set({ venue })} label="sala" />
+        {g.event && <Toggle checked={!!t.event} onChange={event => set({ event })} label="festival" />}
       </div>
+      {g.dateTbc && <p className="-mt-2 text-xs text-crema/55">Del bolo solo sabéis el mes: sale mes y año aunque marquéis «exacta».</p>}
       <p className="text-sm text-crema/70">
-        Así sale: <b className="text-crema">{when} · {t.city ? g.city : "ciudad secreta"}{t.venue ? ` · ${g.venue}` : ""}</b>.
+        Así sale: <b className="text-crema">{when} · {t.city ? g.city || "ciudad por confirmar" : "ciudad secreta"}{t.event && g.event ? ` · ${g.event}` : ""}{t.venue && g.venue ? ` · ${g.venue}` : ""}</b>.
         Lo que no está desvelado sale borroso, con un botón de avísame. Las entradas no se venden hasta que lo desveléis todo.
       </p>
     </Card>
@@ -387,8 +374,9 @@ function Teaser({ g, onChange }: { g: Gig; onChange: (p: Partial<Gig>) => void }
 function gigDraft(g: Gig, ev?: TicketEvent): NewsInput {
   const t = g.teaser;
   const city = !t || t.city ? g.city : "";
-  const date = !t || t.date === "exacta" ? dateLong(g.date) : t.date === "mes" ? dateLong(g.date).split(" ").slice(2).join(" ") : "";
-  const venue = !t || t.venue ? g.venue : "";
+  const exact = (!t || t.date === "exacta") && !g.dateTbc;
+  const date = !g.date ? "" : exact ? dateLong(g.date) : monthLong(g.date);
+  const venue = [!t || t.event ? g.event : "", !t || t.venue ? g.venue : ""].filter(Boolean).join(", ");
   if (t) return {
     topic: "fechas", subject: `besta prepara algo${city ? ` en ${city}` : ""}`, title: city ? `algo se cuece en ${city}` : "concierto secreto a la vista",
     body: [`Tenemos concierto nuevo${date ? ` en ${date}` : ""} y aún no lo podemos contar todo.`, "Te avisaremos antes que a nadie cuando lo desvelemos."].join("\n\n"),
@@ -396,11 +384,88 @@ function gigDraft(g: Gig, ev?: TicketEvent): NewsInput {
   };
   const own = g.ticketing === "propia" && ev;
   return {
-    topic: "fechas", subject: `besta en ${city} · ${dateShort(g.date)}`, title: `nos vemos en ${city}`,
-    body: [`${date[0]?.toUpperCase()}${date.slice(1)}${venue ? `, ${venue}` : ""}${g.time ? `. Empezamos a las ${g.time}` : ""}.`,
+    topic: "fechas", subject: `besta en ${gigTitle(g)}${g.date ? ` · ${exact ? dateShort(g.date) : date}` : ""}`, title: `nos vemos en ${gigTitle(g)}`,
+    body: [`${date ? `${date[0].toUpperCase()}${date.slice(1)}` : "Fecha por confirmar"}${venue ? `, ${venue}` : ""}${g.time && exact ? `. Empezamos a las ${g.time}` : ""}.`,
       own ? "Las entradas ya están a la venta en besta.es: te llegan al momento con tu QR." : g.externalUrl ? "Entradas e info en el enlace de abajo." : "Te esperamos."].join("\n\n"),
     ctaLabel: own ? "comprar entradas" : g.externalUrl ? "entradas e info" : "ver en la web",
     ctaUrl: own ? "https://besta.es/#directo" : g.externalUrl || "https://besta.es/#directo",
     image: ev?.image || "/img/escenario-azul.jpg",
   };
+}
+
+/* Checklist: lo automático, las tareas comunes (iguales en todos los
+   bolos, ajuste «checklist») y las de este bolo. */
+function Checklist({ g, items, settings, onChange }: { g: Gig; items: CheckItem[]; settings: Settings[]; onChange: (p: Partial<Gig>) => void }) {
+  const toast = useToast();
+  const [adding, setAdding] = useState("");
+  const [editing, setEditing] = useState(false);
+  const add = () => {
+    const name = adding.trim();
+    if (!name) return;
+    onChange({ tasks: [...(g.tasks ?? []), { key: `t-${uid()}`, name }] });
+    setAdding("");
+  };
+  const removeOwn = (key: string) => {
+    const { [key]: _, ...checklist } = g.checklist;
+    onChange({ tasks: (g.tasks ?? []).filter(t => t.key !== key), checklist });
+  };
+  return (
+    <section className="rounded-[20px] bg-crema text-noche p-5 flex flex-col gap-2.5">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="font-semibold">checklist</h2>
+        <button type="button" onClick={() => setEditing(true)} className="text-xs text-noche/65 underline hover:text-noche">editar comunes</button>
+      </div>
+      {items.map(c => (
+        <div key={c.key} className="flex items-center gap-2.5 text-[15px]">
+          <label className={cx("flex-1 flex items-center gap-2.5", c.auto ? "cursor-default" : "cursor-pointer")}>
+            <input type="checkbox" checked={c.done} disabled={c.auto} className="size-5 accent-noche"
+              onChange={e => onChange({ checklist: { ...g.checklist, [c.key]: e.target.checked } })} />
+            <span className="flex-1">{c.name}</span>
+          </label>
+          {c.auto && <span className="font-mono text-[11px] text-noche/60">auto</span>}
+          {c.own && <button type="button" onClick={() => removeOwn(c.key)} aria-label={`Quitar «${c.name}»`} className="size-7 grid place-items-center rounded-full text-noche/55 hover:bg-noche/10"><Icon name="x" size={14} /></button>}
+        </div>
+      ))}
+      <form onSubmit={e => { e.preventDefault(); add(); }} className="flex gap-2 pt-1">
+        <Input value={adding} onChange={e => setAdding(e.target.value)} placeholder="+ tarea solo de este bolo" aria-label="Nueva tarea de este bolo"
+          className="h-10 bg-white border-noche/20 text-noche placeholder:text-noche/45" />
+        {adding.trim() && <Button type="submit" size="sm" className="bg-noche text-crema border-noche">añadir</Button>}
+      </form>
+      {editing && <CommonTasks settings={settings} onClose={() => { setEditing(false); toast("Tareas comunes guardadas", "ok"); }} onCancel={() => setEditing(false)} />}
+    </section>
+  );
+}
+
+/* Las tareas comunes: salen en todos los bolos. Quitar una no borra lo marcado. */
+function CommonTasks({ settings, onClose, onCancel }: { settings: Settings[]; onClose: () => void; onCancel: () => void }) {
+  const doc = settings.find(s => s.id === "checklist");
+  const [tasks, setTasks] = useState<Task[]>(commonTasks(settings));
+  const [name, setName] = useState("");
+  const save = useAction(async (t: Task[]) => {
+    const clean = t.map(x => ({ ...x, name: x.name.trim() })).filter(x => x.name);
+    if (doc) await api.update("settings", "checklist", { tasks: clean });
+    else await api.insert("settings", { id: "checklist", tasks: clean });
+  });
+  return (
+    <Sheet open onClose={onCancel} title="tareas comunes" footer={
+      <Button variant="primary" block disabled={save.pending} onClick={async () => { await save.run(tasks); onClose(); }}>guardar</Button>
+    }>
+      <div className="flex flex-col gap-3 pt-1">
+        <p className="text-sm text-crema/70">Salen en la checklist de todos los bolos. Lo automático (presupuesto, rider, entradas, setlist) va aparte.</p>
+        <ul className="flex flex-col gap-2">
+          {tasks.map((t, i) => (
+            <li key={t.key} className="flex items-center gap-2">
+              <Input value={t.name} aria-label={`Tarea ${i + 1}`} onChange={e => setTasks(ts => ts.map(x => (x.key === t.key ? { ...x, name: e.target.value } : x)))} />
+              <IconButton label={`Quitar «${t.name}»`} onClick={() => setTasks(ts => ts.filter(x => x.key !== t.key))} className="text-crema/60"><Icon name="x" size={16} /></IconButton>
+            </li>
+          ))}
+        </ul>
+        <form onSubmit={e => { e.preventDefault(); if (name.trim()) { setTasks(ts => [...ts, { key: `t-${uid()}`, name: name.trim() }]); setName(""); } }} className="flex gap-2">
+          <Input value={name} onChange={e => setName(e.target.value)} placeholder="nueva tarea común" aria-label="Nueva tarea común" />
+          <Button type="submit" size="sm" disabled={!name.trim()}>añadir</Button>
+        </form>
+        <Button size="sm" variant="quiet" className="self-start" onClick={() => setTasks(DEFAULT_TASKS)}>volver a las de por defecto</Button>
+      </div>
+    </Sheet>
+  );
 }

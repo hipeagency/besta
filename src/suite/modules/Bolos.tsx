@@ -9,7 +9,30 @@ import type { Contact, Gig, Ticketing, TicketEvent } from "@/data/types";
 import { Button, Field, IconButton, Input, Pill, Segmented, Select, Sheet, Toggle, useToast } from "@/components/ui";
 import { Icon } from "@/components/ui/icons";
 import { MoneyInput } from "./presupuestos/money";
-import { dateLabel, daysUntil } from "@/lib/format";
+import { daysUntil, gigDateShort, gigSub, gigTitle } from "@/lib/format";
+
+/* En la web: oculto, en secreto (teaser con lo desvelado) o público. */
+export type WebMode = "oculto" | "secreto" | "publico";
+export const webMode = (g: Gig): WebMode => !g.published ? "oculto" : g.teaser ? "secreto" : "publico";
+export const webPatch = (g: Gig, m: WebMode): Partial<Gig> =>
+  m === "oculto" ? { published: false }
+  : m === "secreto" ? { published: true, teaser: g.teaser ?? { date: "mes", city: true, venue: false, event: true } }
+  : { published: true, teaser: null };
+export const WEB_OPTIONS: { value: WebMode; label: string }[] = [
+  { value: "oculto", label: "oculto" }, { value: "secreto", label: "secreto" }, { value: "publico", label: "en la web" },
+];
+const WEB_HINT: Record<WebMode, string> = {
+  oculto: "No sale en la web. Solo lo veis en la suite.",
+  secreto: "Sale en la web sin desvelar todo. En la ficha eliges qué se ve.",
+  publico: "Sale en la web con fecha, ciudad y sala.",
+};
+
+/* «2026-12» → «2026-12-31»: con solo el mes se guarda su último día, así no cuenta como pasado antes de tiempo. */
+const monthEnd = (ym: string) => {
+  if (!/^\d{4}-\d{2}$/.test(ym)) return "";
+  const [y, m] = ym.split("-").map(Number);
+  return `${ym}-${String(new Date(y, m, 0).getDate()).padStart(2, "0")}`;
+};
 
 export default function Bolos() {
   const { data: gigs } = useCollection("gigs");
@@ -29,17 +52,18 @@ export default function Bolos() {
           return (
             <li key={g.id}>
               <Link to={`/bolos/${g.id}`} className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-[18px] bg-tubo hover:bg-tubo-alto p-4 sm:px-5">
-                <span className="w-[104px] font-mono text-sm tracking-wider">{dateLabel(g.date)}</span>
+                <span className="w-[104px] font-mono text-sm tracking-wider">{gigDateShort(g)}</span>
                 <span className="flex-[1_1_200px] min-w-0">
-                  <span className="block text-xl font-bold tracking-[-.01em]">{g.city}</span>
-                  <span className="block text-sm text-crema/65 truncate">{g.venue}</span>
+                  <span className="block text-xl font-bold tracking-[-.01em]">{gigTitle(g)}</span>
+                  <span className="block text-sm text-crema/65 truncate">{gigSub(g)}</span>
                 </span>
                 <span className="flex flex-wrap gap-1.5">
                   {g.status !== "confirmado" && <Pill>{g.status}</Pill>}
                   {g.soldOut && <Pill tone="senal">sold out</Pill>}
                   {g.ticketing === "propia" && ev && <Pill tone={ev.salesEnabled ? "senal" : "mute"} dot={ev.salesEnabled}>entradas propias</Pill>}
                   {!g.published ? <Pill>oculto</Pill> : g.teaser ? <Pill>secreto</Pill> : <Pill>en la web</Pill>}
-                  {tab === "proximos" && <Pill>{d === 0 ? "hoy" : `en ${d} d`}</Pill>}
+                  {tab === "proximos" && g.date && !g.dateTbc && <Pill>{d === 0 ? "hoy" : `en ${d} d`}</Pill>}
+                  {(!g.date || g.dateTbc || !g.time) && <Pill>{!g.date ? "sin fecha" : g.dateTbc ? "día por confirmar" : "hora por confirmar"}</Pill>}
                 </span>
               </Link>
             </li>
@@ -77,12 +101,22 @@ export function NewGig({ open, onClose, gig }: { open: boolean; onClose: () => v
   const [f, setF] = useState<Gig>(gig ?? blank);
   useEffect(() => { if (open) setF(gig ?? blank); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   const set = <K extends keyof Gig>(k: K, v: Gig[K]) => setF(x => ({ ...x, [k]: v }));
+  // La fecha va en dos: mes y año por un lado, día por otro. Sin día, dateTbc.
+  const ym = f.date.slice(0, 7);
+  const day = f.date && !f.dateTbc ? f.date.slice(8, 10) : "";
+  const setDate = (m: string, d: string) => setF(x => ({
+    ...x,
+    date: !m ? "" : d ? `${m}-${d > monthEnd(m).slice(8) ? monthEnd(m).slice(8) : d}` : monthEnd(m),
+    dateTbc: m && !d ? true : undefined,
+  }));
   const setContact = (i: number, c: Partial<Contact>) => set("contacts", f.contacts.map((x, j) => (j === i ? { ...x, ...c } : x)));
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    // Basta con lo que se sepa, pero algo hay que poner.
+    if (![f.date, f.city, f.venue, f.event].some(x => x?.trim())) { toast("Pon al menos la fecha, la ciudad, la sala o el festival.", "error"); return; }
     const contacts = f.contacts.map(c => ({ ...c, role: c.role.trim(), name: c.name.trim(), phone: c.phone?.trim() || undefined, email: c.email?.trim() || undefined })).filter(c => c.name || c.phone || c.email);
-    const g = { ...f, contacts, deal: f.deal?.trim() || undefined, doors: f.doors || undefined, id: f.id || `${f.city.toLowerCase().normalize("NFD").replace(/[^a-z]/g, "")}-${f.date}-${uid()}` };
+    const g = { ...f, contacts, deal: f.deal?.trim() || undefined, doors: f.doors || undefined, event: f.event?.trim() || undefined, dateTbc: f.date && f.dateTbc ? true : undefined, id: f.id || `${f.city.toLowerCase().normalize("NFD").replace(/[^a-z]/g, "")}-${f.date}-${uid()}` };
     try { await save.run(g); } catch (err) { toast((err as Error).message, "error"); return; }
     toast(gig ? (g.soldOut && !gig.soldOut && ev?.salesEnabled ? "Guardado: sold out y venta cerrada" : "Bolo guardado") : "Bolo creado", "ok");
     onClose();
@@ -102,15 +136,30 @@ export function NewGig({ open, onClose, gig }: { open: boolean; onClose: () => v
   return (
     <Sheet open={open} onClose={onClose} title={gig ? "editar bolo" : "nuevo bolo"} width={520}>
       <form onSubmit={submit} className="flex flex-col gap-4 pt-2">
-        <div className="grid grid-cols-3 gap-3">
-          <Field label="fecha">{id => <Input id={id} type="date" required value={f.date} onChange={e => set("date", e.target.value)} />}</Field>
-          <Field label="puertas">{id => <Input id={id} type="time" value={f.doors ?? ""} onChange={e => set("doors", e.target.value || undefined)} />}</Field>
-          <Field label="show">{id => <Input id={id} type="time" required value={f.time} onChange={e => set("time", e.target.value)} />}</Field>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[13px] text-crema/75" id="gig-web">en la web</span>
+          <div role="group" aria-labelledby="gig-web" className="self-start"><Segmented size="sm" value={webMode(f)} onChange={m => setF(x => ({ ...x, ...webPatch(x, m) }))} options={WEB_OPTIONS} /></div>
+          <span className="text-xs text-crema/55">{WEB_HINT[webMode(f)]}</span>
+        </div>
+        <p className="-mb-1 text-xs text-crema/55">Pon lo que sepáis: con un dato basta. Lo que falte sale «por confirmar».</p>
+        <div className="grid grid-cols-[1.4fr_1fr] gap-3">
+          <Field label="mes y año">{id => <Input id={id} type="month" value={ym} onChange={e => setDate(e.target.value, day)} />}</Field>
+          <Field label="día" hint={ym && !day ? "Sin día: sale mes y año." : undefined}>{id => (
+            <Select id={id} value={day} disabled={!ym} onChange={e => setDate(ym, e.target.value)}>
+              <option value="">por confirmar</option>
+              {Array.from({ length: ym ? Number(monthEnd(ym).slice(8)) : 31 }, (_, i) => String(i + 1).padStart(2, "0")).map(d => <option key={d} value={d}>{Number(d)}</option>)}
+            </Select>
+          )}</Field>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="ciudad">{id => <Input id={id} required value={f.city} onChange={e => set("city", e.target.value)} />}</Field>
-          <Field label="sala o lugar">{id => <Input id={id} required value={f.venue} onChange={e => set("venue", e.target.value)} />}</Field>
+          <Field label="puertas">{id => <Input id={id} type="time" value={f.doors ?? ""} onChange={e => set("doors", e.target.value || undefined)} />}</Field>
+          <Field label="show">{id => <Input id={id} type="time" value={f.time} onChange={e => set("time", e.target.value)} />}</Field>
         </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="ciudad">{id => <Input id={id} value={f.city} onChange={e => set("city", e.target.value)} />}</Field>
+          <Field label="sala o lugar">{id => <Input id={id} value={f.venue} onChange={e => set("venue", e.target.value)} placeholder="sala, plaza, teatro…" />}</Field>
+        </div>
+        <Field label="festival o evento" hint="Si el bolo forma parte de uno.">{id => <Input id={id} value={f.event ?? ""} onChange={e => set("event", e.target.value)} placeholder="Sonorama Ribera, fiestas de…" />}</Field>
         <Field label="dirección">{id => <Input id={id} value={f.address ?? ""} onChange={e => set("address", e.target.value)} />}</Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="aforo">{id => <Input id={id} type="number" min={0} value={f.capacity ?? ""} onChange={e => set("capacity", e.target.value ? Number(e.target.value) : undefined)} />}</Field>
@@ -165,7 +214,6 @@ export function NewGig({ open, onClose, gig }: { open: boolean; onClose: () => v
           <Button type="button" size="sm" className="self-start border-dashed" onClick={() => set("contacts", [...f.contacts, { role: "", name: "" }])}>+ contacto</Button>
         </fieldset>
 
-        {!gig && <Toggle checked={f.published} onChange={v => set("published", v)} label="visible en la web" className="self-start" />}
         <Button type="submit" variant="primary" size="lg" disabled={save.pending}>{gig ? "guardar" : "crear bolo"}</Button>
         {gig && <Button type="button" variant="quiet" className="self-start" onClick={del} disabled={remove.pending}>borrar bolo</Button>}
       </form>

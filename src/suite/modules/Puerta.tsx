@@ -12,7 +12,7 @@ import { eventStats } from "@/data/selectors";
 import type { Gig, ScanResult, TicketEvent } from "@/data/types";
 import { Button, Input, Pill, Sheet, useToast } from "@/components/ui";
 import { Icon } from "@/components/ui/icons";
-import { cx, dateLabel, dateShort, daysUntil, hhmm, isPast, maskEmail } from "@/lib/format";
+import { cx, dateLabel, dateShort, daysUntil, gigDateShort, hhmm, isPast, maskEmail } from "@/lib/format";
 import { kindLabel, ticketState } from "./entradas/shared";
 
 export default function Puerta() {
@@ -77,7 +77,7 @@ function PickEvent({ missing }: { missing: boolean }) {
                   className={cx("flex items-center gap-4 rounded-[20px] p-5 min-h-[84px] transition", today ? "bg-senal text-noche" : "bg-tubo hover:bg-tubo-alto")}>
                   <span className="flex-1 min-w-0">
                     <span className={cx("block font-mono text-xs tracking-wider", today ? "text-noche/75" : "text-crema/65")}>
-                      {today ? "HOY" : dateLabel(g.date)} · {g.doors ? `PUERTAS ${g.doors}` : g.time}
+                      {today ? "HOY" : gigDateShort(g)} · {g.doors ? `PUERTAS ${g.doors}` : g.time || "HORA POR CONFIRMAR"}
                     </span>
                     <span className="block text-2xl font-bold tracking-[-.02em] truncate">{g.city}</span>
                     <span className={cx("block text-sm truncate", today ? "text-noche/75" : "text-crema/65")}>{g.venue}</span>

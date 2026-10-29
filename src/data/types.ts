@@ -36,18 +36,21 @@ export interface Contact { role: string; name: string; phone?: string; email?: s
 /* Bolo anunciado en secreto: sale en la web, pero solo con lo desvelado.
    Lo oculto no llega a la web (public_site lo vacía), no es solo un blur. */
 export interface GigTeaser {
-  date: "oculta" | "mes" | "exacta";
+  date: "mes" | "exacta";  // «mes» = mes y año; un «oculta» de antes se trata como «mes»
   city: boolean;
   venue: boolean;
+  event?: boolean;         // el festival o evento, si lo hay
 }
 
 export interface Gig {
   id: ID;
-  date: ISODate;
-  time: string;            // hora del show, «21:30»
+  date: ISODate | "";      // "" = sin fecha todavía
+  dateTbc?: boolean;       // solo se sabe el mes: date es su último día
+  time: string;            // hora del show, «21:30»; "" = por confirmar
   doors?: string;          // «21:00»
   city: string;
   venue: string;
+  event?: string;          // festival o evento del que forma parte: «Sonorama Ribera»
   address?: string;
   capacity?: number;
   status: GigStatus;
@@ -63,7 +66,8 @@ export interface Gig {
   quoteId?: ID;
   setlistId?: ID;
   riderId?: ID;
-  checklist: Record<string, boolean>;  // claves manuales: furgo, merch…
+  checklist: Record<string, boolean>;  // lo marcado a mano: tareas comunes y las de este bolo
+  tasks?: Task[];          // tareas solo de este bolo
   bandsintownId?: string;  // si existe en Bandsintown (de ahí lo coge Spotify)
   soldOut?: boolean;       // cartel de sold out en la web; al marcarlo se cierra la venta propia
 }
@@ -292,6 +296,10 @@ export interface Income {
 }
 
 export interface Settlement { id: ID; fromId: ID; toId: ID; amountCents: number; date: ISODate; note?: string }
+
+/* Ajustes de la banda: un documento por tema (id «checklist»…). */
+export interface Task { key: string; name: string }
+export interface Settings { id: ID; tasks?: Task[] }
 
 export interface AuditEntry { id: ID; who: string; action: string; at: ISODateTime }
 

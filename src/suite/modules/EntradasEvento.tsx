@@ -12,7 +12,7 @@ import type { Order, Ticket, TicketEvent } from "@/data/types";
 import { Button, Card, CardTitle, Dot, Empty, Field, Input, Pill, Segmented, Sheet, Stat, Stepper, Table, Textarea, Toggle, useToast } from "@/components/ui";
 import { Icon } from "@/components/ui/icons";
 import { QR } from "@/components/ui/QR";
-import { ago, cx, dateLabel, eur, eur0, hhmm, maskEmail } from "@/lib/format";
+import { ago, cx, dateLabel, eur, eur0, gigWhen, hhmm, maskEmail } from "@/lib/format";
 import { ConfirmButton, downloadCSV, fromLocalInput, kindLabel, orderNo, orderState, ticketState, toLocalInput } from "./entradas/shared";
 
 type Tab = "pedidos" | "asistentes" | "invitaciones";
@@ -39,7 +39,7 @@ export default function EntradasEvento() {
   return (
     <Page
       back={{ to: "/entradas", label: `entradas · ${events.length} ${events.length === 1 ? "evento" : "eventos"}` }}
-      kicker={g ? `${dateLabel(g.date)} · ${g.time} · ${g.venue.toUpperCase()}` : undefined}
+      kicker={g ? [gigWhen(g).toUpperCase(), g.venue.toUpperCase()].filter(Boolean).join(" · ") : undefined}
       title={ev.name}
       actions={<>
         <Toggle checked={ev.salesEnabled} label="venta activa"
