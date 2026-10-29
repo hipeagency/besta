@@ -11,7 +11,7 @@ import { Icon } from "@/components/ui/icons";
 import { MoneyInput } from "./presupuestos/money";
 import { daysUntil, gigDateShort, gigSub, gigTitle } from "@/lib/format";
 
-/* En la web: oculto, en secreto (teaser con lo desvelado) o público. */
+/* En la web: oculto, por desvelar (teaser con lo desvelado; internamente «secreto») o público. */
 export type WebMode = "oculto" | "secreto" | "publico";
 export const webMode = (g: Gig): WebMode => !g.published ? "oculto" : g.teaser ? "secreto" : "publico";
 export const webPatch = (g: Gig, m: WebMode): Partial<Gig> =>
@@ -19,7 +19,7 @@ export const webPatch = (g: Gig, m: WebMode): Partial<Gig> =>
   : m === "secreto" ? { published: true, teaser: g.teaser ?? { date: "mes", city: true, venue: false, event: true } }
   : { published: true, teaser: null };
 export const WEB_OPTIONS: { value: WebMode; label: string }[] = [
-  { value: "oculto", label: "oculto" }, { value: "secreto", label: "secreto" }, { value: "publico", label: "en la web" },
+  { value: "oculto", label: "oculto" }, { value: "secreto", label: "por desvelar" }, { value: "publico", label: "en la web" },
 ];
 const WEB_HINT: Record<WebMode, string> = {
   oculto: "No sale en la web. Solo lo veis en la suite.",
@@ -61,7 +61,7 @@ export default function Bolos() {
                   {g.status !== "confirmado" && <Pill>{g.status}</Pill>}
                   {g.soldOut && <Pill tone="senal">sold out</Pill>}
                   {g.ticketing === "propia" && ev && <Pill tone={ev.salesEnabled ? "senal" : "mute"} dot={ev.salesEnabled}>entradas propias</Pill>}
-                  {!g.published ? <Pill>oculto</Pill> : g.teaser ? <Pill>secreto</Pill> : <Pill>en la web</Pill>}
+                  {!g.published ? <Pill>oculto</Pill> : g.teaser ? <Pill>por desvelar</Pill> : <Pill>en la web</Pill>}
                   {tab === "proximos" && g.date && !g.dateTbc && <Pill>{d === 0 ? "hoy" : `en ${d} d`}</Pill>}
                   {(!g.date || g.dateTbc || !g.time) && <Pill>{!g.date ? "sin fecha" : g.dateTbc ? "día por confirmar" : "hora por confirmar"}</Pill>}
                 </span>

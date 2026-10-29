@@ -196,7 +196,7 @@ const jsonLd = {
               <div class="text-[28px] sm:text-[30px] font-bold tracking-[-.02em] leading-tight">{g.city || <><span class="blur-[8px] select-none" aria-hidden="true">Ciudad secreta</span><span class="sr-only">ciudad por desvelar</span></>}</div>
               <div class="text-[15px] text-crema/70">{g.venue ? place(g) : <>{[g.event, g.time].filter(Boolean).map(x => `${x} · `).join("")}<span class="blur-[5px] select-none" aria-hidden="true">sala misteriosa</span><span class="sr-only">sala por desvelar</span></>}</div>
             </div>
-            <span class="font-mono text-xs px-2.5 py-1.5 rounded-full bg-senal/15 text-senal-suave inline-flex items-center gap-1.5"><Icon name="asterisco" size={12} />secreto</span>
+            <span class="font-mono text-xs px-2.5 py-1.5 rounded-full bg-senal/15 text-senal-suave inline-flex items-center gap-1.5"><Icon name="asterisco" size={12} />por desvelar</span>
             <button type="button" data-avisame="fechas" class="h-12 min-w-[168px] px-5 rounded-full border-[1.5px] border-senal text-senal font-semibold">avísame</button>
           </li>
         ) : (

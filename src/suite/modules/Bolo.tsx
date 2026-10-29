@@ -15,7 +15,7 @@ import { cx, dateLong, dateShort, daysUntil, eur, gigSub, gigTitle, gigWhen, isP
 
 const WEB_TOAST: Record<WebMode, string> = {
   oculto: "Oculto en la web",
-  secreto: "En la web en secreto: elige qué se desvela",
+  secreto: "En la web por desvelar: elige qué se ve ya",
   publico: "Ahora sale en la web con todo",
 };
 
@@ -347,7 +347,7 @@ function Teaser({ g, onChange }: { g: Gig; onChange: (p: Partial<Gig>) => void }
   return (
     <Card className="flex flex-col gap-4 border border-senal/40">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <CardTitle>en la web, en secreto</CardTitle>
+        <CardTitle>en la web, por desvelar</CardTitle>
         <Button size="sm" variant="primary" onClick={() => onChange({ teaser: null })}>desvelar todo</Button>
       </div>
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
@@ -363,7 +363,7 @@ function Teaser({ g, onChange }: { g: Gig; onChange: (p: Partial<Gig>) => void }
       </div>
       {g.dateTbc && <p className="-mt-2 text-xs text-crema/55">Del bolo solo sabéis el mes: sale mes y año aunque marquéis «exacta».</p>}
       <p className="text-sm text-crema/70">
-        Así sale: <b className="text-crema">{when} · {t.city ? g.city || "ciudad por confirmar" : "ciudad secreta"}{t.event && g.event ? ` · ${g.event}` : ""}{t.venue && g.venue ? ` · ${g.venue}` : ""}</b>.
+        Así sale: <b className="text-crema">{when} · {t.city ? g.city || "ciudad por confirmar" : "ciudad por desvelar"}{t.event && g.event ? ` · ${g.event}` : ""}{t.venue && g.venue ? ` · ${g.venue}` : ""}</b>.
         Lo que no está desvelado sale borroso, con un botón de avísame. Las entradas no se venden hasta que lo desveléis todo.
       </p>
     </Card>
@@ -378,7 +378,7 @@ function gigDraft(g: Gig, ev?: TicketEvent): NewsInput {
   const date = !g.date ? "" : exact ? dateLong(g.date) : monthLong(g.date);
   const venue = [!t || t.event ? g.event : "", !t || t.venue ? g.venue : ""].filter(Boolean).join(", ");
   if (t) return {
-    topic: "fechas", subject: `besta prepara algo${city ? ` en ${city}` : ""}`, title: city ? `algo se cuece en ${city}` : "concierto secreto a la vista",
+    topic: "fechas", subject: `besta prepara algo${city ? ` en ${city}` : ""}`, title: city ? `algo se cuece en ${city}` : "concierto nuevo a la vista",
     body: [`Tenemos concierto nuevo${date ? ` en ${date}` : ""} y aún no lo podemos contar todo.`, "Te avisaremos antes que a nadie cuando lo desvelemos."].join("\n\n"),
     ctaLabel: "ver en la web", ctaUrl: "https://besta.es/#directo", image: "/img/escenario-azul.jpg",
   };
