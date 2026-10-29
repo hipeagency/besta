@@ -117,6 +117,8 @@ export interface Ticket {
   kind: TicketKind;
   holder?: string;         // nombre en invitaciones
   status: TicketStatus;
+  email?: string;          // invitación mandada por email: a quién
+  sentAt?: ISODateTime;    // y cuándo (la última vez)
   checkedInAt?: ISODateTime;
   checkedInBy?: string;
 }

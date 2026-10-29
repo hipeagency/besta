@@ -33,6 +33,8 @@ export interface Ticket {
   kind: "general" | "invitacion";
   holder?: string;
   status: "valida" | "usada" | "cancelada";
+  email?: string;          // invitación mandada por email: a quién
+  sentAt?: string;         // y cuándo (la última vez)
 }
 
 export interface TicketEvent {

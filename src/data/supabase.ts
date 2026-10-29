@@ -146,6 +146,8 @@ export const supabaseApi = {
     if (t?.status === "valida") await supabaseApi.update("tickets", code, { status: "usada", checkedInAt: new Date().toISOString(), checkedInBy: by } as Partial<Ticket>);
   },
 
+  async sendInvites(codes: string[], email: string, name?: string): Promise<void> { await invoke("order-actions", { action: "invite", codes, email, name }); },
+
   async invite(eventId: ID, holder: string, qty: number): Promise<Ticket[]> {
     const out: Ticket[] = Array.from({ length: qty }, () => ({
       code: "INV-" + crypto.getRandomValues(new Uint32Array(1))[0].toString(36).toUpperCase().slice(0, 6),

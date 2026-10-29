@@ -2,7 +2,7 @@
    invitaciones y ajustes de la venta. Las devoluciones y reenvíos
    de verdad irán por Stripe y Brevo; aquí se llama a la API igual. */
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { Page } from "@/suite/Shell";
 import { useMe } from "@/suite/session";
 import { useAction, useCollection } from "@/data/hooks";
@@ -66,6 +66,7 @@ export default function EntradasEvento() {
         </div>
         <div className="flex-[1_1_300px] min-w-0 flex flex-col gap-4">
           <Settings ev={ev} minCapacity={s.sold + s.invites + s.pending} />
+          <RemoveEvent ev={ev} orders={s.orders} tickets={s.tickets} />
           <Card>
             <CardTitle>emails automáticos</CardTitle>
             <ul className="flex flex-col gap-2.5 text-[15px]">
@@ -374,9 +375,12 @@ function Attendees({ ev, orders, tickets }: { ev: TicketEvent; orders: Order[]; 
 function Invites({ ev, tickets }: { ev: TicketEvent; tickets: Ticket[] }) {
   const toast = useToast();
   const [holder, setHolder] = useState("");
+  const [mail, setMail] = useState("");
   const [qty, setQty] = useState(1);
   const [open, setOpen] = useState<string | null>(null);
+  const [sendTo, setSendTo] = useState("");
   const invite = useAction((h: string, n: number) => api.invite(ev.id, h, n));
+  const send = useAction((codes: string[], to: string, name: string) => api.sendInvites(codes, to, name));
   const cancel = useAction((code: string) => api.cancelTicket(code));
 
   const invites = tickets.filter(t => t.kind === "invitacion");
@@ -387,22 +391,35 @@ function Invites({ ev, tickets }: { ev: TicketEvent; tickets: Ticket[] }) {
     e.preventDefault();
     const h = holder.trim();
     if (!h) return;
-    await invite.run(h, qty);
-    toast(`${qty} ${qty === 1 ? "invitación" : "invitaciones"} para ${h}`, "ok");
-    setHolder(""); setQty(1); setOpen(h);
+    const to = mail.trim();
+    const made = await invite.run(h, qty);
+    const what = `${qty} ${qty === 1 ? "invitación" : "invitaciones"} para ${h}`;
+    if (to) {
+      try { await send.run(made.map(t => t.code), to, h); toast(`${what}: enviadas a ${to}`, "ok"); }
+      catch (err) { toast(`${what}, pero no se ha podido mandar el email: ${(err as Error).message}`, "error"); }
+    } else toast(what, "ok");
+    setHolder(""); setMail(""); setQty(1); setOpen(h); setSendTo(to);
+  }
+
+  async function sendGroup(codes: string[], name: string) {
+    const to = sendTo.trim();
+    if (!to) return;
+    try { await send.run(codes, to, name); toast(`Enviadas a ${to}`, "ok"); }
+    catch (err) { toast((err as Error).message, "error"); }
   }
 
   return (
     <Card className="!p-4 sm:!p-5 flex flex-col gap-4">
       <form onSubmit={submit} className="flex flex-wrap items-end gap-3">
         <Field label="a nombre de" className="flex-[1_1_220px]">{id => <Input id={id} required value={holder} onChange={e => setHolder(e.target.value)} placeholder="Ràdio, familia, prensa…" />}</Field>
+        <Field label="email (opcional)" className="flex-[1_1_220px]">{id => <Input id={id} type="email" value={mail} onChange={e => setMail(e.target.value)} placeholder="se las mandamos con su QR" />}</Field>
         <div className="flex flex-col gap-1.5">
           <span className="text-[13px] text-crema/75" id="inv-qty">cuántas</span>
           <div role="group" aria-labelledby="inv-qty"><Stepper value={qty} onChange={setQty} min={1} max={20} /></div>
         </div>
-        <Button type="submit" variant="primary" disabled={invite.pending}>invitar</Button>
+        <Button type="submit" variant="primary" disabled={invite.pending || send.pending}>{mail.trim() ? "invitar y enviar" : "invitar"}</Button>
       </form>
-      <p className="-mt-2 text-xs text-crema/55">Cuentan para el aforo. No llegan por email: enséñales el QR o pásales el código.</p>
+      <p className="-mt-2 text-xs text-crema/55">Cuentan para el aforo. Con email les llega con su QR; sin email, enséñales el QR o pásales el código.</p>
 
       <ul className="flex flex-col">
         {groups.map(gr => {
@@ -410,10 +427,11 @@ function Invites({ ev, tickets }: { ev: TicketEvent; tickets: Ticket[] }) {
           const valid = gr.list.filter(t => t.status !== "cancelada").length;
           return (
             <li key={gr.holder} className="border-t border-crema/8 first:border-t-0">
-              <button type="button" onClick={() => setOpen(gr.holder)} className="w-full flex items-center gap-3 py-3 text-left min-h-[52px]">
+              <button type="button" onClick={() => { setOpen(gr.holder); setSendTo(gr.list.find(t => t.email)?.email ?? ""); }} className="w-full flex items-center gap-3 py-3 text-left min-h-[52px]">
                 <span className="flex-1 min-w-0">
                   <span className="block truncate">{gr.holder}</span>
                   <span className="block font-mono text-xs text-crema/60 truncate">{gr.list.map(t => t.code).join(" · ")}</span>
+                  {gr.list.some(t => t.sentAt) && <span className="block text-xs text-crema/55 truncate">enviadas a {gr.list.find(t => t.email)?.email}</span>}
                 </span>
                 <span className="font-mono text-sm shrink-0">{valid}{used ? <span className="text-crema/60"> · {used} dentro</span> : null}</span>
                 <span className="shrink-0 text-crema/60 inline-flex items-center gap-1" aria-hidden="true">QR <Icon name="flecha" size={14} /></span>
@@ -425,6 +443,18 @@ function Invites({ ev, tickets }: { ev: TicketEvent; tickets: Ticket[] }) {
       </ul>
 
       <Sheet open={!!group} onClose={() => setOpen(null)} title={group ? `invitaciones · ${group.holder}` : "invitaciones"}>
+        {group && group.list.some(t => t.status !== "cancelada") && (
+          <form onSubmit={e => { e.preventDefault(); sendGroup(group.list.filter(t => t.status !== "cancelada").map(t => t.code), group.holder); }}
+            className="rounded-2xl bg-noche p-3.5 mb-3 flex flex-col gap-2">
+            <label htmlFor="inv-send" className="text-[13px] text-crema/75">enviar por email</label>
+            <div className="flex gap-2">
+              <Input id="inv-send" type="email" required value={sendTo} onChange={e => setSendTo(e.target.value)} placeholder="email" />
+              <Button type="submit" variant="primary" disabled={send.pending}><Icon name="enviar" size={16} />enviar</Button>
+            </div>
+            {(() => { const last = group.list.filter(t => t.sentAt).sort((a, b) => (b.sentAt ?? "").localeCompare(a.sentAt ?? ""))[0];
+              return last ? <p className="text-xs text-crema/55">Última vez: a {last.email}, {ago(last.sentAt!)}.</p> : <p className="text-xs text-crema/55">Les llegan todas las de este grupo, cada una con su QR.</p>; })()}
+          </form>
+        )}
         <ul className="flex flex-col gap-3 pt-1">
           {group?.list.map(t => {
             const ts = ticketState(t);
@@ -500,6 +530,48 @@ function Settings({ ev, minCapacity }: { ev: TicketEvent; minCapacity: number })
         <Field label="descripción">{id => <Textarea id={id} rows={3} value={f.description} onChange={e => set("description", e.target.value)} />}</Field>
         <Button type="submit" variant="primary" disabled={save.pending}>guardar</Button>
       </form>
+    </Card>
+  );
+}
+
+// ---------- quitar la venta ----------
+/* Para cuando al final no hay entradas o las vende otro. Con algo
+   pagado no se borra: los pedidos tienen que quedar (devolución, cuentas). */
+function RemoveEvent({ ev, orders, tickets }: { ev: TicketEvent; orders: Order[]; tickets: Ticket[] }) {
+  const toast = useToast();
+  const nav = useNavigate();
+  const live = orders.filter(o => o.status === "pagado" || o.status === "pendiente");
+  const invites = tickets.filter(t => t.kind === "invitacion");
+  const remove = useAction(async () => {
+    // Primero lo que cuelga del evento; las caducadas y devueltas tampoco sirven ya de nada aquí.
+    for (const t of tickets) await api.remove("tickets", t.code, "code");
+    for (const o of orders) await api.remove("orders", o.id);
+    await api.remove("events", ev.id);
+    // Sin permiso de bolos esto falla, pero la venta ya está quitada: no pasa nada.
+    if (ev.gigId) await api.update("gigs", ev.gigId, { ticketing: "ninguna" }).catch(() => {});
+  });
+
+  if (live.length) return (
+    <Card>
+      <CardTitle>quitar la venta</CardTitle>
+      <p className="text-sm text-crema/70">
+        Hay {live.length} {live.length === 1 ? "pedido pagado o en pago" : "pedidos pagados o en pago"}: no se puede borrar.
+        Cierra la venta con el interruptor de arriba o devuelve los pedidos primero.
+      </p>
+    </Card>
+  );
+  return (
+    <Card>
+      <CardTitle>quitar la venta</CardTitle>
+      <p className="text-sm text-crema/70 mb-3">
+        Si al final no hay entradas o las vende otro. El bolo se queda «sin entradas»; si las vende otro, ponlo luego en su ficha con el enlace.
+        {invites.length > 0 && ` También se borran ${invites.length === 1 ? "la invitación" : `las ${invites.length} invitaciones`}.`}
+      </p>
+      <ConfirmButton size="md" className="w-full" disabled={remove.pending}
+        confirm={invites.length ? `sí, borrar venta e invitaciones` : "sí, borrar la venta"}
+        onConfirm={async () => { await remove.run(); toast("Venta de entradas quitada", "ok"); nav("/entradas"); }}>
+        quitar venta de entradas
+      </ConfirmButton>
     </Card>
   );
 }

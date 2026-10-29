@@ -12,7 +12,7 @@ import type {
 export type Collection = keyof DB;
 type Item<K extends Collection> = DB[K] extends (infer T)[] ? T : never;
 
-const KEY = "besta:datos-prueba:v10";  // subir la versión cuando cambie el seed
+const KEY = "besta:datos-prueba:v11";  // subir la versión cuando cambie el seed
 const isBrowser = typeof window !== "undefined";
 
 let db: DB | null = null;
@@ -189,6 +189,14 @@ export const mockApi = {
   async checkInManual(code: string, by: string): Promise<void> {
     const t = load().tickets.find(x => x.code === code);
     if (t && t.status === "valida") { t.status = "usada"; t.checkedInAt = now(); t.checkedInBy = by; save(); }
+  },
+
+  /* De verdad: email con los QR por Brevo. De prueba: solo apunta a quién y cuándo. */
+  async sendInvites(codes: string[], email: string, _name?: string): Promise<void> {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Revisa el email.");
+    const at = now();
+    load().tickets.forEach(t => { if (codes.includes(t.code) && t.status !== "cancelada") { t.email = email.trim().toLowerCase(); t.sentAt = at; } });
+    save();
   },
 
   async invite(eventId: ID, holder: string, qty: number): Promise<Ticket[]> {

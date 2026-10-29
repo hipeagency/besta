@@ -17,6 +17,8 @@ type Tab = "caja" | "saldos" | "bolos" | "registro";
 
 interface Row { id: string; title: string; meta: string; cents: number; date: string; auto: boolean }
 
+const NEW = "__nueva__";  // la opción «+ nueva categoría…» del desplegable
+
 export default function Finanzas() {
   const [params, setParams] = useSearchParams();
   const [tab, setTab] = useState<Tab>("caja");
@@ -186,17 +188,20 @@ function ExpenseSheet({ open, onClose, gig }: { open: boolean; onClose: () => vo
   const [payer, setPayer] = useState(me.id);
   const [parts, setParts] = useState<string[]>([]);
   const [category, setCategory] = useState("otros");
+  const [newCat, setNewCat] = useState<string | null>(null);  // escribiendo una categoría nueva
   const [gigId, setGigId] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
 
   useEffect(() => {
     if (!open) return;
     setPhoto(""); setPhotoFile(null); setAmount(""); setTitle(""); setPayer(members.some(m => m.id === me.id) ? me.id : members[0]?.id ?? "");
-    setParts(members.map(m => m.id)); setCategory("otros"); setDate(new Date().toISOString().slice(0, 10));
+    setParts(members.map(m => m.id)); setCategory("otros"); setNewCat(null); setDate(new Date().toISOString().slice(0, 10));
     setGigId(gig ?? upcomingGigs(gigs)[0]?.id ?? "");
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const save = useAction(async (e: Expense) => {
+    // Categoría nueva: se crea al guardar el gasto y ya sale para los siguientes.
+    if (!categories.includes(e.category)) await api.insert("categories", e.category);
     await api.insert("expenses", e);
     await api.insert("audit", { id: uid("a-"), who: me.name, action: `creó el gasto «${e.title}»`, at: new Date().toISOString() });
   });
@@ -254,7 +259,13 @@ function ExpenseSheet({ open, onClose, gig }: { open: boolean; onClose: () => vo
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="categoría">{id => <Select id={id} value={category} onChange={e => setCategory(e.target.value)}>{categories.map(c => <option key={c}>{c}</option>)}</Select>}</Field>
+          <Field label="categoría">{id => newCat !== null
+            ? <Input id={id} autoFocus value={newCat} placeholder="nueva categoría" onChange={e => { setNewCat(e.target.value); setCategory(e.target.value.trim().toLowerCase() || "otros"); }}
+                onKeyDown={e => { if (e.key === "Escape") { setNewCat(null); setCategory("otros"); } }} />
+            : <Select id={id} value={category} onChange={e => { if (e.target.value === NEW) { setNewCat(""); setCategory("otros"); } else setCategory(e.target.value); }}>
+                {categories.map(c => <option key={c}>{c}</option>)}
+                <option value={NEW}>+ nueva categoría…</option>
+              </Select>}</Field>
           <Field label="fecha">{id => <Input id={id} type="date" value={date} onChange={e => setDate(e.target.value)} />}</Field>
         </div>
         <Field label="bolo (opcional)">{id => (

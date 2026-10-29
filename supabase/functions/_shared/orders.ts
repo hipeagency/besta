@@ -1,7 +1,7 @@
 /* Lo que comparten checkout, webhook, acciones de la suite y el cron:
    cargar un pedido con su concierto y mandar sus emails una sola vez. */
 import { sendEmail, upsertNewsletterContact } from "./brevo.ts";
-import { type OrderContext, refundEmail, ticketsEmail } from "./emails.ts";
+import { inviteEmail, type OrderContext, refundEmail, ticketsEmail } from "./emails.ts";
 import { type Admin, getRow, patchDoc } from "./supabase.ts";
 import type { Gig, Order, Ticket, TicketEvent } from "./types.ts";
 
@@ -83,4 +83,25 @@ export async function subscribeBuyer(db: Admin, order: Order) {
   } catch (e) {
     console.error("newsletter del comprador", e);
   }
+}
+
+/* Invitaciones de la suite por email. Todas del mismo evento y a
+   nombre de la misma persona; las anuladas no salen. Deja en cada
+   entrada a quién y cuándo se mandó. */
+export async function sendInvites(db: Admin, codes: string[], to: { email: string; name?: string }) {
+  const { data, error } = await db.from("tickets").select("id, doc").in("id", codes);
+  if (error) throw error;
+  const tickets = (data ?? []).map(r => ({ ...(r.doc as Ticket), code: r.id }))
+    .filter(t => t.kind === "invitacion" && t.status !== "cancelada");
+  if (!tickets.length) throw new Error("no-tickets");
+  const eventIds = new Set(tickets.map(t => t.eventId));
+  if (eventIds.size > 1) throw new Error("mixed-events");
+  const ev = await getRow<TicketEvent>(db, "events", tickets[0].eventId);
+  const event = ev ? { ...ev.doc, id: ev.id } : undefined;
+  const gigRow = event?.gigId ? await getRow<Gig>(db, "gigs", event.gigId) : null;
+  const holder = to.name || tickets[0].holder || "";
+  await sendEmail({ email: to.email, name: holder || undefined }, inviteEmail({ holder, tickets, event, gig: gigRow ? { ...gigRow.doc, id: gigRow.id } : undefined }), { tags: ["invitacion"] });
+  const at = new Date().toISOString();
+  await Promise.all(tickets.map(t => patchDoc(db, "tickets", t.code, { email: to.email, sentAt: at })));
+  return tickets.length;
 }

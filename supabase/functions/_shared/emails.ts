@@ -160,6 +160,42 @@ export function ticketsEmail(ctx: OrderContext): Mail {
   return { subject: n === 1 ? `Tu entrada para ${name}` : `Tus ${n} entradas para ${name}`, html, text };
 }
 
+/* Invitación: sin pedido ni enlace a «mis entradas»; los QR van en el email. */
+export interface InviteContext { holder: string; tickets: Ticket[]; event?: TicketEvent; gig?: Gig }
+
+export function inviteEmail(ctx: InviteContext): Mail {
+  const { event, gig } = ctx;
+  const tickets = ctx.tickets.filter(t => t.status !== "cancelada");
+  const n = tickets.length;
+  const name = event?.name ?? "besta";
+  const first = ctx.holder.split(" ")[0];
+  const what = n === 1 ? "una invitación" : `${n} invitaciones`;
+
+  const html = layout({
+    preheader: `${what} para ${name}`,
+    headline: "estás invitado.",
+    body: [
+      p(`Hola, ${esc(first)}: te invitamos a ${esc(name)}. Aquí ${n === 1 ? "tienes tu entrada" : `tienes ${n} entradas`}.`),
+      card({ mono: when(gig), title: name, sub: where(gig) || undefined }),
+      ...tickets.map((t, i) => qrBlock(t, i, n)),
+      small("Cada QR vale para una persona y se escanea una sola vez. Enséñalo en la puerta desde el móvil (sube el brillo) o dales el código."),
+      gig ? small(`<a href="${esc(mapsUrl(gig))}" style="color:${C.senal};">cómo llegar</a>`) : "",
+    ].join("\n"),
+  });
+  const text = [
+    "estás invitado.",
+    "",
+    `Hola, ${first}: te invitamos a ${name}.`,
+    "",
+    when(gig), name, where(gig),
+    "",
+    ...tickets.map((t, i) => `entrada ${i + 1} de ${n}: ${t.code}`),
+    "",
+    "Cada QR vale para una persona y se escanea una sola vez.",
+  ].join("\n") + textFooter;
+  return { subject: n === 1 ? `Tu invitación para ${name}` : `Tus ${n} invitaciones para ${name}`, html, text };
+}
+
 export function refundEmail(ctx: OrderContext): Mail {
   const { order, event, gig } = ctx;
   const name = event?.name ?? "besta";

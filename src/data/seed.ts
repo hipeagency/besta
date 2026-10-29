@@ -330,11 +330,11 @@ const requests: MerchRequest[] = [
 ];
 
 const expenses: Expense[] = [
-  { id: "e1", title: "gasolina furgo", amountCents: 6480, payerId: "maxim", participantIds: allIds, category: "traslado", gigId: "benicarlo-2026-08-29", date: "2026-08-29" },
+  { id: "e1", title: "gasolina furgo", amountCents: 6480, payerId: "maxim", participantIds: allIds, category: "viajes", gigId: "benicarlo-2026-08-29", date: "2026-08-29" },
   { id: "e2", title: "local de ensayo · octubre", amountCents: 18000, payerId: "pau", participantIds: allIds, category: "local", date: "2026-10-01" },
   { id: "e3", title: "cuerdas y baquetas", amountCents: 5400, payerId: "victor", participantIds: allIds, category: "material", date: "2026-10-10" },
   { id: "e4", title: "cena Benicarló", amountCents: 9600, payerId: "albert", participantIds: allIds, category: "comida", gigId: "benicarlo-2026-08-29", date: "2026-08-29" },
-  { id: "e5", title: "peaje autopista", amountCents: 2340, payerId: "lars", participantIds: allIds, category: "traslado", gigId: "benicarlo-2026-08-29", date: "2026-08-29" },
+  { id: "e5", title: "peaje autopista", amountCents: 2340, payerId: "lars", participantIds: allIds, category: "viajes", gigId: "benicarlo-2026-08-29", date: "2026-08-29" },
 ];
 
 const incomes: Income[] = [
@@ -353,7 +353,7 @@ export function createSeed(): DB {
   return {
     members, gigs, events, orders, tickets, songs, setlists, ideas, riders, quotes, leads,
     products, moves, requests, subscribers: [] as Subscriber[], expenses, incomes, settlements, audit,
-    categories: ["traslado", "local", "instrumentos", "material", "comida", "directo", "otros"],
+    categories: ["viajes", "local", "instrumentos", "material", "comida", "directo", "otros"],
     settings: [],  // sin documento, la checklist usa DEFAULT_TASKS
   };
 }

@@ -395,8 +395,8 @@ function Result({ shown, ev, onNext }: { shown: Shown; ev: TicketEvent; onNext: 
     const mates = t?.orderId ? tickets.filter(x => x.orderId === t.orderId) : [];
     const pos = mates.findIndex(x => x.code === t?.code);
     lines = [
-      <>{t?.kind === "invitacion" ? "Invitación" : "Entrada general"}{mates.length > 1 && pos >= 0 ? ` · ${pos + 1} de ${mates.length}` : ""}</>,
-      who,
+      t?.kind === "invitacion" ? (t.holder ? <>a nombre de <b>{t.holder}</b></> : "Invitación sin nombre") : <>Entrada general{mates.length > 1 && pos >= 0 ? ` · ${pos + 1} de ${mates.length}` : ""}</>,
+      t?.kind === "invitacion" ? undefined : who,
     ];
   } else if (r.reason === "usada") {
     title = "ya usada.";
@@ -432,6 +432,10 @@ function Result({ shown, ev, onNext }: { shown: Shown; ev: TicketEvent; onNext: 
             ? <path d="M28 50l14 13 26-30" fill="none" stroke="currentColor" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
             : <path d="M32 32l32 32M64 32L32 64" fill="none" stroke="currentColor" strokeWidth="7" strokeLinecap="round" />}
         </svg>
+        {/* Que se vea de lejos que no ha pagado entrada: es invitación. */}
+        {t?.kind === "invitacion" && (
+          <span className="px-4 py-1.5 rounded-full bg-noche text-crema font-mono text-lg sm:text-xl font-semibold tracking-[.16em]">INVITACIÓN</span>
+        )}
         <p className={cx("font-extrabold leading-[.86] tracking-[-.045em] break-words", title.length > 10 ? "text-[56px] sm:text-[88px]" : "text-[76px] sm:text-[120px]")}>{title}</p>
         <p className="text-lg sm:text-xl leading-snug">
           {lines.filter(Boolean).map((l, i) => <span key={i} className="block">{l}</span>)}

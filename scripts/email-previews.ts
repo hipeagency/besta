@@ -42,6 +42,7 @@ const lead = {
 const mails: { file: string; who: string; when: string; mail: { subject: string; html: string; text: string } }[] = [
   { file: "entradas", who: "comprador", when: "al pagar entradas (y al reenviarlas desde la suite)", mail: e.ticketsEmail(ctx) },
   { file: "gracias", who: "comprador", when: "el día después del concierto", mail: e.thanksEmail(ctx) },
+  { file: "invitacion", who: "invitado", when: "al mandar una invitación desde la suite", mail: e.inviteEmail({ holder: "Ràdio Castelldefels", tickets: [{ code: "INV-4FQ2", eventId: event.id, kind: "invitacion", status: "valida" }, { code: "INV-8ZK1", eventId: event.id, kind: "invitacion", status: "valida" }] as any, event, gig }) },
   { file: "devolucion", who: "comprador", when: "al devolver un pedido desde la suite", mail: e.refundEmail({ ...ctx, order: { ...order, status: "devuelto" } }) },
   { file: "merch-recibido", who: "fan", when: "al pedir merch en la web", mail: e.merchReceived(merch) },
   { file: "merch-aviso-banda", who: "banda (NOTIFY_EMAILS)", when: "al pedir merch en la web", mail: e.merchNotification(merch) },
