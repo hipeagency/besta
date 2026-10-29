@@ -1,5 +1,6 @@
-/* Alta de alguien en la suite (solo admin). Supabase Auth manda el
-   email de invitación; aquí queda su ficha de miembro enlazada a la cuenta. */
+/* Alta de alguien en la suite (solo admin; dar el admin, solo el
+   superadmin). Supabase Auth manda el email de invitación; aquí queda
+   su ficha de miembro enlazada a la cuenta. */
 import { siteUrl } from "../_shared/env.ts";
 import { email, HttpError, json, readJson, serve, text } from "../_shared/http.ts";
 import { type Admin, adminClient, userClient } from "../_shared/supabase.ts";
@@ -11,12 +12,15 @@ serve(["POST"], async req => {
   const { data: isAdmin, error: permErr } = await userClient(req).rpc("is_admin");
   if (permErr) throw new HttpError("Inicia sesión de nuevo.", 401);
   if (isAdmin !== true) throw new HttpError("Solo un admin puede invitar.", 403);
+  const { data: isOwner, error: ownerErr } = await userClient(req).rpc("is_owner");
+  if (ownerErr) throw ownerErr;
 
   const b = await readJson(req);
   const name = text(b.name, 80, "el nombre", true)!;
   const mail = email(b.email);
   const role = b.role as Role;
   if (!ROLES.includes(role)) throw new HttpError("Elige un rol: admin, músico o staff.");
+  if (role === "admin" && isOwner !== true) throw new HttpError("Solo el superadmin puede dar el admin.", 403);
   let scopes: string[] | undefined;
   if (b.scopes !== undefined && b.scopes !== null) {
     if (!Array.isArray(b.scopes) || b.scopes.some(s => typeof s !== "string" || !/^[a-z]{2,20}$/.test(s))) throw new HttpError("Revisa los permisos.");
@@ -34,6 +38,10 @@ serve(["POST"], async req => {
   const byEmail = byUser.data ? byUser : await db.from("members").select("id, doc").eq("email", mail).maybeSingle();
   if (byEmail.error) throw byEmail.error;
   const existing = byEmail.data;
+  // Esto va con service role y se salta el trigger: aquí se vigila lo mismo.
+  if (existing && (existing.doc as Record<string, unknown>)?.role === "admin" && isOwner !== true) {
+    throw new HttpError("Esa persona ya es admin: solo el superadmin puede cambiarle el acceso.", 403);
+  }
 
   const invitedAt = new Date().toISOString();
   const memberId = existing?.id ?? await freeId(db, name);

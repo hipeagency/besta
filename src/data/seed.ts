@@ -33,7 +33,7 @@ export interface DB {
 }
 
 const members: Member[] = [
-  { id: "maxim", name: "Maxim", instrument: "voz", role: "admin", band: true, active: true },
+  { id: "maxim", name: "Maxim", instrument: "voz", role: "admin", band: true, active: true, owner: true },
   { id: "pau", name: "Pau", instrument: "gtr solo", role: "admin", band: true, active: true },
   { id: "albert", name: "Albert", instrument: "gtr acomp", role: "admin", band: true, active: true },
   { id: "carlinhos", name: "Carlinhos", instrument: "piano", role: "admin", band: true, active: true },

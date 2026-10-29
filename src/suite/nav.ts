@@ -33,7 +33,7 @@ export const NAV: NavItem[] = [
 export const TABS = ["inicio", "bolos", "entradas", "ensayos"] as const;
 
 export const ROLES: { value: Role; name: string; desc: string }[] = [
-  { value: "admin", name: "admin", desc: "La banda. Ve y cambia todo, y gestiona usuarios." },
+  { value: "admin", name: "admin", desc: "La banda. Ve y cambia todo. Dar o quitar el admin y borrar usuarios, solo el superadmin." },
   { value: "musico", name: "músico", desc: "Viene a tocar: ensayos, composición, rider y la agenda de bolos." },
   { value: "staff", name: "staff", desc: "Ayuda en los bolos: entradas, puerta y merch." },
 ];

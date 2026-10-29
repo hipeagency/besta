@@ -27,7 +27,7 @@ let client: ReturnType<typeof make> | null = null;
 export const sb = () => (client ??= make());
 
 type Item<K extends Collection> = DB[K] extends (infer T)[] ? T : never;
-interface Row { id: string; doc: Record<string, unknown>; user_id?: string | null; email?: string | null }
+interface Row { id: string; doc: Record<string, unknown>; user_id?: string | null; email?: string | null; owner?: boolean }
 
 const fail = (e: { message: string } | null) => { if (e) throw new Error(e.message); };
 
@@ -36,7 +36,7 @@ const fail = (e: { message: string } | null) => { if (e) throw new Error(e.messa
 function fromRow(k: Collection, r: Row): unknown {
   if (k === "categories") return (r.doc.name as string) ?? r.id;
   if (k === "tickets") return { ...r.doc, code: r.id };
-  if (k === "members") return { ...r.doc, id: r.id, email: r.email ?? r.doc.email, userId: r.user_id ?? undefined };
+  if (k === "members") return { ...r.doc, id: r.id, email: r.email ?? r.doc.email, userId: r.user_id ?? undefined, owner: r.owner === true };
   return { ...r.doc, id: r.id };
 }
 
@@ -44,7 +44,7 @@ function toRow(k: Collection, item: unknown): Row & Record<string, unknown> {
   if (k === "categories") return { id: item as string, doc: { name: item as string } };
   const o = item as Record<string, unknown>;
   const id = (k === "tickets" ? o.code : o.id) as string;
-  const { userId: _u, ...doc } = o;
+  const { userId: _u, owner: _o, ...doc } = o;
   return k === "members" ? { id, doc, email: (o.email as string) || null } : { id, doc };
 }
 
@@ -79,7 +79,7 @@ const signed = new Map<string, { url: string; until: number }>();
 
 export const supabaseApi = {
   async list<K extends Collection>(k: K): Promise<DB[K]> {
-    const cols = k === "members" ? "id, doc, user_id, email" : "id, doc";
+    const cols = k === "members" ? "id, doc, user_id, email, owner" : "id, doc";
     const { data, error } = await sb().from(k).select(cols).order("created_at", { ascending: false });
     fail(error);
     return (data as unknown as Row[]).map(r => fromRow(k, r)) as DB[K];
@@ -92,7 +92,7 @@ export const supabaseApi = {
   },
 
   async update<K extends Collection>(k: K, id: ID, patch: Partial<Item<K>>): Promise<void> {
-    const { userId: _u, ...rest } = patch as Record<string, unknown>;
+    const { userId: _u, owner: _o, ...rest } = patch as Record<string, unknown>;
     // undefined desaparece al pasar a JSON y la clave vieja se quedaría: va como null, que patch_doc borra.
     const sent = Object.fromEntries(Object.entries(rest).map(([key, v]) => [key, v === undefined ? null : v]));
     const { error } = await sb().rpc("patch_doc", { tbl: k, row_id: id, patch: sent });

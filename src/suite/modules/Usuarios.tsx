@@ -1,5 +1,6 @@
 /* Usuarios (solo admin): quién entra en la suite, con qué rol y a
-   qué módulos. De verdad: el alta manda una invitación por email
+   qué módulos. Dar o quitar el admin, tocar a otro admin y borrar,
+   solo el superadmin. De verdad: el alta manda una invitación por email
    (Supabase Auth) y los permisos se aplican también en la base de
    datos, no solo escondiendo menús. */
 import { useEffect, useState } from "react";
@@ -43,7 +44,7 @@ export default function Usuarios() {
                   className={cx("w-full text-left flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5 border-t border-crema/8 hover:bg-tubo-alto", m.active === false && "opacity-55")}>
                   <span className="size-9 shrink-0 rounded-full bg-senal text-noche grid place-items-center font-semibold">{m.name[0]}</span>
                   <span className="flex-[1_1_180px] min-w-0">
-                    <span className="block font-medium">{m.name}{m.id === me.id && <span className="text-crema/55 font-normal"> · tú</span>}</span>
+                    <span className="block font-medium">{m.name}{m.owner && <span className="text-crema/55 font-normal"> · superadmin</span>}{m.id === me.id && <span className="text-crema/55 font-normal"> · tú</span>}</span>
                     <span className="block text-[13px] text-crema/60 truncate">{m.instrument}{m.email ? ` · ${m.email}` : ""}</span>
                   </span>
                   <span className="flex flex-wrap gap-1.5">
@@ -86,6 +87,9 @@ function UserSheet({ member, onClose }: { member: Member | "nuevo" | null; onClo
   };
 
   const isMe = !isNew && f.id === me.id;
+  // Un admin normal no toca a otro admin ni da el admin; al superadmin no lo toca nadie.
+  const orig = member && member !== "nuevo" ? member : null;
+  const locked = !!orig?.owner || (orig?.role === "admin" && !me.owner);
 
   return (
     <Sheet open={!!member} onClose={onClose} title={isNew ? "invitar a la suite" : f.name || "usuario"}>
@@ -103,12 +107,14 @@ function UserSheet({ member, onClose }: { member: Member | "nuevo" | null; onClo
           <span className="text-[13px] text-crema/75">tipo de acceso</span>
           {ROLES.map(r => (
             <label key={r.value} className={cx("flex gap-3 items-start p-3 rounded-xl border cursor-pointer", f.role === r.value ? "border-senal bg-noche" : "border-crema/12")}>
-              <input type="radio" name="role" checked={f.role === r.value} disabled={isMe && r.value !== "admin"}
+              <input type="radio" name="role" checked={f.role === r.value} disabled={locked || (isMe && r.value !== "admin") || (r.value === "admin" && !me.owner)}
                 onChange={() => setF(x => ({ ...x, role: r.value, scopes: undefined, band: r.value === "admin" ? x.band ?? true : x.band }))} className="mt-1 accent-senal" />
               <span><b className="font-semibold">{r.name}</b><span className="block text-[13px] text-crema/65">{r.desc}</span></span>
             </label>
           ))}
-          {isMe && <span className="text-xs text-crema/55">No puedes quitarte el admin a ti mismo.</span>}
+          {isMe ? <span className="text-xs text-crema/55">No puedes quitarte el admin a ti mismo.</span>
+            : locked ? <span className="text-xs text-crema/55">{orig?.owner ? "Es el superadmin: su acceso no se cambia desde aquí." : "Es admin: solo el superadmin puede cambiarle el acceso."}</span>
+            : !me.owner && <span className="text-xs text-crema/55">Dar el admin, solo el superadmin.</span>}
         </div>
 
         {f.role !== "admin" && (
@@ -133,11 +139,11 @@ function UserSheet({ member, onClose }: { member: Member | "nuevo" | null; onClo
         )}
 
         <Toggle checked={!!f.band} onChange={v => set("band", v)} label="de la banda (entra en finanzas y en el reparto)" className="self-start" />
-        {!isNew && !isMe && <Toggle checked={f.active !== false} onChange={v => set("active", v)} label={f.active !== false ? "tiene acceso" : "sin acceso (se guarda su historial)"} className="self-start" />}
+        {!isNew && !isMe && !locked && <Toggle checked={f.active !== false} onChange={v => set("active", v)} label={f.active !== false ? "tiene acceso" : "sin acceso (se guarda su historial)"} className="self-start" />}
         {!isNew && f.invitedAt && <p className="text-xs text-crema/55">Invitado {ago(f.invitedAt)}.</p>}
 
         <Button type="submit" variant="primary" size="lg" disabled={save.pending}>{isNew ? "enviar invitación" : "guardar"}</Button>
-        {!isNew && !isMe && !f.band && (
+        {!isNew && !isMe && !f.band && me.owner && !orig?.owner && (
           <Button variant="quiet" onClick={async () => { if (confirm(`¿Borrar a ${f.name}? Si solo quieres cortarle el acceso, usa «sin acceso».`)) { await remove.run(f.id); toast("Usuario borrado", "ok"); onClose(); } }}>
             <Icon name="basura" size={16} />borrar usuario
           </Button>

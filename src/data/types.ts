@@ -22,6 +22,7 @@ export interface Member {
   scopes?: string[];       // módulos a mano; sin esto, los de su rol
   band?: boolean;          // de la banda: entra en finanzas y en el reparto
   active?: boolean;        // false = sin acceso, se conserva el historial
+  owner?: boolean;         // superadmin: da y quita admin, borra usuarios. Solo se cambia en el servidor
   invitedAt?: ISODateTime;
 }
 
