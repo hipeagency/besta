@@ -44,4 +44,4 @@ jobs:
 
       - name: Secreto de Bandsintown
         if: env.BANDSINTOWN_APP_ID != ''
-        run: supabase secrets set --project-ref "$SUPABASE_PROJECT_REF" BANDSINTOWN_APP_ID="$BANDSINTOWN_APP_ID"
+        run: supabase secrets set --project-ref "$SUPABASE_PROJECT_REF" BANDSINTOWN_APP_ID="$BANDSINTOWN_APP_ID" --yes
