@@ -48,7 +48,6 @@ export const RIDER_TEMPLATE: Omit<Rider, "id" | "name" | "sentTo"> = {
         + "Corriente en los puntos de uso: batería/Mac, teclado, pedaleras e IEM.\n"
         + "En la prueba de sonido: comprobar que click/cues suenan en IEM y NO en PA.",
     },
-    { id: "material", name: "material que traemos", enabled: true },
     { id: "camerino", name: "camerino y catering", enabled: true, body: "Camerino para 8 personas. Agua y algo de cena." },
     { id: "contactos", name: "contacto / booking", enabled: true, body: "besta@besta.es · +34 687 283 763" },
   ],

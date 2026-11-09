@@ -15,14 +15,14 @@ import { Icon } from "@/components/ui/icons";
 import { cx, dateShort } from "@/lib/format";
 import { RiderDoc } from "./rider/RiderDoc";
 import { BlockEditor } from "./rider/BlockEditor";
+import { MaterialList } from "./rider/MaterialList";
 import { RIDER_TEMPLATE } from "@/data/riderTemplate";
 
-/* Los riders de antes del bloque «material» lo reciben apagado, para
-   que salga en el menú de bloques. Solo se guarda si se edita algo. */
+/* El material es una lista aparte (pestaña «material»), no un bloque
+   del rider: se quita el bloque que traían los riders de antes. */
 function withGear(r: RiderT): RiderT {
   const x = structuredClone(r);
-  if (!x.blocks.some(b => b.id === "material")) x.blocks.push({ id: "material", name: "material que traemos", enabled: false });
-  x.gear ??= [];
+  x.blocks = x.blocks.filter(b => b.id !== "material");
   return x;
 }
 
@@ -35,6 +35,15 @@ const PRINT_CSS = `@media print {
 }`;
 
 export default function Rider() {
+  const [tab, setTab] = useState<"rider" | "material">("rider");
+  const tabs = <Segmented value={tab} onChange={setTab} className="self-start print:hidden"
+    options={[{ value: "rider", label: "rider técnico" }, { value: "material", label: "nuestro material" }]} />;
+  return tab === "material"
+    ? <Page title="rider">{tabs}<MaterialList /></Page>
+    : <RiderView tabs={tabs} />;
+}
+
+function RiderView({ tabs }: { tabs: React.ReactNode }) {
   const toast = useToast();
   const { data: riders, loading } = useCollection("riders");
   const { data: gigs } = useCollection("gigs");
@@ -68,7 +77,7 @@ export default function Rider() {
 
   const r = draft && draft.id === server?.id ? draft : null;
   if (loading) return null;
-  if (!r) return <Page title="rider"><p className="text-crema/60">Sin riders todavía.</p></Page>;
+  if (!r) return <Page title="rider">{tabs}<p className="text-crema/60">Sin riders todavía.</p></Page>;
 
   const block = r.blocks.find(b => b.id === bid) ?? r.blocks[0];
   const pos = block ? r.blocks.indexOf(block) : -1;
@@ -91,6 +100,7 @@ export default function Rider() {
       <Button variant="primary" onClick={() => window.print()} className="print:hidden"><Icon name="descargar" size={16} />imprimir / PDF</Button>
     </>}>
       <style>{PRINT_CSS}</style>
+      {tabs}
 
       <div className="flex flex-wrap items-center gap-2 print:hidden">
         <Segmented value={r.id} onChange={switchTo} options={riders.map(x => ({ value: x.id, label: x.name }))} />

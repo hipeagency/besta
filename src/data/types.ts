@@ -398,7 +398,7 @@ export interface Settlement { id: ID; fromId: ID; toId: ID; amountCents: number;
 
 /* Ajustes de la banda: un documento por tema (id «checklist»…). */
 export interface Task { key: string; name: string }
-export interface Settings { id: ID; tasks?: Task[] }
+export interface Settings { id: ID; tasks?: Task[]; gear?: RiderGear[] }  // gear: doc «material», nuestra lista de material
 
 export interface AuditEntry { id: ID; who: string; action: string; at: ISODateTime }
 
