@@ -2,28 +2,65 @@
    de la suite. Escanea, mira el color, deja pasar. Legible a dos
    metros y con una mano. Varios móviles a la vez: el check-in es
    atómico en la API, una entrada solo la acepta el primero. */
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router";
 import jsQR from "jsqr";
 import { useMe } from "@/suite/session";
 import { useCollection } from "@/data/hooks";
 import { api } from "@/data/api";
 import { eventStats } from "@/data/selectors";
-import type { Gig, ScanResult, TicketEvent } from "@/data/types";
+import type { Gig, Order, ScanResult, Ticket, TicketEvent } from "@/data/types";
 import { Button, Input, Pill, Sheet, useToast } from "@/components/ui";
 import { Icon } from "@/components/ui/icons";
+import { QR } from "@/components/ui/QR";
 import { cx, dateLabel, dateShort, daysUntil, gigDateShort, hhmm, isPast, maskEmail } from "@/lib/format";
 import { kindLabel, ticketState } from "./entradas/shared";
+import { PRUEBA_ID, prueba, usePrueba } from "./puerta/prueba";
 
 export default function Puerta() {
   const { eventId } = useParams();
   const { data: events, loading } = useCollection("events");
   const { data: gigs } = useCollection("gigs");
 
+  if (eventId === PRUEBA_ID) return <TestDoor />;
   if (loading) return <div className="fixed inset-0 bg-noche grid place-items-center text-crema/60">cargando…</div>;
   const ev = eventId ? events.find(e => e.id === eventId) : undefined;
   if (!ev) return <PickEvent missing={!!eventId} />;
-  return <Scanner key={ev.id} ev={ev} gig={gigs.find(g => g.id === ev.gigId)} />;
+  return <RealDoor><Scanner key={ev.id} ev={ev} gig={gigs.find(g => g.id === ev.gigId)} /></RealDoor>;
+}
+
+/* De dónde saca la puerta los datos y a quién pregunta: la API de
+   verdad o el concierto inventado del modo prueba. */
+interface Door {
+  test: boolean;
+  events: TicketEvent[];
+  gigs: Gig[];
+  orders: Order[];
+  tickets: Ticket[];
+  scan: (code: string, eventId: string, by: string) => Promise<ScanResult>;
+  checkInManual: (code: string, by: string) => Promise<void>;
+}
+const DoorCtx = createContext<Door | null>(null);
+const useDoor = () => useContext(DoorCtx)!;
+
+function RealDoor({ children }: { children: ReactNode }) {
+  const { data: events } = useCollection("events");
+  const { data: gigs } = useCollection("gigs");
+  const { data: orders } = useCollection("orders");
+  const { data: tickets } = useCollection("tickets");
+  const door: Door = { test: false, events, gigs, orders, tickets, scan: api.scan, checkInManual: api.checkInManual };
+  return <DoorCtx.Provider value={door}>{children}</DoorCtx.Provider>;
+}
+
+function TestDoor() {
+  const st = usePrueba();
+  const door: Door = { test: true, ...st, scan: prueba.scan, checkInManual: prueba.checkInManual };
+  const ev = st.events.find(e => e.id === PRUEBA_ID)!;
+  return (
+    <DoorCtx.Provider value={door}>
+      <Scanner ev={ev} gig={st.gigs.find(g => g.id === ev.gigId)} />
+    </DoorCtx.Provider>
+  );
 }
 
 /* Volver a la suite, o salir del todo si quien escanea es personal de puerta. */
@@ -89,6 +126,14 @@ function PickEvent({ missing }: { missing: boolean }) {
           })}
         </ul>
         {!upcoming.length && !!rows.length && <p className="text-sm text-crema/55">No hay conciertos próximos: se muestran los pasados.</p>}
+        <Link to={`/puerta/${PRUEBA_ID}`}
+          className="mt-2 flex items-center gap-4 rounded-[20px] p-5 border-[1.5px] border-dashed border-crema/30 hover:bg-tubo transition">
+          <span className="flex-1 min-w-0">
+            <span className="block font-bold text-lg">modo prueba</span>
+            <span className="block text-sm text-crema/65">Un concierto inventado con entradas de mentira. Escanea y simula sin tocar nada de verdad.</span>
+          </span>
+          <Icon name="flecha" size={22} />
+        </Link>
       </main>
     </div>
   );
@@ -108,9 +153,8 @@ const SAME_CODE_MS = 3000;
 function Scanner({ ev, gig }: { ev: TicketEvent; gig?: Gig }) {
   const { me } = useMe();
   const toast = useToast();
-  const { data: orders } = useCollection("orders");
-  const { data: tickets } = useCollection("tickets");
-  const s = eventStats(ev, { orders, tickets });
+  const door = useDoor();
+  const s = eventStats(ev, door);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -118,7 +162,7 @@ function Scanner({ ev, gig }: { ev: TicketEvent; gig?: Gig }) {
   const [cam, setCam] = useState<CamState>("starting");
   const [torch, setTorch] = useState<boolean | null>(null);   // null: la cámara no tiene linterna
   const [shown, setShown] = useState<Shown | null>(null);
-  const [sheet, setSheet] = useState<null | "codigo" | "email">(null);
+  const [sheet, setSheet] = useState<null | "codigo" | "email" | "prueba">(null);
 
   // el bucle de lectura vive fuera de React: lee estas refs
   const pausedRef = useRef(false);
@@ -170,7 +214,7 @@ function Scanner({ ev, gig }: { ev: TicketEvent; gig?: Gig }) {
     if (busyRef.current) return;
     busyRef.current = true;
     try {
-      const r = await api.scan(code, ev.id, me.name);
+      const r = await door.scan(code, ev.id, me.name);
       feedback(r.ok);
       setShown({ r, code: r.ticket?.code ?? code.replace(/^BESTA:T:/, ""), at: new Date().toISOString() });
     } catch {
@@ -311,6 +355,12 @@ function Scanner({ ev, gig }: { ev: TicketEvent; gig?: Gig }) {
         </span>
       </header>
 
+      {door.test && (
+        <p className="relative z-10 bg-senal text-noche text-center font-mono text-xs font-semibold tracking-[.14em] py-1.5">
+          MODO PRUEBA · NADA CUENTA DE VERDAD
+        </p>
+      )}
+
       {/* visor */}
       <div className="relative flex-1 overflow-hidden">
         <video ref={videoRef} playsInline muted autoPlay aria-hidden="true"
@@ -332,6 +382,9 @@ function Scanner({ ev, gig }: { ev: TicketEvent; gig?: Gig }) {
 
       {/* abajo, al alcance del pulgar */}
       <div className="relative z-10 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] bg-noche flex flex-col gap-2.5">
+        {door.test && (
+          <Button size="lg" variant="primary" className="w-full !text-[15px]" onClick={() => setSheet("prueba")}>simular un escaneo</Button>
+        )}
         <p className="text-center text-[15px] text-crema/80" aria-live="polite">
           {cam === "on" ? "apunta al QR de la entrada" : "sin cámara: entra a mano"}
         </p>
@@ -349,6 +402,9 @@ function Scanner({ ev, gig }: { ev: TicketEvent; gig?: Gig }) {
 
       <CodeSheet open={sheet === "codigo"} onClose={() => setSheet(null)} onSubmit={c => { setSheet(null); void handle(c, false); }} />
       <EmailSheet open={sheet === "email"} onClose={() => setSheet(null)} ev={ev} onCheckIn={() => feedback(true)} />
+
+      {door.test && <TestSheet open={sheet === "prueba"} onClose={() => setSheet(null)}
+        onScan={c => { setSheet(null); unlockAudio(); void handle(c, false); }} />}
 
       {shown && <Result shown={shown} ev={ev} onNext={next} />}
     </div>
@@ -378,9 +434,7 @@ function CamMessage({ cam, onRetry }: { cam: CamState; onRetry: () => void }) {
 // ---------- resultado ----------
 function Result({ shown, ev, onNext }: { shown: Shown; ev: TicketEvent; onNext: () => void }) {
   const { me } = useMe();
-  const { data: tickets } = useCollection("tickets");
-  const { data: events } = useCollection("events");
-  const { data: gigs } = useCollection("gigs");
+  const { tickets, events, gigs, test } = useDoor();
   const btn = useRef<HTMLButtonElement>(null);
   useEffect(() => { btn.current?.focus(); }, []);
 
@@ -418,7 +472,7 @@ function Result({ shown, ev, onNext }: { shown: Shown; ev: TicketEvent; onNext: 
     lines = ["Ese código no es de una entrada de besta.", "Prueba a teclearlo o busca por email."];
   }
 
-  const showOrder = !r.ok && me.role !== "staff" && r.order;
+  const showOrder = !r.ok && me.role !== "staff" && r.order && !test;
 
   return (
     <div role="alert" onClick={onNext}
@@ -455,6 +509,65 @@ function Result({ shown, ev, onNext }: { shown: Shown; ev: TicketEvent; onNext: 
   );
 }
 
+// ---------- modo prueba ----------
+const SIMS = [
+  { kind: "valida", label: "entrada válida", tone: "ok" },
+  { kind: "invitacion", label: "invitación", tone: "ok" },
+  { kind: "usada", label: "ya usada", tone: "error" },
+  { kind: "cancelada", label: "cancelada", tone: "error" },
+  { kind: "otro-evento", label: "de otro concierto", tone: "error" },
+  { kind: "no-existe", label: "código que no existe", tone: "error" },
+] as const;
+
+function TestSheet({ open, onClose, onScan }: { open: boolean; onClose: () => void; onScan: (code: string) => void }) {
+  const { tickets } = useDoor();
+  const [qrs, setQrs] = useState(false);
+  useEffect(() => { if (open) setQrs(false); }, [open]);
+  return (
+    <Sheet open={open} onClose={onClose} title="simular un escaneo">
+      <div className="flex flex-col gap-4 pt-1">
+        <p className="text-sm text-crema/70">Elige qué entrada «llega» a la puerta. Pasa por la misma pantalla, sonido y vibración que un QR de verdad.</p>
+        <div className="grid grid-cols-2 gap-2">
+          {SIMS.map(x => (
+            <button key={x.kind} type="button" onClick={() => onScan(prueba.pick(x.kind))}
+              className="min-h-14 rounded-2xl bg-noche px-3 py-2 text-left flex items-center gap-2.5 hover:bg-tubo-alto">
+              <span className={cx("size-2.5 rounded-full shrink-0", x.tone === "ok" ? "bg-ok" : "bg-error")} aria-hidden="true" />
+              <span className="text-[15px] leading-tight">{x.label}</span>
+            </button>
+          ))}
+        </div>
+
+        <button type="button" onClick={() => setQrs(v => !v)} aria-expanded={qrs}
+          className="flex items-center justify-between rounded-2xl border-[1.5px] border-crema/20 px-4 h-12 text-[15px]">
+          QR de prueba para escanear con la cámara
+          <span className="font-mono text-crema/60">{qrs ? "−" : "+"}</span>
+        </button>
+        {qrs && (
+          <>
+            <p className="text-xs text-crema/60">Abre este modo prueba en otro móvil o en el ordenador y escanea estos QR con la cámara de este. Cada aparato lleva su propia cuenta.</p>
+            <ul className="grid grid-cols-2 gap-3">
+              {tickets.map(t => {
+                const ts = ticketState(t);
+                return (
+                  <li key={t.code} className="flex flex-col items-center gap-1.5">
+                    <QR code={t.code} size={150} />
+                    <span className="font-mono text-sm">{t.code}</span>
+                    <span className="text-xs text-crema/60 text-center">
+                      {t.eventId !== PRUEBA_ID ? "otro concierto" : t.holder ?? kindLabel(t)} · {ts.label}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
+
+        <Button variant="ghost" onClick={() => { prueba.reset(); onClose(); }}>reiniciar la prueba</Button>
+      </div>
+    </Sheet>
+  );
+}
+
 // ---------- entrada a mano ----------
 function CodeSheet({ open, onClose, onSubmit }: { open: boolean; onClose: () => void; onSubmit: (code: string) => void }) {
   const [v, setV] = useState("");
@@ -481,8 +594,7 @@ function CodeSheet({ open, onClose, onSubmit }: { open: boolean; onClose: () => 
 function EmailSheet({ open, onClose, ev, onCheckIn }: { open: boolean; onClose: () => void; ev: TicketEvent; onCheckIn: () => void }) {
   const { me } = useMe();
   const toast = useToast();
-  const { data: orders } = useCollection("orders");
-  const { data: tickets } = useCollection("tickets");
+  const { orders, tickets, checkInManual } = useDoor();
   const [q, setQ] = useState("");
   const [pending, setPending] = useState<string | null>(null);
   useEffect(() => { if (open) setQ(""); }, [open]);
@@ -499,7 +611,7 @@ function EmailSheet({ open, onClose, ev, onCheckIn }: { open: boolean; onClose: 
   const checkIn = async (code: string) => {
     setPending(code);
     try {
-      await api.checkInManual(code, me.name);
+      await checkInManual(code, me.name);
       onCheckIn();
       toast(`${code} dentro`, "ok");
     } finally { setPending(null); }
