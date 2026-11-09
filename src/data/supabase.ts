@@ -11,7 +11,7 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Collection, DB } from "./mock";
 import { uid } from "./mock";
-import { coverage, onlineGuard } from "@/suite/modules/merch/shared";
+import { coverage, heldOf, onlineGuard } from "@/suite/modules/merch/shared";
 import type {
   ID, Order, Ticket, ScanResult, Quote, Lead, Gig, Song, MerchMove, MerchRequest, MerchCheckout, PayMethod,
   Subscriber, Member, Product, TicketEvent, TicketType, NewsInput, NewsStats, NewsCampaign, NewsContact, NewsAdd, Topic,
@@ -287,7 +287,15 @@ export const supabaseApi = {
   async deleteMove(moveId: ID): Promise<void> {
     const m = await get("moves", moveId);
     if (!m) return;
-    await adjust(m.productId, m.variantId, -m.qty);   // deshace lo que movió; falla si ya no hay de dónde quitar
+    // Deshace lo que movió. Quitar unidades (p. ej. una reposición que no
+    // existió) puede dejar sin cubrir lo apartado: esas reservas pasan a
+    // encargo. Lo que no puede es quedar menos de 0 en la caja.
+    if (m.qty > 0) {
+      const v = (await get("products", m.productId))?.variants.find(x => x.id === m.variantId);
+      const box = v ? v.stock + heldOf(await supabaseApi.list("moves"), m.variantId) : 0;
+      if (v && box < m.qty) throw new Error(`No se puede: en la caja hay ${box} y habría que quitar ${m.qty}. Corrígelo desde «stock».`);
+    }
+    await adjust(m.productId, m.variantId, -m.qty, m.qty > 0);
     await supabaseApi.remove("moves", moveId);
     await markRequests(moveId, "cancelada");
   },

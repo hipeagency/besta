@@ -75,7 +75,7 @@ export function MoveRow({ m, p, gigs, sizeOnly }: { m: MerchMove; p?: Product; g
     : m.kind === "reposicion" && m.unitCents ? `−${eur(m.qty * m.unitCents)}` : "";
 
   async function del() {
-    const undo = m.qty < 0 ? `vuelven ${n} al stock` : `se quitan ${n} del stock`;
+    const undo = m.qty < 0 ? `vuelven ${n} al stock` : `se quitan ${n} del stock (si estaban reservadas, esas reservas pasan a encargo)`;
     if (!confirm(`¿Borrar este apunte (${KIND_LABEL[m.kind]} ${n} × ${itemName(p, v)})? Al borrarlo ${undo}.`)) return;
     try { await remove.run(m.id); toast("Apunte borrado", "ok"); } catch (e) { toast((e as Error).message, "error"); }
   }

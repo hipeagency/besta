@@ -6,7 +6,7 @@
    ========================================================= */
 import { createSeed, type DB } from "./seed";
 import { buildItems, eventTypes, takenByType, typeLeft } from "./tickets";
-import { coverage, onlineGuard } from "@/suite/modules/merch/shared";
+import { coverage, heldOf, onlineGuard } from "@/suite/modules/merch/shared";
 import type {
   ID, Order, Ticket, TicketType, DoorMethod, ScanResult, Quote, Lead, Gig, Song, MerchMove, MerchRequest, MerchCheckout, PayMethod, Subscriber, Member, Product, TicketEvent, NewsInput, NewsStats, NewsCampaign, NewsContact, NewsAdd, Topic,
 } from "./types";
@@ -488,7 +488,9 @@ export const mockApi = {
     const m = d.moves.find(x => x.id === moveId);
     if (!m) return;
     const v = d.products.find(p => p.id === m.productId)?.variants.find(v => v.id === m.variantId);
-    if (v && v.stock - m.qty < 0) throw new Error(`No se puede: quedan ${v.stock} y habría que quitar ${m.qty}.`);
+    // Como en supabase: lo apartado sin cubrir pasa a encargo; la caja no baja de 0.
+    const box = v ? v.stock + heldOf(d.moves, v.id) : 0;
+    if (v && m.qty > 0 && box < m.qty) throw new Error(`No se puede: en la caja hay ${box} y habría que quitar ${m.qty}. Corrígelo desde «stock».`);
     if (v) v.stock -= m.qty;
     d.moves = d.moves.filter(x => x.id !== moveId);
     d.requests.forEach(r => { if (r.moveId === moveId) r.status = "cancelada"; });

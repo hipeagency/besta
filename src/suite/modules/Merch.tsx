@@ -1,5 +1,5 @@
 /* Merch: lo que hay en la caja, lo que sale, para quién y quién lo vendió.
-   Vistas: productos, reservas (con los pedidos de la web), por pedir (lo
+   Vistas: productos, stock (todo lo que queda, corregible a mano), reservas (con los pedidos de la web), por pedir (lo
    que nos piden y no tenemos) y el libro de movimientos. El cobro en el bolo va en el modo puesto (MerchPuesto.tsx). */
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
@@ -14,10 +14,11 @@ import { Moves } from "./merch/Moves";
 import { Reservations } from "./merch/Reservations";
 import { ProductSheet, Recovery } from "./merch/ProductSheet";
 import { PorPedir, usePorPedir } from "./merch/PorPedir";
+import { Stock } from "./merch/Stock";
 import { LOW, heldOf, isOpenReserve, money, shortOf, sizeLabel, stockOf, swatch } from "./merch/shared";
 import { cx, eur, eur0 } from "@/lib/format";
 
-type View = "productos" | "reservas" | "porpedir" | "movimientos";
+type View = "productos" | "stock" | "reservas" | "porpedir" | "movimientos";
 
 export default function Merch() {
   const nav = useNavigate();
@@ -49,7 +50,7 @@ export default function Merch() {
     { label: "invertido", value: eur0(bag.spent), to: { vista: "movimientos", tipo: "reposicion" } },
     { label: "vendido", value: eur0(bag.earned), to: { vista: "movimientos", tipo: "venta" }, sub: `${bag.sold} ud` },
     { label: "beneficio", value: <span className={bag.profit < 0 ? "text-senal-suave" : ""}>{eur0(bag.profit)}</span>, to: { vista: "movimientos", tipo: "venta" } },
-    { label: "en caja", value: box, to: { vista: "productos" }, sub: `${eur0(value)} a precio de venta` },
+    { label: "en caja", value: box, to: { vista: "stock" }, sub: `${eur0(value)} a precio de venta` },
     { label: "apartado", value: held, to: { vista: "reservas" }, sub: held ? "sin entregar" : "nada" },
   ];
 
@@ -75,12 +76,14 @@ export default function Merch() {
 
       <Segmented value={view} onChange={v => go({ vista: v })} className="self-start" options={[
         { value: "productos", label: `productos · ${active.length}` },
+        { value: "stock", label: "stock" },
         { value: "reservas", label: openCount ? `reservas · ${openCount}` : "reservas" },
         ...(toOrder || view === "porpedir" ? [{ value: "porpedir" as const, label: toOrder ? `por pedir · ${toOrder}` : "por pedir" }] : []),
         { value: "movimientos", label: "movimientos" },
       ]} />
 
       {view === "productos" && <Products onOpen={id => go({ vista: "productos", producto: id })} />}
+      {view === "stock" && <Stock onOpen={id => go({ vista: "stock", producto: id })} />}
       {view === "reservas" && (
         <div className="flex flex-wrap gap-5 items-start">
           <div className="flex-[3_1_420px] min-w-0"><Reservations /></div>
