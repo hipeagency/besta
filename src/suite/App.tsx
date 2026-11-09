@@ -22,6 +22,7 @@ const Ensayos = lazy(() => import("./modules/ensayos/EnsayosApp"));
 const Composicion = lazy(() => import("./modules/Composicion"));
 const Rider = lazy(() => import("./modules/Rider"));
 const Visuales = lazy(() => import("./modules/Visuales"));
+const LyricSync = lazy(() => import("./modules/visuales/lyric/LyricSync"));
 const Presupuestos = lazy(() => import("./modules/Presupuestos"));
 const Merch = lazy(() => import("./modules/Merch"));
 const MerchPuesto = lazy(() => import("./modules/MerchPuesto"));
@@ -51,6 +52,8 @@ function Routed() {
       <Route path="puerta" element={g("puerta", <Puerta />)} />
       <Route path="puerta/:eventId" element={g("puerta", <Puerta />)} />
       <Route path="merch/puesto" element={g("merch", <MerchPuesto />)} />
+      <Route path="visuales/letra" element={g("visuales", <LyricSync />)} />
+      <Route path="visuales/letra/:songId" element={g("visuales", <LyricSync />)} />
       <Route element={<Shell />}>
         <Route index element={<Inicio />} />
         <Route path="bolos" element={g("bolos", <Bolos />)} />

@@ -54,6 +54,17 @@ export default function Visuales() {
       )}
 
       <Card>
+        <CardTitle action={<Pill tone="senal">nuevo</Pill>}>videolyrics</CardTitle>
+        <p className="text-sm text-crema/70 mb-3 max-w-[640px]">
+          Vídeos con la letra para las pantallas del directo, que duran exactamente lo mismo que la pista de Ableton.
+          Primer paso: sincronizar la letra de cada canción con su pista.
+        </p>
+        <Link to="/visuales/letra" className="inline-flex items-center gap-2 h-11 px-[18px] rounded-full bg-crema text-noche font-semibold text-[15px] hover:brightness-95">
+          sincronizar letras <Icon name="flecha" size={14} />
+        </Link>
+      </Card>
+
+      <Card>
         <CardTitle action={<Pill>pronto</Pill>}>sesiones por bolo</CardTitle>
         <p className="text-sm text-crema/70 mb-3">Guardar una sesión del muro para cada concierto llega con el backend. Mientras, exporta desde el estudio.</p>
         <ul className="flex flex-col gap-1.5">

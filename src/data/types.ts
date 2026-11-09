@@ -145,6 +145,20 @@ export interface Song {
   memberChords: Record<ID, Record<ID, string>>;  // miembro → sección → acordes propios
   comments: SongComment[];
   demoUrl?: string;
+  lyricSync?: LyricSync;   // letra con tiempos, para videolyrics
+}
+
+/* Letra sincronizada con la pista de directo. Tiempos en segundos desde
+   el inicio del audio. Guarda su propia copia del texto: si luego se
+   cambia la letra en ensayos, los tiempos no se descuadran solos. */
+export type LyricEmphasis = "fuerte" | "impacto" | "temblor";
+export interface LyricWord { text: string; t?: number; em?: LyricEmphasis }   // t: solo si se marcó a mano
+export interface LyricLine { id: ID; sectionId?: ID; section?: string; t?: number; end?: number; words: LyricWord[] }
+export interface LyricSync {
+  audioName: string;       // la pista con la que se sincronizó
+  durationSec: number;     // y su duración exacta: el vídeo dura esto
+  lines: LyricLine[];
+  updatedAt: ISODateTime;
 }
 
 export interface Setlist {
