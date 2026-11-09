@@ -277,9 +277,15 @@ export function useOfflineAt() {
 /** Acordes distintos de unas líneas, en orden de aparición. */
 export function chordsIn(lines: SongLine[]) {
   const seen = new Set<string>();
+  /* «em» → «Em»; y «G-C-Em-D» (como vienen de la app antigua) son cuatro acordes. */
+  const add = (t: string) => {
+    const c = t ? t[0].toUpperCase() + t.slice(1) : t;
+    if (c && CHORD.test(c)) { seen.add(c); return true; }
+    return false;
+  };
   for (const l of lines) for (const raw of l.chords.split(/[\s|]+/)) {
     const t = raw.replace(/^\(|\)$/g, "");
-    if (t && CHORD.test(t)) seen.add(t);
+    if (!add(t)) t.split("-").forEach(add);
   }
   return [...seen];
 }

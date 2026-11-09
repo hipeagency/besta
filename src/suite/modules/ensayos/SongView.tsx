@@ -402,7 +402,7 @@ function DeleteBanner({ song }: { song: Song }) {
   const flow = useDeleteFlow(song);
   const req = sx(song).deleteRequest;
   if (!req) return null;
-  const mine = req.approvals.includes(me.id);
+  const mine = req.approvals.includes(me.id) && !me.owner;
   return (
     <div role="status" className="rounded-2xl border border-senal/40 bg-senal/10 px-4 py-3 flex flex-wrap items-center gap-3 print:hidden">
       <p className="text-sm flex-1 min-w-[200px]">
@@ -410,7 +410,7 @@ function DeleteBanner({ song }: { song: Song }) {
         <span className="text-crema/70">aprobado por {req.approvals.length} de {members.length} · {ago(req.at)}</span>
       </p>
       {!mine && <Button size="sm" variant="primary" className="!h-11" disabled={flow.pending}
-        onClick={async () => { const gone = await flow.request(); toast(gone ? "Canción borrada" : "Aprobado", "ok"); }}>aprobar borrado</Button>}
+        onClick={async () => { if (me.owner && !window.confirm(`¿Borrar «${song.title}» ya, para toda la banda?`)) return; const gone = await flow.request(); toast(gone ? "Canción borrada" : "Aprobado", "ok"); }}>{me.owner ? "borrar ya" : "aprobar borrado"}</Button>}
       <Button size="sm" variant="quiet" className="!h-11" disabled={flow.pending}
         onClick={async () => { await flow.cancel(); toast("Se queda", "ok"); }}>{req.by === me.id ? "retirar petición" : "que se quede"}</Button>
     </div>

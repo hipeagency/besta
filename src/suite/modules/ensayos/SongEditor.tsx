@@ -279,7 +279,7 @@ export function SongEditor({ open, onClose, song }: { open: boolean; onClose: ()
 
 // ---------- borrar ----------
 /* Borrar es de toda la banda: uno lo pide y se borra cuando lo aprueban todos.
-   Si en la banda solo hay una persona, se borra al momento. */
+   Si en la banda solo hay una persona, o lo hace el superadmin, se borra al momento. */
 function DeleteSong({ open, onClose, song }: { open: boolean; onClose: () => void; song: Song }) {
   const { me } = useView();
   const toast = useToast();
@@ -288,9 +288,9 @@ function DeleteSong({ open, onClose, song }: { open: boolean; onClose: () => voi
   const run = useDeleteFlow(song);
   const [typed, setTyped] = useState("");
   const ok = typed.trim().toLowerCase() === song.title.trim().toLowerCase();
-  const mine = req?.approvals.includes(me.id);
+  const mine = req?.approvals.includes(me.id) && !me.owner;
   return (
-    <Modal open={open} onClose={onClose} title={req ? "borrado pedido" : "pedir borrado"}>
+    <Modal open={open} onClose={onClose} title={me.owner ? "borrar canción" : req ? "borrado pedido" : "pedir borrado"}>
       <form className="flex flex-col gap-4" onSubmit={async e => {
         e.preventDefault();
         if (!ok) return;
@@ -298,7 +298,9 @@ function DeleteSong({ open, onClose, song }: { open: boolean; onClose: () => voi
         toast(done ? "Canción borrada" : "Pedido: falta que lo aprueben los demás", "ok");
         onClose();
       }}>
-        {req ? (
+        {me.owner ? (
+          <p className="text-crema/80">Eres superadmin: se borra ya para toda la banda, con sus notas y comentarios, sin esperar a los demás. No se puede deshacer.</p>
+        ) : req ? (
           <p className="text-crema/80">{req.name} pidió borrarla. Aprobado por {req.approvals.length} de {members.length}{mine ? " (tú ya)" : ""}.</p>
         ) : (
           <p className="text-crema/80">Se borra para toda la banda, con sus notas y comentarios, cuando lo aprueben todos{members.length > 1 ? ` (${members.length})` : ""}.</p>
@@ -307,7 +309,7 @@ function DeleteSong({ open, onClose, song }: { open: boolean; onClose: () => voi
         <div className="flex flex-wrap justify-end gap-2">
           {req && (req.by === me.id || mine) && <Button variant="quiet" onClick={async () => { await run.cancel(); toast("Petición retirada", "ok"); onClose(); }}>retirar petición</Button>}
           <Button variant="quiet" onClick={onClose}>cerrar</Button>
-          {!mine && <Button type="submit" variant="primary" disabled={!ok || run.pending}>{req ? "aprobar borrado" : "pedir borrado"}</Button>}
+          {!mine && <Button type="submit" variant="primary" disabled={!ok || run.pending}>{me.owner ? "borrar ya" : req ? "aprobar borrado" : "pedir borrado"}</Button>}
         </div>
       </form>
     </Modal>
@@ -324,7 +326,7 @@ export function useDeleteFlow(song: Song) {
     const req = sx(song).deleteRequest;
     if (kind === "cancel") { await updateSong(song.id, { deleteRequest: undefined }); return false; }
     const approvals = [...new Set([...(req?.approvals ?? []), me.id])];
-    if (approvals.length >= Math.max(1, members.length)) {
+    if (me.owner || approvals.length >= Math.max(1, members.length)) {
       for (const s of setlists.filter(s => s.songIds.includes(song.id))) await api.update("setlists", s.id, { songIds: s.songIds.filter(x => x !== song.id) });
       await api.remove("songs", song.id);
       nav("/ensayos", { replace: true });
