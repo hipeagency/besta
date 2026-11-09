@@ -6,7 +6,7 @@
    ========================================================= */
 import { createSeed, type DB } from "./seed";
 import type {
-  ID, Order, Ticket, ScanResult, Quote, Lead, Gig, Song, MerchMove, MerchRequest, PayMethod, Subscriber, Member, Product, TicketEvent, NewsInput, NewsStats, Topic,
+  ID, Order, Ticket, ScanResult, Quote, Lead, Gig, Song, MerchMove, MerchRequest, PayMethod, Subscriber, Member, Product, TicketEvent, NewsInput, NewsStats, NewsCampaign, NewsContact, NewsAdd, Topic,
 } from "./types";
 
 export type Collection = keyof DB;
@@ -378,19 +378,51 @@ export const mockApi = {
     save();
   },
   // ---------- avisos a la lista ----------
-  /* De prueba: cuenta los suscriptores del navegador; enviar no manda nada. */
+  /* De prueba: cuenta los suscriptores del navegador; enviar no manda nada
+     (los avisos «enviados» se recuerdan solo mientras la pestaña siga abierta). */
   async newsletterStats(): Promise<NewsStats> {
     const subs = load().subscribers;
     const by = (t: Topic) => subs.filter(s => s.topics.includes(t)).length;
-    return { total: subs.length, byTopic: { fechas: by("fechas"), merch: by("merch"), lanzamientos: by("lanzamientos") }, recent: [] };
+    return { total: subs.length, byTopic: { fechas: by("fechas"), merch: by("merch"), lanzamientos: by("lanzamientos") }, recent: sentNews.slice(0, 5) };
   },
   async newsletterSend(input: NewsInput, test?: string): Promise<{ recipients?: number }> {
     if (test) return {};
     const n = load().subscribers.filter(s => s.topics.includes(input.topic)).length;
     if (!n) throw new Error("Nadie de la lista ha pedido este tipo de aviso todavía.");
+    sentNews.unshift({ id: Date.now(), name: input.title, subject: input.subject, sentAt: now(), topic: input.topic, delivered: n, opened: 0, clicked: 0, unsubscribed: 0 });
     return { recipients: n };
   },
+  async newsletterCampaigns(): Promise<NewsCampaign[]> { return [...sentNews]; },
+  async newsletterContacts(): Promise<NewsContact[]> {
+    return load().subscribers.map(s => ({ email: s.email, name: s.name, city: s.city, topics: s.topics, createdAt: s.createdAt }));
+  },
+  async newsletterTopics(email: string, topics: Topic[]): Promise<void> {
+    const s = load().subscribers.find(x => x.email === email);
+    if (!s) throw new Error("Ese email ya no está en la lista.");
+    s.topics = s.topics.filter(t => topics.includes(t));
+    save();
+  },
+  /* De prueba: con confirmación se apunta igual (no hay email que confirmar). */
+  async newsletterAdd(input: NewsAdd): Promise<{ status: "apuntado" | "pendiente" | "actualizado" }> {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email.trim())) throw new Error("Revisa el email.");
+    if (!input.topics.length) throw new Error("Marca al menos un tipo de aviso.");
+    if (!input.confirm && !input.consent) throw new Error("Confirma que tienes su permiso, o mándale el email de confirmación.");
+    const d = load();
+    const email = input.email.trim().toLowerCase();
+    const prev = d.subscribers.find(s => s.email === email);
+    if (prev) Object.assign(prev, { topics: input.topics, name: input.name || prev.name, city: input.city || prev.city });
+    else d.subscribers.unshift({ email, name: input.name, city: input.city, topics: input.topics, source: "suite", id: uid("sub-"), createdAt: now() });
+    save();
+    return { status: prev ? "actualizado" : input.confirm ? "pendiente" : "apuntado" };
+  },
+  async newsletterRemove(email: string): Promise<void> {
+    const d = load();
+    d.subscribers = d.subscribers.filter(x => x.email !== email);
+    save();
+  },
 };
+
+const sentNews: NewsCampaign[] = [];
 
 function quoteBase(q: Quote) { return q.lines.reduce((s, l) => s + l.amountCents, 0); }
 

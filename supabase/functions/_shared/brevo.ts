@@ -142,10 +142,73 @@ export async function sendCampaign(t: Topic, mail: Mail & { name: string; prehea
   return { campaignId: id, recipients: count };
 }
 
-/* Últimos avisos enviados, para la suite. */
+/* Avisos enviados, para la suite. Brevo a veces deja globalStats a cero
+   y pone las cifras por lista en campaignStats: se suman esas. */
+interface Stats { delivered?: number; uniqueViews?: number; uniqueClicks?: number; unsubscriptions?: number }
 export async function recentCampaigns(limit = 5) {
   const res = await brevo("GET", `/emailCampaigns?status=sent&limit=${limit}&sort=desc`);
   await check(res, "leer campañas");
-  const list = (await res.json() as { campaigns?: { id: number; name: string; subject: string; sentDate?: string; statistics?: { globalStats?: { delivered?: number; uniqueViews?: number } } }[] }).campaigns ?? [];
-  return list.map(c => ({ id: c.id, name: c.name, subject: c.subject, sentAt: c.sentDate, delivered: c.statistics?.globalStats?.delivered ?? 0, opened: c.statistics?.globalStats?.uniqueViews ?? 0 }));
+  const list = (await res.json() as { campaigns?: { id: number; name: string; subject: string; sentDate?: string; statistics?: { globalStats?: Stats; campaignStats?: Stats[] } }[] }).campaigns ?? [];
+  return list.map(c => {
+    const g = c.statistics?.globalStats;
+    const per = c.statistics?.campaignStats ?? [];
+    const sum = (k: keyof Stats) => (g?.delivered ? g[k] ?? 0 : per.reduce((n, x) => n + (x[k] ?? 0), 0));
+    const topic = (Object.keys(TOPICS) as Topic[]).find(t => c.name.startsWith(`${TOPICS[t]} ·`));
+    return { id: c.id, name: c.name, subject: c.subject, sentAt: c.sentDate, topic, delivered: sum("delivered"), opened: sum("uniqueViews"), clicked: sum("uniqueClicks"), unsubscribed: sum("unsubscriptions") };
+  });
+}
+
+// ---------- suscriptores, para la suite ----------
+const topicsOf = (c: Contact) => String(c.attributes?.INTERESES ?? "").split(",").map(s => s.trim()).filter((t): t is Topic => t in TOPICS);
+
+/* Quién hay en la lista (sin los que se dieron de baja). */
+export async function newsletterContacts() {
+  const all = await listContacts(Number(env("BREVO_LIST_ID")));
+  return all.filter(c => !c.emailBlacklisted).map(c => ({
+    email: c.email,
+    name: String(c.attributes?.NOMBRE ?? "") || undefined,
+    city: String(c.attributes?.CIUDAD ?? "") || undefined,
+    topics: topicsOf(c),
+    createdAt: (c as { createdAt?: string }).createdAt,
+  }));
+}
+
+/* Apuntar a alguien a mano desde la suite, sin doble confirmación (quien
+   lo apunta asegura que tiene su permiso). Si se dio de baja él mismo, no
+   se le vuelve a meter: tiene que apuntarse otra vez desde la web. */
+export async function addContactDirect(c: { email: string; name?: string; city?: string; topics: Topic[] }) {
+  const got = await brevo("GET", `/contacts/${encodeURIComponent(c.email)}`);
+  if (got.ok && (await got.json() as Contact).emailBlacklisted)
+    throw new Error("Ese email se dio de baja de los envíos. Para volver tiene que apuntarse desde la web.");
+  if (!got.ok && got.status !== 404) await check(got, "buscar contacto");
+  const attributes: Record<string, string> = { INTERESES: c.topics.join(","), FUENTE: "suite" };
+  if (c.name) attributes.NOMBRE = c.name;
+  if (c.city) attributes.CIUDAD = c.city;
+  let res = await brevo("POST", "/contacts", { email: c.email, attributes, listIds: [Number(env("BREVO_LIST_ID"))], updateEnabled: true });
+  // Si la cuenta no tiene el atributo FUENTE, se guarda sin él.
+  if (res.status === 400 && (await res.clone().text()).includes("FUENTE")) {
+    delete attributes.FUENTE;
+    res = await brevo("POST", "/contacts", { email: c.email, attributes, listIds: [Number(env("BREVO_LIST_ID"))], updateEnabled: true });
+  }
+  await check(res, "apuntar contacto");
+}
+
+/* Quitar intereses (añadir no: eso lo hace la persona en la web, con
+   su doble confirmación). */
+export async function setContactTopics(email: string, topics: Topic[]) {
+  const got = await brevo("GET", `/contacts/${encodeURIComponent(email)}`);
+  if (got.status === 404) throw new Error("Ese email ya no está en la lista.");
+  await check(got, "buscar contacto");
+  const had = topicsOf(await got.json() as Contact);
+  const keep = had.filter(t => topics.includes(t));
+  await check(await brevo("PUT", `/contacts/${encodeURIComponent(email)}`, { attributes: { INTERESES: keep.join(",") } }), "actualizar contacto");
+  return keep;
+}
+
+/* Dar de baja: sale de la lista principal (y de las de cada interés en
+   el próximo envío, que se sincronizan desde ella). */
+export async function removeContact(email: string) {
+  const res = await brevo("POST", `/contacts/lists/${Number(env("BREVO_LIST_ID"))}/contacts/remove`, { emails: [email] });
+  if (res.status === 400 && (await res.clone().text()).includes("already removed")) return;
+  await check(res, "dar de baja");
 }

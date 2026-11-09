@@ -8,7 +8,7 @@ import { eventStats, gigChecklist, salesByDay, upcomingGigs, balances } from "@/
 import { Button, Card, CardTitle, Dot, Pill, Stat } from "@/components/ui";
 import { ago, cx, dateShort, daysUntil, eur, eur0, gigSub, gigTitle, maskEmail, monYear, todayLabel } from "@/lib/format";
 import { Icon } from "@/components/ui/icons";
-import { NotifyButton, TOPIC_LABEL, useNewsStats } from "@/suite/NotifyList";
+import { NotifyButton, TOPIC_LABEL, songDraft, useNewsStats } from "@/suite/NotifyList";
 import type { Topic } from "@/data/types";
 
 export default function Inicio() {
@@ -152,7 +152,7 @@ function Newsletter() {
   const d = stats.data;
   return (
     <Card className="flex flex-col gap-3">
-      <CardTitle>newsletter</CardTitle>
+      <CardTitle action={<Link to="/newsletter" className="text-sm text-crema/75 hover:text-crema">ver todo <Icon name="flecha" size={14} className="inline align-[-2px]" /></Link>}>newsletter</CardTitle>
       {stats.isPending && <p className="text-sm text-crema/60">contando…</p>}
       {stats.error && <p className="text-sm text-crema/60">No se ha podido leer la lista de Brevo.</p>}
       {d && <>
@@ -174,12 +174,8 @@ function Newsletter() {
           ))}
         </ul>}
       </>}
-      <NotifyButton size="sm" label="avisar de canción nueva" draft={{
-        topic: "lanzamientos", subject: "canción nueva de besta", title: "canción nueva",
-        body: "Ya está fuera nuestra canción nueva, en todas las plataformas.\n\nPonla alta.",
-        ctaLabel: "escuchar en Spotify", ctaUrl: "https://open.spotify.com/intl-es/artist/14kN0Ny6BdnaWg1dShpZSe",
-      }} />
-      <p className="text-xs text-crema/55">Los avisos de bolos y merch están en la ficha de cada uno.</p>
+      <NotifyButton size="sm" label="avisar de canción nueva" draft={songDraft()} />
+      <p className="text-xs text-crema/55">Avisos de bolos, merch o libres, historial y suscriptores en <Link to="/newsletter" className="underline">newsletter</Link>.</p>
     </Card>
   );
 }

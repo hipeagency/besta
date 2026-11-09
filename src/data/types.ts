@@ -310,5 +310,8 @@ export interface NewsInput { topic: Topic; subject: string; title: string; body:
 export interface NewsStats {
   total: number;
   byTopic: Record<Topic, number>;
-  recent: { id: number; name: string; subject: string; sentAt?: string; delivered: number; opened: number }[];
+  recent: NewsCampaign[];
 }
+export interface NewsCampaign { id: number; name: string; subject: string; sentAt?: string; topic?: Topic; delivered: number; opened: number; clicked?: number; unsubscribed?: number }
+export interface NewsAdd { email: string; name?: string; city?: string; topics: Topic[]; confirm: boolean; consent: boolean }
+export interface NewsContact { email: string; name?: string; city?: string; topics: Topic[]; createdAt?: string }

@@ -13,7 +13,7 @@ import type { Collection, DB } from "./mock";
 import { uid } from "./mock";
 import type {
   ID, Order, Ticket, ScanResult, Quote, Lead, Gig, Song, MerchMove, MerchRequest, PayMethod,
-  Subscriber, Member, Product, TicketEvent, NewsInput, NewsStats,
+  Subscriber, Member, Product, TicketEvent, NewsInput, NewsStats, NewsCampaign, NewsContact, NewsAdd, Topic,
 } from "./types";
 
 const URL_ = import.meta.env.PUBLIC_SUPABASE_URL as string;
@@ -286,6 +286,13 @@ export const supabaseApi = {
   async newsletterStats(): Promise<NewsStats> { return invoke("newsletter", { action: "stats" }); },
   async newsletterSend(input: NewsInput, test?: string): Promise<{ recipients?: number }> {
     return invoke("newsletter", { ...input, action: test ? "test" : "send", to: test });
+  },
+  async newsletterCampaigns(): Promise<NewsCampaign[]> { return invoke("newsletter", { action: "campaigns", limit: 50 }); },
+  async newsletterContacts(): Promise<NewsContact[]> { return invoke("newsletter", { action: "contacts" }); },
+  async newsletterTopics(email: string, topics: Topic[]): Promise<void> { await invoke("newsletter", { action: "topics", email, topics }); },
+  async newsletterAdd(input: NewsAdd): Promise<{ status: "apuntado" | "pendiente" | "actualizado" }> { return invoke("newsletter", { action: "add", ...input }); },
+  async newsletterRemove(email: string): Promise<void> {
+    await invoke("newsletter", { action: "remove", email });
   },
 };
 

@@ -1,8 +1,9 @@
-/* Avisos a la lista desde la suite (solo admin): cuántos hay por interés,
-   prueba a un email y campaña de Brevo a quien eligió ese interés
+/* La newsletter desde la suite (solo admin): cuántos hay por interés,
+   historial de avisos, quién está apuntado (apuntar a mano, quitarle
+   intereses o darle de baja), prueba a un email y campaña de Brevo a quien eligió ese interés
    (concierto, merch o canción nueva). */
 import { email, HttpError, json, readJson, serve, text } from "../_shared/http.ts";
-import { newsletterCounts, recentCampaigns, sendCampaign, sendEmail, TOPICS, type Topic } from "../_shared/brevo.ts";
+import { addContactDirect, newsletterContacts, upsertNewsletterContact, newsletterCounts, recentCampaigns, removeContact, sendCampaign, sendEmail, setContactTopics, TOPICS, type Topic } from "../_shared/brevo.ts";
 import { newsletterEmail } from "../_shared/emails.ts";
 import { userClient } from "../_shared/supabase.ts";
 
@@ -21,6 +22,27 @@ serve(["POST"], async req => {
   if (b.action === "stats") {
     const [counts, recent] = await Promise.all([newsletterCounts(), recentCampaigns(5).catch(() => [])]);
     return json(req, { ...counts, recent });
+  }
+  if (b.action === "campaigns") return json(req, await recentCampaigns(Math.min(Number(b.limit) || 50, 100)));
+  if (b.action === "contacts") return json(req, await newsletterContacts());
+  if (b.action === "topics") {
+    const topics = Array.isArray(b.topics) ? (b.topics as unknown[]).filter((t): t is Topic => typeof t === "string" && t in TOPICS) : [];
+    return json(req, { topics: await setContactTopics(email(b.email), topics) });
+  }
+  if (b.action === "add") {
+    const topics = Array.isArray(b.topics) ? (b.topics as unknown[]).filter((t): t is Topic => typeof t === "string" && t in TOPICS) : [];
+    if (!topics.length) throw new HttpError("Marca al menos un tipo de aviso.");
+    const c = { email: email(b.email).toLowerCase(), name: text(b.name, 80, "el nombre"), city: text(b.city, 80, "la ciudad"), topics };
+    if (b.confirm === false) {
+      if (b.consent !== true) throw new HttpError("Confirma que tienes su permiso, o mándale el email de confirmación.");
+      await addContactDirect(c);
+      return json(req, { status: "apuntado" });
+    }
+    return json(req, { status: await upsertNewsletterContact(c) });
+  }
+  if (b.action === "remove") {
+    await removeContact(email(b.email));
+    return json(req, { ok: true });
   }
 
   const topic = b.topic as Topic;

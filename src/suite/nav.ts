@@ -25,6 +25,7 @@ export const NAV: NavItem[] = [
   { id: "entradas", name: "entradas", path: "/entradas", icon: "entradas", group: "NEGOCIO", desc: "venta y asistentes" },
   { id: "presupuestos", name: "presupuestos", path: "/presupuestos", icon: "presupuestos", group: "NEGOCIO", desc: "ofertas y solicitudes" },
   { id: "merch", name: "merch", path: "/merch", icon: "merch", group: "NEGOCIO", desc: "stock, ventas y solicitudes" },
+  { id: "newsletter", name: "newsletter", path: "/newsletter", icon: "enviar", group: "NEGOCIO", desc: "avisos y quién está apuntado", adminOnly: true },
   { id: "finanzas", name: "finanzas", path: "/finanzas", icon: "finanzas", group: "NEGOCIO", desc: "caja y reparto" },
   { id: "usuarios", name: "usuarios", path: "/usuarios", icon: "usuarios", group: "AJUSTES", desc: "accesos y permisos", adminOnly: true },
 ];

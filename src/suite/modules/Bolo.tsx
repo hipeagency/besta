@@ -6,11 +6,11 @@ import { Page } from "@/suite/Shell";
 import { useAction, useCollection } from "@/data/hooks";
 import { api, uid } from "@/data/api";
 import { type CheckItem, DEFAULT_TASKS, commonTasks, eventStats, gigChecklist, setlistMinutes, upcomingGigs } from "@/data/selectors";
-import type { Gig, NewsInput, Settings, Task, TicketEvent } from "@/data/types";
+import type { Gig, Settings, Task, TicketEvent } from "@/data/types";
 import { Button, Card, CardTitle, Empty, IconButton, Input, Pill, Progress, Segmented, Select, Sheet, Stat, Textarea, Toggle, useToast } from "@/components/ui";
 import { Icon } from "@/components/ui/icons";
 import { NewGig, WEB_OPTIONS, applySoldOut, webMode, webPatch, type WebMode } from "./Bolos";
-import { NotifyButton } from "@/suite/NotifyList";
+import { NotifyButton, gigDraft } from "@/suite/NotifyList";
 import { cx, dateLong, dateShort, daysUntil, eur, gigSub, gigTitle, gigWhen, isPast, monthLong } from "@/lib/format";
 
 const WEB_TOAST: Record<WebMode, string> = {
@@ -371,27 +371,6 @@ function Teaser({ g, onChange }: { g: Gig; onChange: (p: Partial<Gig>) => void }
 }
 
 /* Borrador del aviso a la lista: en secreto, solo lo desvelado. */
-function gigDraft(g: Gig, ev?: TicketEvent): NewsInput {
-  const t = g.teaser;
-  const city = !t || t.city ? g.city : "";
-  const exact = (!t || t.date === "exacta") && !g.dateTbc;
-  const date = !g.date ? "" : exact ? dateLong(g.date) : monthLong(g.date);
-  const venue = [!t || t.event ? g.event : "", !t || t.venue ? g.venue : ""].filter(Boolean).join(", ");
-  if (t) return {
-    topic: "fechas", subject: `besta prepara algo${city ? ` en ${city}` : ""}`, title: city ? `algo se cuece en ${city}` : "concierto nuevo a la vista",
-    body: [`Tenemos concierto nuevo${date ? ` en ${date}` : ""} y aún no lo podemos contar todo.`, "Te avisaremos antes que a nadie cuando lo desvelemos."].join("\n\n"),
-    ctaLabel: "ver en la web", ctaUrl: "https://besta.es/#directo", image: "/img/escenario-azul.jpg",
-  };
-  const own = g.ticketing === "propia" && ev;
-  return {
-    topic: "fechas", subject: `besta en ${gigTitle(g)}${g.date ? ` · ${exact ? dateShort(g.date) : date}` : ""}`, title: `nos vemos en ${gigTitle(g)}`,
-    body: [`${date ? `${date[0].toUpperCase()}${date.slice(1)}` : "Fecha por confirmar"}${venue ? `, ${venue}` : ""}${g.time && exact ? `. Empezamos a las ${g.time}` : ""}.`,
-      own ? "Las entradas ya están a la venta en besta.es: te llegan al momento con tu QR." : g.externalUrl ? "Entradas e info en el enlace de abajo." : "Te esperamos."].join("\n\n"),
-    ctaLabel: own ? "comprar entradas" : g.externalUrl ? "entradas e info" : "ver en la web",
-    ctaUrl: own ? "https://besta.es/#directo" : g.externalUrl || "https://besta.es/#directo",
-    image: ev?.image || "/img/escenario-azul.jpg",
-  };
-}
 
 /* Checklist: lo automático, las tareas comunes (iguales en todos los
    bolos, ajuste «checklist») y las de este bolo. */

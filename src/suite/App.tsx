@@ -26,6 +26,7 @@ const Presupuestos = lazy(() => import("./modules/Presupuestos"));
 const Merch = lazy(() => import("./modules/Merch"));
 const MerchPuesto = lazy(() => import("./modules/MerchPuesto"));
 const Finanzas = lazy(() => import("./modules/Finanzas"));
+const Newsletter = lazy(() => import("./modules/Newsletter"));
 const Mas = lazy(() => import("./modules/Mas"));
 const Usuarios = lazy(() => import("./modules/Usuarios"));
 
@@ -62,6 +63,7 @@ function Routed() {
         <Route path="presupuestos" element={g("presupuestos", <Presupuestos />)} />
         <Route path="presupuestos/:id" element={g("presupuestos", <Presupuestos />)} />
         <Route path="merch" element={g("merch", <Merch />)} />
+        <Route path="newsletter" element={g("newsletter", <Newsletter />)} />
         <Route path="finanzas" element={g("finanzas", <Finanzas />)} />
         <Route path="usuarios" element={g("usuarios", <Usuarios />)} />
         <Route path="mas" element={<Mas />} />

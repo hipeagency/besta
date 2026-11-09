@@ -2,14 +2,52 @@
    (con un texto ya propuesto), se manda una prueba a uno mismo y luego
    la campaña a quien eligió ese interés en la web. */
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/data/api";
-import type { NewsInput, Topic } from "@/data/types";
+import type { Gig, NewsInput, Product, TicketEvent, Topic } from "@/data/types";
+import { dateLong, dateShort, eur, gigTitle, monthLong } from "@/lib/format";
 import { Button, Field, Input, Modal, Textarea, useToast } from "@/components/ui";
 import { Icon } from "@/components/ui/icons";
 import { useMe } from "./session";
 
 export const TOPIC_LABEL: Record<Topic, string> = { fechas: "conciertos", merch: "merch", lanzamientos: "canciones nuevas" };
+
+// ---------- borradores ya escritos ----------
+export function gigDraft(g: Gig, ev?: TicketEvent): NewsInput {
+  const t = g.teaser;
+  const city = !t || t.city ? g.city : "";
+  const exact = (!t || t.date === "exacta") && !g.dateTbc;
+  const date = !g.date ? "" : exact ? dateLong(g.date) : monthLong(g.date);
+  const venue = [!t || t.event ? g.event : "", !t || t.venue ? g.venue : ""].filter(Boolean).join(", ");
+  if (t) return {
+    topic: "fechas", subject: `besta prepara algo${city ? ` en ${city}` : ""}`, title: city ? `algo se cuece en ${city}` : "concierto nuevo a la vista",
+    body: [`Tenemos concierto nuevo${date ? ` en ${date}` : ""} y aún no lo podemos contar todo.`, "Te avisaremos antes que a nadie cuando lo desvelemos."].join("\n\n"),
+    ctaLabel: "ver en la web", ctaUrl: "https://besta.es/#directo", image: "/img/escenario-azul.jpg",
+  };
+  const own = g.ticketing === "propia" && ev;
+  return {
+    topic: "fechas", subject: `besta en ${gigTitle(g)}${g.date ? ` · ${exact ? dateShort(g.date) : date}` : ""}`, title: `nos vemos en ${gigTitle(g)}`,
+    body: [`${date ? `${date[0].toUpperCase()}${date.slice(1)}` : "Fecha por confirmar"}${venue ? `, ${venue}` : ""}${g.time && exact ? `. Empezamos a las ${g.time}` : ""}.`,
+      own ? "Las entradas ya están a la venta en besta.es: te llegan al momento con tu QR." : g.externalUrl ? "Entradas e info en el enlace de abajo." : "Te esperamos."].join("\n\n"),
+    ctaLabel: own ? "comprar entradas" : g.externalUrl ? "entradas e info" : "ver en la web",
+    ctaUrl: own ? "https://besta.es/#directo" : g.externalUrl || "https://besta.es/#directo",
+    image: ev?.image || "/img/escenario-azul.jpg",
+  };
+}
+
+export const productDraft = (p: Pick<Product, "name" | "priceCents">): NewsInput => ({
+  topic: "merch", subject: `merch nuevo de besta: ${p.name}`, title: p.name.toLowerCase(),
+  body: `Ya tenemos ${p.name} por ${eur(p.priceCents)}.\n\nPídelo en la web y lo recoges en el próximo concierto, o te lo mandamos.`,
+  ctaLabel: "lo quiero", ctaUrl: "https://besta.es/#merch",
+});
+
+export const songDraft = (): NewsInput => ({
+  topic: "lanzamientos", subject: "canción nueva de besta", title: "canción nueva",
+  body: "Ya está fuera nuestra canción nueva, en todas las plataformas.\n\nPonla alta.",
+  ctaLabel: "escuchar en Spotify", ctaUrl: "https://open.spotify.com/intl-es/artist/14kN0Ny6BdnaWg1dShpZSe",
+});
+
+export const blankDraft = (topic: Topic): NewsInput => ({ topic, subject: "", title: "", body: "", ctaLabel: "ver en la web", ctaUrl: "https://besta.es" });
 
 export function useNewsStats(enabled = true) {
   return useQuery({ queryKey: ["newsletter"], queryFn: () => api.newsletterStats(), enabled, staleTime: 60e3, retry: 0 });
@@ -31,6 +69,7 @@ export function NotifyButton({ draft, label = "avisar a la lista", size = "md" }
 export function NotifyList({ draft, onClose }: { draft: NewsInput; onClose: () => void }) {
   const { me } = useMe();
   const toast = useToast();
+  const qc = useQueryClient();
   const stats = useNewsStats();
   const [d, setD] = useState<NewsInput>(draft);
   const [busy, setBusy] = useState<"" | "prueba" | "envio">("");
@@ -48,7 +87,7 @@ export function NotifyList({ draft, onClose }: { draft: NewsInput; onClose: () =
       } else {
         const r = await api.newsletterSend(d);
         toast(`Aviso enviado a ${r.recipients ?? n} personas`, "ok");
-        stats.refetch();
+        qc.invalidateQueries({ queryKey: ["newsletter"] });
         onClose();
       }
     } catch (e) {
