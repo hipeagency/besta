@@ -4,17 +4,19 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { api } from "@/data/api";
-import type { Topic } from "@/data/types";
+import type { TicketType, Topic } from "@/data/types";
+import { eventTypes, onlineClosedReason, onlineOpen } from "@/data/tickets";
 import { SubscribeForm } from "./Subscribe";
 import { radioAudio } from "./content";
 import Cookies from "./Cookies";
 import { Button, Field, Input, Modal, Stepper, Textarea, ToastProvider } from "@/components/ui";
-import { dateLabel, eur } from "@/lib/format";
+import { cx, dateLabel, eur } from "@/lib/format";
 import { Icon } from "@/components/ui/icons";
 
 export interface IslandEvent {
   id: string; name: string; city: string; venue: string; date: string; time: string;
   priceCents: number; maxPerOrder: number; image: string;
+  types?: TicketType[];
 }
 
 export default function WebIslands({ events }: { events: IslandEvent[] }) {
@@ -72,16 +74,21 @@ export default function WebIslands({ events }: { events: IslandEvent[] }) {
 }
 
 // ---------- compra ----------
+type WebType = TicketType & { free?: number };
+
 function TicketDrawer({ ev, onClose }: { ev: IslandEvent; onClose: () => void }) {
-  const [qty, setQty] = useState(2);
+  // Lo del build mientras llega lo de ahora (precios, límites y lo que queda).
+  const [types, setTypes] = useState<WebType[]>(() => eventTypes(ev).filter(t => t.active && t.channel !== "puerta"));
+  const [left, setLeft] = useState<number | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [qty, setQty] = useState<Record<string, number>>({});
   const [email, setEmail] = useState("");
   const [nl, setNl] = useState(false);
-  const [left, setLeft] = useState<number | null>(null);
   const [step, setStep] = useState<"form" | "paying">("form");
   const [error, setError] = useState("");
 
   useEffect(() => {
-    api.availability(ev.id).then(setLeft).catch(() => setLeft(null));
+    api.publicTickets(ev.id).then(r => { setLeft(r.free); if (r.types.length) setTypes(r.types); }).catch(() => setLeft(null)).finally(() => setLoaded(true));
   }, [ev.id]);
 
   useEffect(() => {
@@ -91,15 +98,29 @@ function TicketDrawer({ ev, onClose }: { ev: IslandEvent; onClose: () => void })
     return () => { window.removeEventListener("keydown", h); document.body.style.overflow = ""; };
   }, [onClose]);
 
-  const max = Math.min(ev.maxPerOrder, left ?? ev.maxPerOrder);
-  const soldOut = left === 0;
+  const open = types.filter(t => onlineOpen(t));
+  // Con un solo tipo, empezamos con 2 como siempre; con varios, el comprador elige.
+  useEffect(() => {
+    if (loaded && open.length === 1) setQty(q => (Object.keys(q).length ? q : { [open[0].id]: 2 }));
+  }, [loaded, open.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const total = Object.values(qty).reduce((s, n) => s + n, 0);
+  const maxFor = (t: WebType) => {
+    const room = Math.min(ev.maxPerOrder, left ?? ev.maxPerOrder) - (total - (qty[t.id] ?? 0));
+    return Math.max(0, Math.min(room, t.free ?? Infinity));
+  };
+  const amount = types.reduce((s, t) => s + (qty[t.id] ?? 0) * t.priceCents, 0);
+  const soldOut = left === 0 || (open.length > 0 && open.every(t => t.free === 0));
+  const nothing = !open.length;
 
   async function pay(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (!total) { setError("Elige al menos una entrada."); return; }
     try {
       setStep("paying");
-      const { redirectUrl } = await api.checkout({ eventId: ev.id, qty, email, newsletter: nl });
+      const items = Object.entries(qty).filter(([, n]) => n > 0).map(([typeId, n]) => ({ typeId, qty: n }));
+      const { redirectUrl } = await api.checkout({ eventId: ev.id, items, email, newsletter: nl });
       // De verdad aquí se va a Stripe Checkout. De prueba, directo a «gracias».
       setTimeout(() => { window.location.href = redirectUrl; }, 900);
     } catch (err) {
@@ -129,15 +150,33 @@ function TicketDrawer({ ev, onClose }: { ev: IslandEvent; onClose: () => void })
 
             {soldOut ? (
               <p className="rounded-2xl bg-crema text-noche p-4 font-semibold">Agotado. Apúntate a la newsletter y te avisamos si salen más.</p>
-            ) : (
-              <div className="flex items-center justify-between gap-3 p-4 rounded-[18px] border border-crema/15">
-                <div>
-                  <div className="font-semibold">Entrada general</div>
-                  <div className="font-mono text-[13px] text-crema/70">{eur(ev.priceCents)}{left !== null && left <= 30 ? ` · quedan ${left}` : ""}</div>
-                </div>
-                <Stepper value={Math.min(qty, max)} onChange={setQty} max={max} />
-              </div>
-            )}
+            ) : nothing ? (
+              <p className="rounded-2xl bg-crema text-noche p-4 font-semibold">Ahora mismo no hay entradas a la venta online.</p>
+            ) : null}
+
+            <ul className="flex flex-col gap-2">
+              {types.map(t => {
+                const why = onlineClosedReason(t);
+                const out = t.free === 0;
+                const off = !!why || out;
+                return (
+                  <li key={t.id} className={cx("flex items-center justify-between gap-3 p-4 rounded-[18px] border border-crema/15", off && "opacity-55")}>
+                    <div className="min-w-0">
+                      <div className="font-semibold first-letter:uppercase">{t.name}</div>
+                      <div className="font-mono text-[13px] text-crema/70">
+                        {eur(t.priceCents)}
+                        {out ? " · agotada"
+                          : why === "aún no" && t.salesStart ? ` · a la venta el ${dateTimeShort(t.salesStart)}`
+                          : why ? ` · ${why === "terminada" ? "ya no está a la venta" : why}`
+                          : t.free != null && t.free <= 30 ? ` · quedan ${t.free}` : ""}
+                      </div>
+                      {t.note && <div className="text-[13px] text-crema/60 mt-0.5">{t.note}</div>}
+                    </div>
+                    {!off && <Stepper value={Math.min(qty[t.id] ?? 0, maxFor(t))} onChange={n => setQty(q => ({ ...q, [t.id]: n }))} min={0} max={maxFor(t)} />}
+                  </li>
+                );
+              })}
+            </ul>
 
             <Field label="Email — aquí te llegan las entradas">
               {id => <Input id={id} type="email" required autoComplete="email" inputMode="email" placeholder="tu@email.com" value={email} onChange={e => setEmail(e.target.value)} className="h-[52px] bg-noche" />}
@@ -149,13 +188,13 @@ function TicketDrawer({ ev, onClose }: { ev: IslandEvent; onClose: () => void })
             </label>
 
             <div className="flex justify-between items-baseline pt-4 border-t border-crema/12">
-              <span className="text-crema/80">Total · {qty} {qty === 1 ? "entrada" : "entradas"}</span>
-              <span className="font-mono text-[30px]">{eur(ev.priceCents * Math.min(qty, max))}</span>
+              <span className="text-crema/80">Total · {total} {total === 1 ? "entrada" : "entradas"}</span>
+              <span className="font-mono text-[30px]">{eur(amount)}</span>
             </div>
 
             {error && <p role="alert" className="rounded-xl bg-crema text-noche px-4 py-3 text-sm">{error}</p>}
 
-            <Button type="submit" variant="primary" size="lg" block disabled={soldOut}>pagar con tarjeta</Button>
+            <Button type="submit" variant="primary" size="lg" block disabled={soldOut || nothing || !total}>pagar con tarjeta</Button>
             <p className="text-center text-[13px] leading-relaxed text-crema/65">
               Pago seguro con Stripe · Apple Pay · Google Pay<br />
               Al pagar aceptas las <a href="/legal/condiciones/" className="underline">condiciones de venta</a>
@@ -165,13 +204,16 @@ function TicketDrawer({ ev, onClose }: { ev: IslandEvent; onClose: () => void })
           <div className="px-7 py-12 flex flex-col gap-4 items-center text-center">
             <div className="size-[72px] rounded-full bg-senal/15 text-senal grid place-items-center"><Icon name="flecha" size={32} /></div>
             <h2 className="text-[28px] font-bold">te llevamos al pago seguro</h2>
-            <p className="text-crema/75 leading-relaxed">Tus {qty} {qty === 1 ? "entrada queda reservada" : "entradas quedan reservadas"} 30 minutos. Al pagar te llegan al email con su QR.</p>
+            <p className="text-crema/75 leading-relaxed">Tus {total} {total === 1 ? "entrada queda reservada" : "entradas quedan reservadas"} 30 minutos. Al pagar te llegan al email con su QR.</p>
           </div>
         )}
       </aside>
     </div>
   );
 }
+
+const dateTimeShort = (iso: string) =>
+  new Date(iso).toLocaleString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
 // ---------- contratación ----------
 function ContactModal({ open, onClose }: { open: boolean; onClose: () => void }) {

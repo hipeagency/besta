@@ -130,7 +130,7 @@ function CommandPalette({ onClose }: { onClose: () => void }) {
       ...songs.map(s => ({ kind: "canción", label: s.title, sub: s.artist, to: `/ensayos/${s.id}` })),
       ...quotes.map(x => ({ kind: "presupuesto", label: x.number, sub: x.client, to: `/presupuestos/${x.id}` })),
       ...products.map(p => ({ kind: "merch", label: p.name, sub: "producto", to: `/merch` })),
-      ...(n.includes("@") || n.length > 2 ? orders.slice(0, 400).map(o => ({ kind: "pedido", label: o.email, sub: `#${String(o.number).padStart(4, "0")}`, to: `/entradas/${o.eventId}?q=${encodeURIComponent(o.email)}` })) : []),
+      ...(n.includes("@") || n.length > 2 ? orders.slice(0, 400).filter(o => o.email).map(o => ({ kind: "pedido", label: o.email, sub: `#${String(o.number).padStart(4, "0")}`, to: `/entradas/${o.eventId}?q=${encodeURIComponent(o.email)}` })) : []),
     ];
     return (n ? all.filter(r => norm(r.label + " " + r.sub).includes(n)) : all.slice(0, 11)).slice(0, 12);
   }, [q, songs, gigs, orders, products, quotes, me]);

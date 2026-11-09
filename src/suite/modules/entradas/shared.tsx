@@ -22,7 +22,10 @@ export function ticketState(t: Ticket): { label: string; tone: Tone } {
   return { label: "sin usar", tone: "mute" };
 }
 
-export const kindLabel = (t: Ticket) => (t.kind === "invitacion" ? "invitación" : "general");
+export const kindLabel = (t: Ticket) => (t.kind === "invitacion" ? "invitación" : t.typeName ?? "general");
+
+/** Quién compró: el email o, en taquilla sin email, «taquilla · efectivo». */
+export const orderWho = (o: Order) => o.email || (o.channel === "puerta" ? `taquilla · ${o.method ?? "efectivo"}` : "—");
 
 /** «#0143» */
 export const orderNo = (n: number) => `#${String(n).padStart(4, "0")}`;

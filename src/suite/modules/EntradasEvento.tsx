@@ -13,7 +13,9 @@ import { Button, Card, CardTitle, Dot, Empty, Field, Input, Pill, Segmented, She
 import { Icon } from "@/components/ui/icons";
 import { QR } from "@/components/ui/QR";
 import { ago, cx, dateLabel, eur, eur0, gigWhen, hhmm, maskEmail } from "@/lib/format";
-import { ConfirmButton, downloadCSV, fromLocalInput, kindLabel, orderNo, orderState, ticketState, toLocalInput } from "./entradas/shared";
+import { ConfirmButton, downloadCSV, fromLocalInput, kindLabel, orderNo, orderState, orderWho, ticketState, toLocalInput } from "./entradas/shared";
+import { TicketTypes } from "./entradas/TicketTypes";
+import { itemsLabel, orderItems } from "@/data/tickets";
 
 type Tab = "pedidos" | "asistentes" | "invitaciones";
 const PAGE = 50;
@@ -65,6 +67,7 @@ export default function EntradasEvento() {
           {tab === "invitaciones" && <Invites ev={ev} tickets={s.tickets} />}
         </div>
         <div className="flex-[1_1_300px] min-w-0 flex flex-col gap-4">
+          <TicketTypes ev={ev} sold={Object.fromEntries(s.byType.map(b => [b.type.id, b.sold]))} />
           <Settings ev={ev} minCapacity={s.sold + s.invites + s.pending} />
           <RemoveEvent ev={ev} orders={s.orders} tickets={s.tickets} />
           <Card>
@@ -103,8 +106,29 @@ function Capacity({ ev, s }: { ev: TicketEvent; s: ReturnType<typeof eventStats>
         <Stat label="en pago ahora" value={s.pending} swatch="bg-crema/45" />
         <Stat label="libres" value={s.free} swatch="bg-crema/10" />
         <Stat label="ingresos brutos" value={eur0(s.gross)} />
-        <Stat label="neto tras Stripe" value={`≈ ${eur0(s.net)}`} sub="1,5 % + 0,25 € por pedido" />
+        <Stat label="neto tras Stripe" value={`≈ ${eur0(s.net)}`} sub="1,5 % + 0,25 € por pedido con Stripe" />
       </div>
+      {s.byType.length > 1 && (
+        <ul className="mt-5 pt-4 border-t border-crema/10 flex flex-col gap-1.5 text-[15px]">
+          {s.byType.map(b => (
+            <li key={b.type.id} className={cx("flex items-baseline gap-3", !b.type.active && "text-crema/55")}>
+              <span className="flex-1 min-w-0 truncate first-letter:uppercase">{b.type.name}</span>
+              <span className="font-mono text-sm">{b.sold}{b.type.limit != null ? ` / ${b.type.limit}` : ""}</span>
+              <span className="font-mono text-xs text-crema/60 w-[72px] text-right">{eur0(b.sold * b.type.priceCents)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {s.door.entradas > 0 && (
+        <div className="mt-4 pt-4 border-t border-crema/10">
+          <p className="font-mono text-xs tracking-wider text-crema/65 uppercase mb-2">taquilla · {s.door.entradas} entr.</p>
+          <div className="grid grid-cols-3 gap-3">
+            <Stat label="efectivo" value={eur0(s.door.efectivo)} />
+            <Stat label="bizum" value={eur0(s.door.bizum)} />
+            <Stat label="tarjeta" value={eur0(s.door.tarjeta)} />
+          </div>
+        </div>
+      )}
     </Card>
   );
 }
@@ -152,7 +176,7 @@ function Orders({ orders, tickets, initialQ }: { orders: Order[]; tickets: Ticke
               return (
                 <tr key={o.id} className="hover:bg-crema/[.03] cursor-pointer" onClick={() => setOpenId(o.id)}>
                   <td className="px-1.5 py-2.5 font-mono">{orderNo(o.number)}</td>
-                  <td className="px-1.5 py-2.5 max-w-[240px] truncate">{o.email}</td>
+                  <td className="px-1.5 py-2.5 max-w-[240px] truncate">{orderWho(o)}</td>
                   <td className="px-1.5 py-2.5 font-mono">{o.qty}</td>
                   <td className="px-1.5 py-2.5 font-mono">{o.status === "caducado" ? "—" : eur(o.amountCents)}</td>
                   <td className="px-1.5 py-2.5"><span className="inline-flex items-center gap-2"><Dot tone={st.tone === "senal" ? "senal" : st.tone} />{st.label}</span></td>
@@ -175,7 +199,7 @@ function Orders({ orders, tickets, initialQ }: { orders: Order[]; tickets: Ticke
             <li key={o.id}>
               <button type="button" onClick={() => setOpenId(o.id)} className="w-full text-left rounded-2xl bg-noche p-3.5 flex items-center gap-3 min-h-[60px]">
                 <span className="flex-1 min-w-0">
-                  <span className="block truncate">{maskEmail(o.email)}</span>
+                  <span className="block truncate">{o.email ? maskEmail(o.email) : orderWho(o)}</span>
                   <span className="flex items-center gap-1.5 text-xs text-crema/60"><Dot tone={st.tone === "senal" ? "senal" : st.tone} />{o.status === "pendiente" ? st.label : `${st.label} · ${ago(o.createdAt)}`}</span>
                 </span>
                 <span className="text-right shrink-0">
@@ -208,6 +232,8 @@ function OrderSheet({ order, tickets, onClose }: { order?: Order; tickets: Ticke
 
   if (!order) return null;
   const st = orderState(order);
+  // Taquilla en efectivo o Bizum: no hay nada que devolver en Stripe.
+  const cash = order.channel === "puerta" && order.method !== "tarjeta";
   const live = tickets.filter(t => t.status !== "cancelada");
   const copy = (text: string, what: string) => { navigator.clipboard?.writeText(text).then(() => toast(`${what} copiado`, "ok"), () => {}); };
   // Lo mismo que el botón del email: abre sus entradas sin cuenta.
@@ -219,30 +245,39 @@ function OrderSheet({ order, tickets, onClose }: { order?: Order; tickets: Ticke
     <Sheet open onClose={onClose} title={`pedido ${orderNo(order.number)}`}
       footer={order.status === "pagado" ? (
         <div className="flex flex-col gap-2">
-          <Button variant="primary" block disabled={resend.pending}
+          {order.email && <Button variant="primary" block disabled={resend.pending}
             onClick={async () => { await resend.run(order.id); toast(`Entradas reenviadas a ${order.email}`, "ok"); }}>
             <Icon name="enviar" size={16} />reenviar entradas
-          </Button>
-          <ConfirmButton size="md" className="w-full" disabled={refund.pending}
-            confirm={`sí, devolver ${eur(order.amountCents)}`}
-            onConfirm={async () => { await refund.run(order.id); toast("Pedido devuelto. Entradas anuladas.", "ok"); }}>
-            devolver pedido
-          </ConfirmButton>
+          </Button>}
+          {cash ? (
+            <ConfirmButton size="md" className="w-full" disabled={refund.pending}
+              confirm={`sí, anular (devuelvo ${eur(order.amountCents)} a mano)`}
+              onConfirm={async () => { await refund.run(order.id); toast("Venta anulada. Devuelve el dinero en mano.", "ok"); }}>
+              anular venta
+            </ConfirmButton>
+          ) : (
+            <ConfirmButton size="md" className="w-full" disabled={refund.pending}
+              confirm={`sí, devolver ${eur(order.amountCents)}`}
+              onConfirm={async () => { await refund.run(order.id); toast("Pedido devuelto. Entradas anuladas.", "ok"); }}>
+              devolver pedido
+            </ConfirmButton>
+          )}
         </div>
       ) : undefined}>
       <div className="flex flex-col gap-4 pt-1">
         <div>
           <p className="font-mono text-xs tracking-wider text-crema/65 uppercase">{st.label} · {ago(order.createdAt)}</p>
-          <p className="text-lg break-all">{order.email}</p>
+          <p className="text-lg break-all">{order.email || orderWho(order)}</p>
           {order.name && <p className="text-sm text-crema/70">{order.name}</p>}
+          {order.channel === "puerta" && <p className="text-sm text-crema/70">vendida en taquilla{order.soldBy ? ` por ${order.soldBy}` : ""} · {order.method}</p>}
           <div className="flex flex-wrap items-center gap-2 mt-2">
             <span className="font-mono text-[26px]">{eur(order.amountCents)}</span>
-            <Pill>{order.qty} entr.</Pill>
+            <Pill>{itemsLabel(orderItems(order))}</Pill>
             {order.newsletter && <Pill>newsletter</Pill>}
           </div>
         </div>
 
-        {order.status === "pagado" && (
+        {order.status === "pagado" && !!order.email && (
           <div className="rounded-2xl bg-noche p-3.5 flex flex-col gap-2.5">
             <p className="font-mono text-xs tracking-wider text-crema/65 uppercase">emails</p>
             {mails.length ? (
@@ -258,7 +293,7 @@ function OrderSheet({ order, tickets, onClose }: { order?: Order; tickets: Ticke
           </div>
         )}
 
-        {order.status === "pendiente" && <p className="text-sm text-crema/70 rounded-xl bg-noche p-3">Está en la pasarela de pago. Si no paga en 30 min, el pedido caduca y las plazas vuelven a la venta.</p>}
+        {order.status === "pendiente" && <p className="text-sm text-crema/70 rounded-xl bg-noche p-3">{order.channel === "puerta" ? "Cobro con tarjeta en taquilla a medias. " : ""}Está en la pasarela de pago. Si no paga en 30 min, el pedido caduca y las plazas vuelven a la venta.</p>}
         {order.status === "devuelto" && <p className="text-sm text-crema/70 rounded-xl bg-noche p-3">Devuelto: las entradas ya no valen en la puerta.</p>}
 
         {!!tickets.length && (
@@ -303,7 +338,7 @@ function OrderSheet({ order, tickets, onClose }: { order?: Order; tickets: Ticke
             })}
           </ul>
         )}
-        {order.status === "pagado" && <p className="text-xs text-crema/55">Cancelar una entrada no devuelve dinero: para eso, devuelve el pedido entero desde Stripe.</p>}
+        {order.status === "pagado" && <p className="text-xs text-crema/55">{cash ? "Cancelar una entrada no devuelve dinero: hazlo en mano." : "Cancelar una entrada no devuelve dinero: para eso, devuelve el pedido entero desde Stripe."}</p>}
       </div>
     </Sheet>
   );
@@ -314,7 +349,7 @@ function Attendees({ ev, orders, tickets }: { ev: TicketEvent; orders: Order[]; 
   const [filter, setFilter] = useState<"todos" | "dentro" | "fuera">("todos");
   const [q, setQ] = useState("");
   const [limit, setLimit] = useState(PAGE);
-  const emailOf = (t: Ticket) => orders.find(o => o.id === t.orderId)?.email;
+  const emailOf = (t: Ticket) => { const o = orders.find(x => x.id === t.orderId); return o ? (o.email || orderWho(o)) : undefined; };
   const who = (t: Ticket) => t.holder ?? emailOf(t) ?? "—";
 
   const list = tickets
@@ -329,7 +364,7 @@ function Attendees({ ev, orders, tickets }: { ev: TicketEvent; orders: Order[]; 
       ["codigo", "tipo", "titular", "pedido", "estado", "entrada", "escaneada por"],
       ...tickets.map(t => {
         const o = orders.find(x => x.id === t.orderId);
-        return [t.code, kindLabel(t), t.holder ?? o?.email, o ? orderNo(o.number) : "", ticketState(t).label,
+        return [t.code, kindLabel(t), t.holder ?? (o ? o.email || orderWho(o) : undefined), o ? orderNo(o.number) : "", ticketState(t).label,
           t.checkedInAt ? new Date(t.checkedInAt).toLocaleString("es-ES") : "", t.checkedInBy];
       }),
     ]);
@@ -355,7 +390,7 @@ function Attendees({ ev, orders, tickets }: { ev: TicketEvent; orders: Order[]; 
             <li key={t.code} className="flex items-center gap-3 py-2.5 border-t border-crema/8 first:border-t-0">
               <Dot tone={ts.tone === "senal" ? "senal" : ts.tone} />
               <span className="flex-1 min-w-0">
-                <span className="block truncate">{t.holder ?? maskEmail(emailOf(t) ?? "—")}</span>
+                <span className="block truncate">{t.holder ?? (emailOf(t)?.includes("@") ? maskEmail(emailOf(t)!) : emailOf(t) ?? "—")}</span>
                 <span className="block font-mono text-xs text-crema/60">{t.code} · {kindLabel(t)}</span>
               </span>
               <span className="text-right font-mono text-xs text-crema/70 shrink-0">
@@ -487,7 +522,7 @@ function Settings({ ev, minCapacity }: { ev: TicketEvent; minCapacity: number })
   const toast = useToast();
   const save = useAction((p: Partial<TicketEvent>) => api.update("events", ev.id, p));
   const init = () => ({
-    name: ev.name, price: (ev.priceCents / 100).toFixed(2).replace(".", ","), capacity: String(ev.capacity),
+    name: ev.name, bizum: ev.bizumPhone ?? "", capacity: String(ev.capacity),
     maxPerOrder: ev.maxPerOrder, salesEnd: toLocalInput(ev.salesEnd), description: ev.description, image: ev.image ?? "",
   });
   const [f, setF] = useState(init);
@@ -499,12 +534,10 @@ function Settings({ ev, minCapacity }: { ev: TicketEvent; minCapacity: number })
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const priceCents = Math.round(Number(f.price.replace(",", ".")) * 100);
     const capacity = Math.floor(Number(f.capacity));
-    if (!Number.isFinite(priceCents) || priceCents <= 0) { toast("Revisa el precio", "error"); return; }
     if (!capacity || capacity < minCapacity) { toast(`El aforo no puede bajar de ${minCapacity}: ya están dadas`, "error"); return; }
     await save.run({
-      name: f.name.trim() || ev.name, priceCents, capacity, maxPerOrder: f.maxPerOrder,
+      name: f.name.trim() || ev.name, capacity, maxPerOrder: f.maxPerOrder, bizumPhone: f.bizum.trim() || undefined,
       salesEnd: fromLocalInput(f.salesEnd), description: f.description, image: f.image.trim() || undefined,
     });
     toast("Evento guardado", "ok");
@@ -518,7 +551,7 @@ function Settings({ ev, minCapacity }: { ev: TicketEvent; minCapacity: number })
         <Field label="imagen (ruta o url)">{id => <Input id={id} value={f.image} onChange={e => set("image", e.target.value)} placeholder="/img/escenario-azul.jpg" className="font-mono text-sm" />}</Field>
         <Field label="nombre">{id => <Input id={id} value={f.name} onChange={e => set("name", e.target.value)} />}</Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="precio (€)">{id => <Input id={id} inputMode="decimal" value={f.price} onChange={e => set("price", e.target.value)} className="font-mono" />}</Field>
+          <Field label="Bizum de taquilla">{id => <Input id={id} type="tel" inputMode="tel" value={f.bizum} onChange={e => set("bizum", e.target.value)} placeholder="600 000 000" className="font-mono" />}</Field>
           <Field label="aforo total">{id => <Input id={id} type="number" min={minCapacity} value={f.capacity} onChange={e => set("capacity", e.target.value)} className="font-mono" />}</Field>
         </div>
         <div className="flex items-center justify-between gap-3">

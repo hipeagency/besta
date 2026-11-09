@@ -36,7 +36,8 @@ export async function sendOnce(
   if (!claimed) return false;
   try {
     const ctx = await loadOrderContext(db, orderId);
-    if (!ctx) return false;
+    // Taquilla en efectivo o Bizum: no hay a quién escribir (la marca se queda: ya está atendido).
+    if (!ctx || !ctx.order.email) return false;
     await sendEmail({ email: ctx.order.email, name: ctx.order.name }, build(ctx), { tags: [tag] });
     return true;
   } catch (e) {
@@ -46,6 +47,32 @@ export async function sendOnce(
 }
 
 export const sendTicketsOnce = (db: Admin, orderId: string) => sendOnce(db, orderId, "emailSentAt", ticketsEmail, "entradas");
+
+/* Stripe dice «pagado» (webhook, o la taquilla preguntando): emite las
+   entradas y apunta el pago. Las de la web salen por email; las de
+   taquilla no (ya están dentro y Stripe le manda su recibo).
+   Idempotente: da igual cuántas veces llegue. */
+export async function fulfillPaid(db: Admin, orderId: string, s: {
+  id: string; payment_intent?: string | { id: string } | null; customer_details?: { name?: string | null; email?: string | null } | null;
+}) {
+  const { error } = await db.rpc("fulfill_order", { o_id: orderId, session: s.id });
+  if (error) throw error;
+  const pi = typeof s.payment_intent === "string" ? s.payment_intent : s.payment_intent?.id;
+  const name = s.customer_details?.name?.trim();
+  const mail = s.customer_details?.email?.trim().toLowerCase();
+  const order = await patchDoc<Order>(db, "orders", orderId, o => {
+    const p = {
+      ...(pi && !o.paymentIntent ? { paymentIntent: pi } : {}),
+      ...(name && !o.name ? { name } : {}),
+      ...(mail && !o.email ? { email: mail } : {}),
+    };
+    return Object.keys(p).length ? p : null;
+  }) ?? (await getRow<Order>(db, "orders", orderId))?.doc ?? null;
+  if (order?.channel === "puerta") return order;
+  const first = await sendTicketsOnce(db, orderId);
+  if (first && order?.newsletter) await subscribeBuyer(db, order);
+  return order;
+}
 
 /* Reenvío desde la suite: siempre sale, y deja constancia de cuándo. */
 export async function resendTickets(db: Admin, orderId: string) {

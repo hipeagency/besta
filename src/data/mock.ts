@@ -5,9 +5,10 @@
    forma (Api), así que las pantallas no saben cuál usan.
    ========================================================= */
 import { createSeed, type DB } from "./seed";
+import { buildItems, eventTypes, takenByType, typeLeft } from "./tickets";
 import { coverage, onlineGuard } from "@/suite/modules/merch/shared";
 import type {
-  ID, Order, Ticket, ScanResult, Quote, Lead, Gig, Song, MerchMove, MerchRequest, MerchCheckout, PayMethod, Subscriber, Member, Product, TicketEvent, NewsInput, NewsStats, NewsCampaign, NewsContact, NewsAdd, Topic,
+  ID, Order, Ticket, TicketType, DoorMethod, ScanResult, Quote, Lead, Gig, Song, MerchMove, MerchRequest, MerchCheckout, PayMethod, Subscriber, Member, Product, TicketEvent, NewsInput, NewsStats, NewsCampaign, NewsContact, NewsAdd, Topic,
 } from "./types";
 
 export type Collection = keyof DB;
@@ -52,6 +53,41 @@ export const uid = (p = "") => p + Math.random().toString(36).slice(2, 10);
 const now = () => new Date().toISOString();
 const ticketCode = () => "BST-" + Math.floor(Math.random() * 36 ** 4).toString(36).toUpperCase().padStart(4, "0");
 const tick = <T,>(v: T) => Promise.resolve(structuredClone(v));
+
+/* Como besta.make_order: comprueba tipos, límites y aforo y deja el pedido en pago. */
+function makeOrder(
+  d: DB, ev: TicketEvent, want: { typeId: ID; qty: number }[], channel: "online" | "puerta",
+  extra: { email?: string; newsletter?: boolean; method?: DoorMethod; soldBy?: string },
+): Order {
+  const recent = (o: Order) => o.status === "pendiente" && Date.now() - Date.parse(o.createdAt) < 32 * 60e3;
+  const live = d.orders.filter(recent);
+  const taken = d.tickets.filter(t => t.eventId === ev.id && t.status !== "cancelada").length
+    + live.filter(o => o.eventId === ev.id).reduce((s, o) => s + o.qty, 0);
+  const { items, qty, amountCents } = buildItems(ev, want, channel, takenByType(ev.id, live, d.tickets), Math.max(0, ev.capacity - taken));
+  const order: Order = {
+    id: uid("ord-"), number: Math.max(0, ...d.orders.map(o => o.number)) + 1, eventId: ev.id,
+    email: (extra.email ?? "").trim().toLowerCase(), qty, amountCents, items, channel,
+    ...(channel === "puerta" ? { method: extra.method, soldBy: extra.soldBy || "taquilla" } : {}),
+    status: "pendiente", newsletter: !!extra.newsletter, createdAt: now(), token: uid("tk") + uid(),
+  };
+  d.orders.unshift(order);
+  return order;
+}
+
+/* Como besta.fulfill_order: pagado y una entrada por plaza (las de taquilla, ya dentro). */
+function fulfill(d: DB, o: Order) {
+  if (o.status === "pagado") return;
+  o.status = "pagado";
+  for (const it of o.items ?? []) {
+    for (let i = 0; i < it.qty; i++) {
+      d.tickets.push({
+        code: ticketCode(), orderId: o.id, eventId: o.eventId, kind: "general", typeId: it.typeId, typeName: it.name,
+        status: o.channel === "puerta" ? "usada" : "valida",
+        ...(o.channel === "puerta" ? { checkedInAt: now(), checkedInBy: o.soldBy } : {}),
+      });
+    }
+  }
+}
 
 // ---------- genérico ----------
 export const mockApi = {
@@ -120,34 +156,70 @@ export const mockApi = {
   },
 
   // ---------- entradas ----------
+  /* Tipos a la venta online con lo que queda de cada uno (lo de la web). */
+  async publicTickets(eventId: ID): Promise<{ free: number; types: (TicketType & { free: number })[] }> {
+    const d = load();
+    const ev = d.events.find(e => e.id === eventId);
+    if (!ev) return { free: 0, types: [] };
+    const free = await mockApi.availability(eventId);
+    const taken = takenByType(ev.id, d.orders, d.tickets);
+    const types = eventTypes(ev).filter(t => t.active && t.channel !== "puerta").map(t => ({ ...t, free: typeLeft(t, taken, free) }));
+    return tick({ free, types });
+  },
+
   /* Comprador → Stripe Checkout. De verdad: Edge Function que reserva
      plazas con bloqueo en SQL y devuelve la URL de Stripe. De prueba:
      el pago se da por hecho al momento. */
-  async checkout(input: { eventId: ID; qty: number; email: string; newsletter: boolean }): Promise<{ order: Order; redirectUrl: string }> {
+  async checkout(input: { eventId: ID; items: { typeId: ID; qty: number }[]; email: string; newsletter: boolean }): Promise<{ order: Order; redirectUrl: string }> {
     const d = load();
     const ev = d.events.find(e => e.id === input.eventId);
     if (!ev) throw new Error("Este evento ya no existe.");
     if (!ev.salesEnabled) throw new Error("La venta de este concierto está cerrada.");
     const gig = d.gigs.find(g => g.id === ev.gigId);
     if (!gig?.published || gig.teaser) throw new Error("La venta de este concierto aún no está abierta.");
-    if (input.qty < 1 || input.qty > ev.maxPerOrder) throw new Error(`Puedes comprar entre 1 y ${ev.maxPerOrder} entradas.`);
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) throw new Error("Revisa el email: ahí te llegan las entradas.");
-    const taken = d.tickets.filter(t => t.eventId === ev.id && t.status !== "cancelada").length
-      + d.orders.filter(o => o.eventId === ev.id && o.status === "pendiente").reduce((s, o) => s + o.qty, 0);
-    if (taken + input.qty > ev.capacity) throw new Error(`Solo quedan ${Math.max(0, ev.capacity - taken)} entradas.`);
-
-    const number = Math.max(0, ...d.orders.map(o => o.number)) + 1;
-    const order: Order = {
-      id: uid("ord-"), number, eventId: ev.id, email: input.email.trim().toLowerCase(), qty: input.qty,
-      amountCents: input.qty * ev.priceCents, status: "pagado", newsletter: input.newsletter,
-      createdAt: now(), token: uid("tk") + uid(),
-    };
-    d.orders.unshift(order);
-    for (let i = 0; i < input.qty; i++) {
-      d.tickets.push({ code: ticketCode(), orderId: order.id, eventId: ev.id, kind: "general", status: "valida" });
-    }
+    const order = makeOrder(d, ev, input.items, "online", { email: input.email, newsletter: input.newsletter });
+    fulfill(d, order);
     save();
     return { order: structuredClone(order), redirectUrl: `/entradas/?pedido=${order.token}&nuevo=1` };
+  },
+
+  /* Taquilla en efectivo o Bizum: pedido pagado y entradas ya dentro. */
+  async doorSale(eventId: ID, items: { typeId: ID; qty: number }[], method: "efectivo" | "bizum", by: string): Promise<Order> {
+    const d = load();
+    const ev = d.events.find(e => e.id === eventId);
+    if (!ev) throw new Error("Este evento ya no existe.");
+    const order = makeOrder(d, ev, items, "puerta", { method, soldBy: by });
+    fulfill(d, order);
+    save();
+    return structuredClone(order);
+  },
+
+  /* Taquilla con tarjeta: pedido en pago y enlace de Stripe para el QR.
+     De prueba el enlace no cobra nada: el pago «llega» solo a los 10 s. */
+  async doorCard(eventId: ID, items: { typeId: ID; qty: number }[], by: string): Promise<{ orderId: ID; number: number; url: string; amountCents: number }> {
+    const d = load();
+    const ev = d.events.find(e => e.id === eventId);
+    if (!ev) throw new Error("Este evento ya no existe.");
+    const order = makeOrder(d, ev, items, "puerta", { method: "tarjeta", soldBy: by });
+    save();
+    return { orderId: order.id, number: order.number, url: `https://checkout.stripe.com/c/pay/prueba-${order.id}`, amountCents: order.amountCents };
+  },
+
+  async doorStatus(orderId: ID): Promise<Order["status"]> {
+    const d = load();
+    const o = d.orders.find(x => x.id === orderId);
+    if (!o) throw new Error("Ese pedido ya no existe.");
+    if (o.status === "pendiente" && Date.now() - Date.parse(o.createdAt) > 10_000) { fulfill(d, o); save(); }
+    return o.status;
+  },
+
+  async doorCancel(orderId: ID): Promise<Order["status"]> {
+    const d = load();
+    const o = d.orders.find(x => x.id === orderId);
+    if (!o) throw new Error("Ese pedido ya no existe.");
+    if (o.status === "pendiente") { o.status = "caducado"; save(); }
+    return o.status;
   },
 
   async orderByToken(token: string): Promise<{ order: Order; tickets: Ticket[]; event?: TicketEvent; gig?: Gig } | null> {

@@ -1,11 +1,15 @@
 /* Cálculos derivados. Funciones puras: las usan las pantallas
    y, el día de mañana, las mismas cuentas vivirán en vistas SQL. */
 import type { DB } from "./seed";
-import type { Gig, ID, TicketEvent, Member, Expense, Settlement, Song, Settings, Task } from "./types";
+import type { Gig, ID, TicketEvent, Member, Expense, Settlement, Song, Settings, Task, Order } from "./types";
+import { eventTypes, takenByType, typeLeft, typeOf } from "./tickets";
 import { isPast } from "@/lib/format";
 
 /** Comisión estimada de Stripe con tarjeta europea: 1,5 % + 0,25 € por pedido. */
 export const stripeFee = (amountCents: number) => Math.round(amountCents * 0.015 + 25);
+
+/** ¿Este pedido se cobró por Stripe? (online, o tarjeta con QR en taquilla) */
+export const viaStripe = (o: Order) => o.channel !== "puerta" || o.method === "tarjeta";
 
 export function eventStats(ev: TicketEvent, d: Pick<DB, "orders" | "tickets">) {
   const orders = d.orders.filter(o => o.eventId === ev.id);
@@ -16,9 +20,22 @@ export function eventStats(ev: TicketEvent, d: Pick<DB, "orders" | "tickets">) {
   const pending = orders.filter(o => o.status === "pendiente").reduce((s, o) => s + o.qty, 0);
   const inside = tickets.filter(t => t.status === "usada").length;
   const gross = paid.reduce((s, o) => s + o.amountCents, 0);
-  const net = gross - paid.reduce((s, o) => s + stripeFee(o.amountCents), 0);
+  const net = gross - paid.filter(viaStripe).reduce((s, o) => s + stripeFee(o.amountCents), 0);
   const free = Math.max(0, ev.capacity - sold - invites - pending);
-  return { orders, paid, tickets, sold, invites, pending, inside, gross, net, free, pct: ev.capacity ? sold / ev.capacity : 0 };
+  // Taquilla: lo cobrado en la puerta, por forma de pago (para cuadrar la caja).
+  const door = { efectivo: 0, bizum: 0, tarjeta: 0, entradas: 0 };
+  for (const o of paid) {
+    if (o.channel !== "puerta") continue;
+    door[o.method ?? "efectivo"] += o.amountCents;
+    door.entradas += o.qty;
+  }
+  // Por tipo: vendidas (sin invitaciones) e ingresos.
+  const taken = takenByType(ev.id, d.orders, d.tickets);
+  const byType = eventTypes(ev).map(t => {
+    const n = tickets.filter(x => x.kind === "general" && x.status !== "cancelada" && typeOf(x) === t.id).length;
+    return { type: t, sold: n, left: typeLeft(t, taken, free) };
+  });
+  return { orders, paid, tickets, sold, invites, pending, inside, gross, net, free, door, byType, pct: ev.capacity ? sold / ev.capacity : 0 };
 }
 
 /** Ventas por día de las últimas `days` jornadas. */

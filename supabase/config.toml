@@ -443,6 +443,9 @@ verify_jwt = false
 [functions.order-actions]
 verify_jwt = true
 
+[functions.taquilla]
+verify_jwt = true
+
 [functions.invite-user]
 verify_jwt = true
 

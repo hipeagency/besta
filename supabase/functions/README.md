@@ -5,13 +5,14 @@ escriben en el esquema `besta` (ver `../migrations/20261029100000_besta_v2.sql`)
 
 | función | quién la llama | JWT | qué hace |
 |---|---|---|---|
-| `checkout` | web (POST `{eventId, qty, email, newsletter}`) | no | reserva plazas (`besta.reserve_order`) y abre Stripe Checkout → `{url}` |
+| `checkout` | web (POST `{eventId, items: [{typeId, qty}], email, newsletter}`) | no | reserva plazas por tipo (`besta.make_order`) y abre Stripe Checkout → `{url}` |
 | `merch-checkout` | web (POST `{productId, variantId, qty, name, email, phone?, note?}`) | no | merch en modo «comprar»: aparta el stock como reserva «pendiente» y abre Stripe Checkout → `{url}` (`_shared/merch.ts`) |
 | `merch-actions` | suite (POST `{action: "refund", requestId}`) | sí, módulo `merch` | devolución de una compra de merch online en Stripe: se anula (la unidad vuelve si no se había entregado) + email |
 | `stripe-webhook` | Stripe | no (firma) | pago completado → `besta.fulfill_order` + email de entradas; sesión caducada → pedido `caducado`; devolución → `devuelto` + entradas canceladas + email. Merch (`metadata.merch_request_id`): pagado → «pagado · por entregar» + emails; caducado → el stock vuelve; devuelto → se anula (o, si ya se entregó, la venta queda como devuelta) |
 | `ticket-qr` | emails (GET `?code=BST-XXXXXX`) | no | PNG del QR `BESTA:T:<code>` |
 | `public-forms` | web (POST `{type: "lead" \| "merch" \| "subscribe", …}`) | no | contratación, solicitud de merch y «avísame» (+ Brevo) |
 | `order-actions` | suite (POST `{action: "refund" \| "resend", orderId}`) | sí, módulo `entradas` | devolución en Stripe / reenvío de entradas |
+| `taquilla` | suite (POST `{action: "card" \| "status" \| "cancel", …}`) | sí, módulo `puerta` o `entradas` | cobro con tarjeta en la puerta: pedido de taquilla + Stripe Checkout que se enseña en QR; pregunta a Stripe si ya está pagado. Efectivo y Bizum van por `besta.door_sale` |
 | `invite-user` | suite (POST `{name, email, role, scopes?, instrument?, band?}`) | sí, admin | invitación de Supabase Auth + ficha en `besta.members` |
 | `bandsintown-import` | pg_cron, diario 06:00 Madrid | no (`x-cron-secret`) | conciertos de Bandsintown → `besta.gigs` |
 | `reminders` | pg_cron, cada hora | no (`x-cron-secret`) | «gracias» el día después del concierto |
@@ -79,7 +80,7 @@ A mano:
 
 ```sh
 supabase functions deploy checkout stripe-webhook ticket-qr public-forms \
-  order-actions invite-user bandsintown-import reminders
+  order-actions taquilla invite-user bandsintown-import reminders
 ```
 
 `verify_jwt` de cada una está en `../config.toml` (`[functions.*]`).

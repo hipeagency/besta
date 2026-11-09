@@ -16,6 +16,7 @@ import { QR } from "@/components/ui/QR";
 import { cx, dateLabel, dateShort, daysUntil, gigDateShort, hhmm, isPast, maskEmail } from "@/lib/format";
 import { kindLabel, ticketState } from "./entradas/shared";
 import { PRUEBA_ID, prueba, usePrueba } from "./puerta/prueba";
+import { Taquilla } from "./puerta/Taquilla";
 
 export default function Puerta() {
   const { eventId } = useParams();
@@ -162,7 +163,7 @@ function Scanner({ ev, gig }: { ev: TicketEvent; gig?: Gig }) {
   const [cam, setCam] = useState<CamState>("starting");
   const [torch, setTorch] = useState<boolean | null>(null);   // null: la cámara no tiene linterna
   const [shown, setShown] = useState<Shown | null>(null);
-  const [sheet, setSheet] = useState<null | "codigo" | "email" | "prueba">(null);
+  const [sheet, setSheet] = useState<null | "codigo" | "email" | "prueba" | "vender">(null);
 
   // el bucle de lectura vive fuera de React: lee estas refs
   const pausedRef = useRef(false);
@@ -382,8 +383,10 @@ function Scanner({ ev, gig }: { ev: TicketEvent; gig?: Gig }) {
 
       {/* abajo, al alcance del pulgar */}
       <div className="relative z-10 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] bg-noche flex flex-col gap-2.5">
-        {door.test && (
+        {door.test ? (
           <Button size="lg" variant="primary" className="w-full !text-[15px]" onClick={() => setSheet("prueba")}>simular un escaneo</Button>
+        ) : (
+          <Button size="lg" variant="primary" className="w-full !text-[15px]" onClick={() => setSheet("vender")}>vender entradas · taquilla</Button>
         )}
         <p className="text-center text-[15px] text-crema/80" aria-live="polite">
           {cam === "on" ? "apunta al QR de la entrada" : "sin cámara: entra a mano"}
@@ -407,6 +410,8 @@ function Scanner({ ev, gig }: { ev: TicketEvent; gig?: Gig }) {
         onScan={c => { setSheet(null); unlockAudio(); void handle(c, false); }} />}
 
       {shown && <Result shown={shown} ev={ev} onNext={next} />}
+
+      {sheet === "vender" && <Taquilla ev={ev} place={place} orders={door.orders} tickets={door.tickets} onClose={() => setSheet(null)} />}
     </div>
   );
 }
@@ -449,7 +454,7 @@ function Result({ shown, ev, onNext }: { shown: Shown; ev: TicketEvent; onNext: 
     const mates = t?.orderId ? tickets.filter(x => x.orderId === t.orderId) : [];
     const pos = mates.findIndex(x => x.code === t?.code);
     lines = [
-      t?.kind === "invitacion" ? (t.holder ? <>a nombre de <b>{t.holder}</b></> : "Invitación sin nombre") : <>Entrada general{mates.length > 1 && pos >= 0 ? ` · ${pos + 1} de ${mates.length}` : ""}</>,
+      t?.kind === "invitacion" ? (t.holder ? <>a nombre de <b>{t.holder}</b></> : "Invitación sin nombre") : <span className="first-letter:uppercase">entrada {kindLabel(t!)}{mates.length > 1 && pos >= 0 ? ` · ${pos + 1} de ${mates.length}` : ""}</span>,
       t?.kind === "invitacion" ? undefined : who,
     ];
   } else if (r.reason === "usada") {
@@ -604,7 +609,7 @@ function EmailSheet({ open, onClose, ev, onCheckIn }: { open: boolean; onClose: 
   const found = ready ? orders.filter(o => o.eventId === ev.id && o.status !== "caducado" && o.email.includes(n)).slice(0, 8) : [];
   const invites = ready ? tickets.filter(t => t.eventId === ev.id && t.kind === "invitacion" && t.holder?.toLowerCase().includes(n)) : [];
   const groups = [
-    ...found.map(o => ({ key: o.id, title: o.email, sub: o.status === "pagado" ? `${o.qty} entr.` : o.status, list: tickets.filter(t => t.orderId === o.id) })),
+    ...found.map(o => ({ key: o.id, title: o.email || `taquilla · ${o.method ?? ""}`, sub: o.status === "pagado" ? `${o.qty} entr.` : o.status, list: tickets.filter(t => t.orderId === o.id) })),
     ...(invites.length ? [{ key: "inv", title: "invitaciones", sub: `${invites.length}`, list: invites }] : []),
   ];
 

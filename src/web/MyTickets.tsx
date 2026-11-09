@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { api } from "@/data/api";
 import type { Order, Ticket, TicketEvent, Gig } from "@/data/types";
 import { QR } from "@/components/ui/QR";
-import { dateLabel, eur } from "@/lib/format";
-import { cx } from "@/lib/format";
+import { cx, dateLabel, eur } from "@/lib/format";
+import { orderItems, ticketTypeName, typeOf } from "@/data/tickets";
 
 type Data = { order: Order; tickets: Ticket[]; ev?: TicketEvent; gig?: Gig };
 
@@ -52,7 +52,12 @@ export default function MyTickets() {
       </div>
 
       <div className="px-5 py-4 flex flex-col gap-4">
-        {isNew && (
+        {order.channel === "puerta" ? (
+          <div className="rounded-2xl bg-crema text-noche p-4">
+            <p className="font-semibold">{order.status === "pagado" ? "¡Pagado! Ya estás dentro: pasa." : "Pago en marcha…"}</p>
+            <p className="text-sm mt-1">Entrada comprada en taquilla. Enséñale esta pantalla a quien te ha cobrado. El recibo te llega por email de Stripe.</p>
+          </div>
+        ) : isNew && (
           <div className="rounded-2xl bg-crema text-noche p-4">
             <p className="font-semibold">¡Pago recibido! Nos vemos en primera fila.</p>
             <p className="text-sm mt-1">También te las hemos mandado a <b>{order.email}</b>. Guarda este enlace: son tus entradas.</p>
@@ -77,8 +82,8 @@ export default function MyTickets() {
             <div className="w-full flex justify-between font-mono text-[13px]"><span>ENTRADA {i + 1} de {tickets.length}</span><span>{t.code}</span></div>
             <div className="w-full border-t-2 border-dashed border-noche/25" />
             <div className="w-full flex justify-between text-sm">
-              <span>{t.status === "usada" ? "ya usada" : t.status === "cancelada" ? "cancelada" : "Entrada general"}</span>
-              {ev && <span className="font-mono">{eur(ev.priceCents)}</span>}
+              <span className="first-letter:uppercase">{t.status === "usada" ? "ya usada" : t.status === "cancelada" ? "cancelada" : `entrada ${ticketTypeName(t, ev)}`}</span>
+              <span className="font-mono">{eur(orderItems(order).find(x => x.typeId === typeOf(t))?.unitCents ?? ev?.priceCents ?? 0)}</span>
             </div>
           </div>
         )}

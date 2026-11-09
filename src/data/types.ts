@@ -73,29 +73,55 @@ export interface Gig {
 }
 
 // ---------- entradas ----------
+/* Dónde se vende un tipo de entrada: en la web, en la taquilla o en las dos. */
+export type SaleChannel = "online" | "puerta" | "ambos";
+
+export interface TicketType {
+  id: ID;                  // «general» es el de los eventos de antes de haber tipos
+  name: string;            // «anticipada», «general», «taquilla»
+  priceCents: number;
+  channel: SaleChannel;
+  limit?: number;          // cuántas como mucho de este tipo (dentro del aforo)
+  salesStart?: ISODateTime; // solo cuenta para la venta online
+  salesEnd?: ISODateTime;
+  active: boolean;         // apagado: no se vende, pero lo vendido sigue valiendo
+  note?: string;           // una línea en la web: «hasta el 1 de diciembre»
+}
+
 export interface TicketEvent {
   id: ID;
   gigId: ID;
   name: string;
   description: string;
   image?: string;
-  priceCents: number;
+  priceCents: number;      // el más barato de los que se venden online («desde»); lo calcula la suite al guardar
   capacity: number;
   maxPerOrder: number;
-  salesEnabled: boolean;
+  salesEnabled: boolean;   // venta online abierta (la taquilla no depende de esto)
   salesEnd?: ISODateTime;
+  types?: TicketType[];    // sin tipos: una sola «general» a priceCents
+  bizumPhone?: string;     // a qué número se hace el Bizum en la taquilla
 }
 
 export type OrderStatus = "pendiente" | "pagado" | "devuelto" | "caducado";
+export type OrderChannel = "online" | "puerta";
+/* Cómo se cobró en la taquilla. Online siempre es Stripe. */
+export type DoorMethod = "efectivo" | "bizum" | "tarjeta";
+
+export interface OrderItem { typeId: ID; name: string; qty: number; unitCents: number }
 
 export interface Order {
   id: ID;
   number: number;          // #0143
   eventId: ID;
-  email: string;
+  email: string;           // en taquilla puede ir vacío (efectivo, Bizum)
   name?: string;
   qty: number;
   amountCents: number;
+  items?: OrderItem[];     // los pedidos de antes de haber tipos no lo llevan: todo «general»
+  channel?: OrderChannel;  // sin canal: online
+  method?: DoorMethod;     // solo taquilla
+  soldBy?: string;         // quién vendió en taquilla
   status: OrderStatus;
   newsletter: boolean;
   createdAt: ISODateTime;
@@ -115,6 +141,8 @@ export interface Ticket {
   orderId?: ID;            // las invitaciones no tienen pedido
   eventId: ID;
   kind: TicketKind;
+  typeId?: ID;             // tipo de entrada (sin él: «general»)
+  typeName?: string;       // copiado al emitirla, por si luego se renombra el tipo
   holder?: string;         // nombre en invitaciones
   status: TicketStatus;
   email?: string;          // invitación mandada por email: a quién

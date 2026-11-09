@@ -14,7 +14,7 @@ import { uid } from "./mock";
 import { coverage, onlineGuard } from "@/suite/modules/merch/shared";
 import type {
   ID, Order, Ticket, ScanResult, Quote, Lead, Gig, Song, MerchMove, MerchRequest, MerchCheckout, PayMethod,
-  Subscriber, Member, Product, TicketEvent, NewsInput, NewsStats, NewsCampaign, NewsContact, NewsAdd, Topic,
+  Subscriber, Member, Product, TicketEvent, TicketType, NewsInput, NewsStats, NewsCampaign, NewsContact, NewsAdd, Topic,
 } from "./types";
 
 const URL_ = import.meta.env.PUBLIC_SUPABASE_URL as string;
@@ -67,7 +67,7 @@ async function get<K extends Collection>(k: K, id: ID): Promise<Item<K> | null> 
 }
 
 // La web pide lo publicable una vez por carga de página.
-type PublicSite = { gigs: Gig[]; events: (TicketEvent & { free: number })[]; products: Product[] };
+type PublicSite = { gigs: Gig[]; events: (TicketEvent & { free: number; types?: (TicketType & { free: number })[] })[]; products: Product[] };
 let site: Promise<PublicSite> | null = null;
 async function loadSite(): Promise<PublicSite> {
   const { data, error } = await sb().rpc("public_site");
@@ -118,9 +118,29 @@ export const supabaseApi = {
   },
 
   // ---------- entradas ----------
-  async checkout(input: { eventId: ID; qty: number; email: string; newsletter: boolean }): Promise<{ order: Order; redirectUrl: string }> {
+  async publicTickets(eventId: ID): Promise<{ free: number; types: (TicketType & { free: number })[] }> {
+    const ev = (await publicSite()).events.find(e => e.id === eventId);
+    return { free: ev?.free ?? 0, types: ev?.types ?? [] };
+  },
+  async checkout(input: { eventId: ID; items: { typeId: ID; qty: number }[]; email: string; newsletter: boolean }): Promise<{ order: Order; redirectUrl: string }> {
     const { url } = await invoke<{ url: string }>("checkout", input);
     return { order: null as unknown as Order, redirectUrl: url };
+  },
+
+  // ---------- taquilla ----------
+  async doorSale(eventId: ID, items: { typeId: ID; qty: number }[], method: "efectivo" | "bizum", _by: string): Promise<Order> {
+    const { data, error } = await sb().rpc("door_sale", { ev: eventId, want: items, method });
+    fail(error);
+    return data as Order;
+  },
+  async doorCard(eventId: ID, items: { typeId: ID; qty: number }[], _by: string): Promise<{ orderId: ID; number: number; url: string; amountCents: number }> {
+    return await invoke("taquilla", { action: "card", eventId, items });
+  },
+  async doorStatus(orderId: ID): Promise<Order["status"]> {
+    return (await invoke<{ status: Order["status"] }>("taquilla", { action: "status", orderId })).status;
+  },
+  async doorCancel(orderId: ID): Promise<Order["status"]> {
+    return (await invoke<{ status: Order["status"] }>("taquilla", { action: "cancel", orderId })).status;
   },
 
   async orderByToken(token: string): Promise<{ order: Order; tickets: Ticket[]; event?: TicketEvent; gig?: Gig } | null> {

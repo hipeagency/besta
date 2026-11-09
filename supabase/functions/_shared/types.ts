@@ -4,6 +4,8 @@
 
 export type OrderStatus = "pendiente" | "pagado" | "devuelto" | "caducado";
 
+export interface OrderItem { typeId: string; name: string; qty: number; unitCents: number }
+
 export interface Order {
   id: string;
   number: number;
@@ -12,6 +14,10 @@ export interface Order {
   name?: string;
   qty: number;
   amountCents: number;
+  items?: OrderItem[];     // sin líneas: pedido de antes de los tipos, todo «general»
+  channel?: "online" | "puerta";
+  method?: "efectivo" | "bizum" | "tarjeta";
+  soldBy?: string;
   status: OrderStatus;
   newsletter: boolean;
   createdAt: string;
@@ -31,6 +37,8 @@ export interface Ticket {
   orderId?: string;
   eventId: string;
   kind: "general" | "invitacion";
+  typeId?: string;
+  typeName?: string;
   holder?: string;
   status: "valida" | "usada" | "cancelada";
   email?: string;          // invitación mandada por email: a quién
@@ -48,6 +56,7 @@ export interface TicketEvent {
   maxPerOrder: number;
   salesEnabled: boolean;
   salesEnd?: string;
+  types?: { id: string; name: string; priceCents: number; channel: "online" | "puerta" | "ambos"; active: boolean }[];
 }
 
 export interface Gig {

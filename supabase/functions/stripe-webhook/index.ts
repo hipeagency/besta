@@ -3,7 +3,7 @@
    nos interesan se responde 200 sin más. */
 import { env } from "../_shared/env.ts";
 import { expireMerch, merchPaid, merchRequestFor, refundMerch } from "../_shared/merch.ts";
-import { markRefunded, sendTicketsOnce, subscribeBuyer } from "../_shared/orders.ts";
+import { fulfillPaid, markRefunded } from "../_shared/orders.ts";
 import { Stripe, stripe } from "../_shared/stripe.ts";
 import { adminClient, patchDoc } from "../_shared/supabase.ts";
 import type { Order } from "../_shared/types.ts";
@@ -40,16 +40,7 @@ Deno.serve(async req => {
         }
         const orderId = s.metadata?.order_id;
         if (!orderId) break;  // una sesión que no es nuestra
-        const { error } = await db.rpc("fulfill_order", { o_id: orderId, session: s.id });
-        if (error) throw error;
-        const pi = typeof s.payment_intent === "string" ? s.payment_intent : s.payment_intent?.id;
-        const name = s.customer_details?.name?.trim();
-        const order = await patchDoc<Order>(db, "orders", orderId, o => ({
-          ...(pi && !o.paymentIntent ? { paymentIntent: pi } : {}),
-          ...(name && !o.name ? { name } : {}),
-        }));
-        const first = await sendTicketsOnce(db, orderId);
-        if (first && order?.newsletter) await subscribeBuyer(db, order);
+        await fulfillPaid(db, orderId, s);
         break;
       }
 

@@ -110,7 +110,7 @@ export default function Inicio() {
             {recent.map(o => (
               <li key={o.id} className="flex items-center justify-between gap-3 py-2.5 border-t border-crema/8 text-sm">
                 <span className="min-w-0">
-                  <span className="block truncate">{maskEmail(o.email)}</span>
+                  <span className="block truncate">{o.email ? maskEmail(o.email) : `taquilla · ${o.method ?? "efectivo"}`}</span>
                   <span className="text-xs text-crema/60">{ago(o.createdAt)}</span>
                 </span>
                 <span className="flex items-center gap-3 shrink-0">

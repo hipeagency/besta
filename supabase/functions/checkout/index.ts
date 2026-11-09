@@ -1,8 +1,12 @@
 /* Comprar entradas: reserva plazas en SQL (con bloqueo, para no pasarse
-   del aforo) y devuelve la URL de pago de Stripe. Pública: la llama la web. */
-import { optEnv, siteUrl } from "../_shared/env.ts";
+   del aforo ni del límite de cada tipo) y devuelve la URL de pago de
+   Stripe. Pública: la llama la web.
+
+   Cuerpo: { eventId, items: [{ typeId, qty }], email, newsletter }.
+   La web de antes mandaba { qty } a secas: va como «general». */
+import { siteUrl } from "../_shared/env.ts";
 import { email, HttpError, json, readJson, serve } from "../_shared/http.ts";
-import { stripe } from "../_shared/stripe.ts";
+import { checkoutSession } from "../_shared/payment.ts";
 import { adminClient, dbError, getRow, patchDoc } from "../_shared/supabase.ts";
 import type { Order, TicketEvent } from "../_shared/types.ts";
 
@@ -22,48 +26,23 @@ serve(["POST"], async req => {
   const { data: isPublic, error: pubErr } = await db.rpc("event_is_public", { ev: eventId });
   if (pubErr) dbError(pubErr, "No hemos podido comprobar el concierto.");
   if (!isPublic) throw new HttpError("La venta de este concierto aún no está abierta.");
-  const qty = Number(body.qty);
-  const max = ev.maxPerOrder || 10;
-  if (!Number.isInteger(qty) || qty < 1 || qty > max) throw new HttpError(`Puedes comprar entre 1 y ${max} entradas.`);
+
+  const items = Array.isArray(body.items)
+    ? body.items.slice(0, 20).map((i: { typeId?: unknown; qty?: unknown }) => ({ typeId: String(i?.typeId ?? ""), qty: Number(i?.qty) }))
+    : [{ typeId: "general", qty: Number(body.qty) }];
   const mail = email(body.email, "Revisa el email: ahí te llegan las entradas.");
   const newsletter = body.newsletter === true;
 
-  // El aforo (y lo demás otra vez, ya con el evento bloqueado) lo vigila reserve_order.
-  const { data, error } = await db.rpc("reserve_order", { ev: eventId, qty, email: mail, newsletter });
+  // Tipos, fechas, límites y aforo (otra vez, ya con el evento bloqueado) los vigila make_order.
+  const { data, error } = await db.rpc("make_order", { ev: eventId, want: items, channel: "online", email: mail, newsletter });
   if (error) dbError(error, "No hemos podido reservar tus entradas.");
   const order = data as Order;
 
-  const taxRate = optEnv("STRIPE_TAX_RATE_ID");
   try {
-    const session = await stripe().checkout.sessions.create({
-      mode: "payment",
-      line_items: [{
-        quantity: qty,
-        price_data: {
-          currency: "eur",
-          unit_amount: ev.priceCents,
-          product_data: { name: `Entrada general · ${ev.name}` },
-        },
-        // IVA incluido en el precio: la factura lo desglosa sin cambiar el total.
-        ...(taxRate ? { tax_rates: [taxRate] } : {}),
-      }],
-      // Factura simplificada: Stripe la numera, la manda en PDF al comprador
-      // y la guarda en el panel para el gestor.
-      invoice_creation: {
-        enabled: true,
-        invoice_data: { description: `Pedido ${order.number}`, metadata: { order_id: order.id } },
-      },
-      customer_email: mail,
-      metadata: { order_id: order.id },
-      payment_intent_data: { metadata: { order_id: order.id } },
-      // Stripe pide al menos 30 min desde que crea la sesión: un minuto de
-      // margen para que no rechace la petición por unos milisegundos.
-      expires_at: Math.floor(Date.now() / 1000) + 31 * 60,
-      locale: "es",
-      success_url: `${siteUrl()}/entradas/?pedido=${order.token}&nuevo=1`,
-      cancel_url: `${siteUrl()}/#directo`,
-    }, { idempotencyKey: `checkout-${order.id}` });
-
+    const session = await checkoutSession(order, ev.name, {
+      success: `${siteUrl()}/entradas/?pedido=${order.token}&nuevo=1`,
+      cancel: `${siteUrl()}/#directo`,
+    }, mail);
     const { error: upErr } = await db.from("orders").update({ stripe_session: session.id }).eq("id", order.id);
     if (upErr) throw upErr;
     if (!session.url) throw new Error("Stripe no ha devuelto URL de pago");

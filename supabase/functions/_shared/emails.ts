@@ -108,7 +108,7 @@ function qrBlock(t: Ticket, i: number, n: number) {
 </td></tr>
 <tr><td style="padding:6px 22px 18px;font-family:${MONO};font-size:13px;color:${C.noche};">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-<td style="font-family:${MONO};font-size:13px;color:${C.noche};">ENTRADA ${i + 1} DE ${n}</td>
+<td style="font-family:${MONO};font-size:13px;color:${C.noche};">ENTRADA ${i + 1} DE ${n}${t.typeName ? ` · ${esc(t.typeName.toUpperCase())}` : ""}</td>
 <td align="right" style="font-family:${MONO};font-size:13px;font-weight:600;color:${C.noche};">${esc(t.code)}</td>
 </tr></table></td></tr></table></td></tr>`;
 }
@@ -123,7 +123,8 @@ export function ticketsEmail(ctx: OrderContext): Mail {
   const name = event?.name ?? "besta";
   const hi = order.name ? `Hola, ${order.name.split(" ")[0]}: aquí` : "Aquí";
   const link = ticketsLink(order);
-  const line = `${n} × entrada general · ${eur(order.amountCents)}`;
+  // «2 × anticipada + 1 × general · 34,00 €» (los pedidos de antes: «entrada general»)
+  const line = `${order.items?.length ? order.items.filter(i => i.qty > 0).map(i => `${i.qty} × ${i.name}`).join(" + ") : `${n} × entrada general`} · ${eur(order.amountCents)}`;
 
   const html = layout({
     preheader: `${n === 1 ? "tu entrada" : `tus ${n} entradas`} para ${name} · pedido ${orderNo(order)}`,
@@ -152,7 +153,7 @@ export function ticketsEmail(ctx: OrderContext): Mail {
     "",
     `ver mis entradas (con los QR): ${link}`,
     "",
-    ...tickets.map((t, i) => `entrada ${i + 1} de ${tickets.length}: ${t.code}`),
+    ...tickets.map((t, i) => `entrada ${i + 1} de ${tickets.length}${t.typeName ? ` (${t.typeName})` : ""}: ${t.code}`),
     "",
     "Cada QR vale para una persona y se escanea una sola vez.",
   ].filter(l => l !== undefined).join("\n") + textFooter;
