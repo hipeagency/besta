@@ -39,7 +39,8 @@ jobs:
           version: latest
 
       - name: Edge Functions
-        run: supabase functions deploy --project-ref "$SUPABASE_PROJECT_REF" --use-api
+        # --yes: la CLI pide confirmar y aquí no hay terminal para contestar.
+        run: supabase functions deploy --project-ref "$SUPABASE_PROJECT_REF" --use-api --yes
 
       - name: Secreto de Bandsintown
         if: env.BANDSINTOWN_APP_ID != ''
