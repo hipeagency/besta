@@ -12,7 +12,8 @@ import type { LyricLine, LyricSync as Sync, Song } from "@/data/types";
 import { Button, Pill, Segmented, useToast } from "@/components/ui";
 import { Icon } from "@/components/ui/icons";
 import { cx } from "@/lib/format";
-import { at, clock, lineEnd, linesFromSong, mergeLines, nextEmphasis, peaks, wordTimes } from "./sync";
+import { at, clock, lineEnd, linesFromSong, mergeLines, nextEmphasis, peaks } from "./sync";
+import { tracks } from "./local";
 
 export default function LyricSyncPage() {
   const { songId } = useParams();
@@ -46,6 +47,11 @@ function PickSong({ songs }: { songs: Song[] }) {
                 {s.lyricSync && <Pill tone="ok" dot>{syncedCount(s.lyricSync)}/{s.lyricSync.lines.length} líneas · {clock(s.lyricSync.durationSec)}</Pill>}
                 <Icon name="flecha" size={20} />
               </Link>
+              {s.lyricSync && syncedCount(s.lyricSync) > 0 && (
+                <Link to={`/visuales/video/${s.id}`} className="ml-4 mt-1 inline-flex items-center gap-1.5 font-mono text-xs text-senal-suave hover:text-senal">
+                  diseñar el vídeo <Icon name="flecha" size={12} />
+                </Link>
+              )}
             </li>
           ))}
         </ul>
@@ -123,9 +129,14 @@ function Studio({ song }: { song: Song }) {
   }, [playing]);
 
   useEffect(() => { if (audioRef.current) audioRef.current.playbackRate = speed; }, [speed, src]);
+  // la pista de la última vez, guardada en este ordenador
+  useEffect(() => {
+    void tracks.get(song.id).then(t => { if (t) void loadAudio(t.blob, t.name, false); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [song.id]);
   useEffect(() => () => { if (src) URL.revokeObjectURL(src); }, [src]);
 
-  async function loadAudio(file: File) {
+  async function loadAudio(file: Blob, name: string, remember = true) {
     try {
       const buf = await file.arrayBuffer();
       const ctx = new AudioContext();
@@ -134,12 +145,13 @@ function Studio({ song }: { song: Song }) {
       const dur = decoded.duration;
       setWave(peaks(decoded, 1600));
       setSrc(URL.createObjectURL(file));
-      setAudioName(file.name);
+      setAudioName(name);
+      if (remember && file instanceof File) void tracks.put(song.id, file);
       setNow(0); setPlaying(false);
       if (sync.durationSec && Math.abs(sync.durationSec - dur) > 0.05) {
         toast(`Ojo: esta pista dura ${clock(dur)} y la letra se sincronizó con una de ${clock(sync.durationSec)}${sync.audioName ? ` (${sync.audioName})` : ""}.`, "error");
       }
-      update(s => ({ ...s, audioName: file.name, durationSec: dur }));
+      if (remember) update(s => ({ ...s, audioName: name, durationSec: dur }));
     } catch {
       toast("No se ha podido leer el audio. Prueba con WAV, MP3, AIFF o M4A.", "error");
     }
@@ -255,7 +267,9 @@ function Studio({ song }: { song: Song }) {
       <header className="px-6 py-3 flex items-center gap-4 border-b border-crema/10">
         <button type="button" onClick={() => nav("/visuales/letra")} className="font-mono text-xs text-crema/70 hover:text-crema inline-flex items-center gap-1.5"><Icon name="atras" size={14} />canciones</button>
         <div className="min-w-0 flex-1">
-          <p className="font-mono text-[11px] text-senal tracking-wider">VIDEOLYRICS · 1. SINCRONIZAR</p>
+          <p className="font-mono text-[11px] text-senal tracking-wider">
+            VIDEOLYRICS · 1. SINCRONIZAR · {done ? <Link to={`/visuales/video/${song.id}`} className="text-crema/60 hover:text-crema">2. DISEÑAR →</Link> : <span className="text-crema/40">2. DISEÑAR</span>}
+          </p>
           <h1 className="text-2xl font-extrabold tracking-[-.02em] leading-tight truncate">{song.title}</h1>
         </div>
         <span className="font-mono text-xs text-crema/60" aria-live="polite">
@@ -263,7 +277,7 @@ function Studio({ song }: { song: Song }) {
         </span>
         <label className="inline-flex items-center gap-2 h-11 px-[18px] rounded-full bg-senal text-noche font-semibold text-[15px] cursor-pointer hover:brightness-110">
           <Icon name="subir" size={16} />{hasAudio ? "cambiar pista" : "cargar pista"}
-          <input type="file" accept="audio/*,.wav,.aif,.aiff,.mp3,.m4a" className="sr-only" onChange={e => { const f = e.target.files?.[0]; if (f) void loadAudio(f); e.target.value = ""; }} />
+          <input type="file" accept="audio/*,.wav,.aif,.aiff,.mp3,.m4a" className="sr-only" onChange={e => { const f = e.target.files?.[0]; if (f) void loadAudio(f, f.name); e.target.value = ""; }} />
         </label>
       </header>
 

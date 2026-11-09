@@ -146,6 +146,7 @@ export interface Song {
   comments: SongComment[];
   demoUrl?: string;
   lyricSync?: LyricSync;   // letra con tiempos, para videolyrics
+  lyricVideo?: LyricVideo; // cómo se ve el videolyric
 }
 
 /* Letra sincronizada con la pista de directo. Tiempos en segundos desde
@@ -158,6 +159,38 @@ export interface LyricSync {
   audioName: string;       // la pista con la que se sincronizó
   durationSec: number;     // y su duración exacta: el vídeo dura esto
   lines: LyricLine[];
+  updatedAt: ISODateTime;
+}
+
+/* Diseño del videolyric. Todo es determinista (la «suerte» sale de la
+   semilla): el mismo diseño da siempre el mismo vídeo. */
+export type LyricMode = "linea" | "palabra" | "karaoke" | "una";
+export type LyricAnim = "fade" | "subir" | "zoom" | "maquina" | "glitch" | "parpadeo" | "desenfoque" | "corte";
+export interface LyricStyle {
+  mode: LyricMode;
+  size: "s" | "m" | "l" | "xl";
+  pos: "centro" | "arriba" | "abajo" | "azar";
+  font: "jost" | "fina" | "mono";
+  caps: "normal" | "mayus" | "minus";
+  color: "crema" | "senal";
+  box: boolean;            // franja detrás del texto
+  in: LyricAnim;
+  out: LyricAnim;
+  variar: boolean;         // cada línea con su entrada y sitio al azar (fijo por semilla)
+}
+export type LyricBg =
+  | { kind: "gen"; id: string; tint: "senal" | "crema" }
+  | { kind: "media"; id: string; name: string; fit: "cover" | "contain" };   // archivo guardado en este ordenador
+export interface LyricVideo {
+  style: LyricStyle;
+  preset?: string;
+  seed: number;
+  bg: LyricBg;
+  bySection: Record<ID, LyricBg>;   // sectionId → fondo propio
+  overlay: { scan: boolean; grain: boolean; vignette: boolean };
+  width: number;
+  height: number;
+  fps: number;
   updatedAt: ISODateTime;
 }
 
