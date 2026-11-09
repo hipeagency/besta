@@ -1,18 +1,18 @@
-/* Composición: de la nota de voz a la canción. Tres columnas por
-   estado; cada idea abre su ficha (a la derecha en pantalla grande,
-   en panel en móvil). Cuando está lista, pasa a ensayos. */
-import { useState } from "react";
+/* Composición: de la nota de voz a la canción. Un bloc de notas
+   (filtrable por estado); cada nota se abre en grande, sin paneles
+   con scroll. Cuando está lista, pasa a ensayos. */
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import { Page } from "@/suite/Shell";
 import { useMe } from "@/suite/session";
 import { useAction, useCollection } from "@/data/hooks";
 import { api, uid } from "@/data/api";
-import type { Idea } from "@/data/types";
-import { Button, Sheet } from "@/components/ui";
+import type { Idea, IdeaStatus } from "@/data/types";
+import { Button, Segmented } from "@/components/ui";
 import { ago, cx } from "@/lib/format";
 import { IdeaDetail, STATUS } from "./composicion/IdeaDetail";
 import { VoiceNote } from "./composicion/VoiceNote";
-import { canRecord, useMedia } from "./composicion/audio";
+import { canRecord } from "./composicion/audio";
 import { Icon } from "@/components/ui/icons";
 
 export default function Composicion() {
@@ -20,13 +20,13 @@ export default function Composicion() {
   const { data: ideas, loading } = useCollection("ideas");
   const [params, setParams] = useSearchParams();
   const [recording, setRecording] = useState(false);
-  const wide = useMedia("(min-width: 1280px)");
+  const [filter, setFilter] = useState<"todas" | IdeaStatus>("todas");
   const create = useAction((i: Idea) => api.insert("ideas", i));
 
   const sorted = [...ideas].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  // En grande siempre hay una abierta; en móvil solo si la eliges.
-  const sel = ideas.find(i => i.id === params.get("idea")) ?? (wide ? sorted.find(i => i.status === "desarrollo") ?? sorted[0] : undefined);
-  const open = (id?: string) => setParams(id ? { idea: id } : {}, { replace: !!id && !!params.get("idea") });
+  const shown = filter === "todas" ? sorted : sorted.filter(i => i.status === filter);
+  const sel = ideas.find(i => i.id === params.get("idea"));
+  const open = (id?: string) => setParams(id ? { idea: id } : {});
 
   async function newIdea() {
     const i: Idea = { id: uid("i"), title: "idea sin título", status: "idea", author: me.name, lyrics: "", sections: [], demos: [], comments: [], updatedAt: new Date().toISOString() };
@@ -35,6 +35,7 @@ export default function Composicion() {
   }
 
   const mic = canRecord();
+  const count = (v?: IdeaStatus) => (v ? ideas.filter(i => i.status === v).length : ideas.length);
 
   return (
     <Page title="composición" actions={<>
@@ -44,54 +45,66 @@ export default function Composicion() {
       <Button variant="primary" onClick={newIdea} disabled={create.pending}>+ nueva idea</Button>
     </>}>
       {!loading && (
-        <div className="flex flex-wrap gap-[18px] items-start">
-          {/* tablero */}
-          <div className="flex-[3_1_520px] min-w-0 grid gap-3 md:grid-cols-3">
-            {STATUS.map(col => {
-              const list = sorted.filter(i => i.status === col.value);
-              return (
-                <section key={col.value} aria-label={col.col} className="p-3 rounded-[18px] bg-lateral flex flex-col gap-2.5">
-                  <h2 className="px-1.5 py-1 flex justify-between font-mono text-xs tracking-[.1em] text-crema/70 font-normal">
-                    <span>{col.col}</span><span>{list.length}</span>
-                  </h2>
-                  {list.map(i => <IdeaCard key={i.id} idea={i} active={sel?.id === i.id} onClick={() => open(i.id)} />)}
-                  {!list.length && <p className="px-1.5 py-3 text-sm text-crema/50">nada aquí</p>}
-                </section>
-              );
-            })}
-          </div>
+        <div className="flex flex-col gap-4">
+          <Segmented value={filter} onChange={setFilter} className="self-start"
+            options={[{ value: "todas" as const, label: <>todas <span className="opacity-60">{count()}</span></> },
+              ...STATUS.map(s => ({ value: s.value, label: <>{s.label} <span className="opacity-60">{count(s.value)}</span></> }))]} />
 
-          {/* ficha */}
-          {wide && (
-            <aside className="flex-[2_1_380px] min-w-0 p-5 rounded-[20px] bg-tubo sticky top-6 max-h-[calc(100dvh-48px)] overflow-y-auto">
-              {sel ? <IdeaDetail key={sel.id} idea={sel} onDeleted={() => open()} /> : <p className="text-crema/60">Elige una idea.</p>}
-            </aside>
-          )}
+          {shown.length
+            ? <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(250px,1fr))]">
+                {shown.map(i => <NoteCard key={i.id} idea={i} onClick={() => open(i.id)} />)}
+              </div>
+            : <p className="py-10 text-center text-crema/55">{ideas.length ? "Ninguna nota en este estado." : "Aún no hay ideas. Graba una nota de voz o crea una nueva."}</p>}
         </div>
       )}
 
-      {!wide && (
-        <Sheet open={!!sel} onClose={() => open()} title="idea" width={520}>
-          {sel && <IdeaDetail key={sel.id} idea={sel} onDeleted={() => open()} />}
-        </Sheet>
-      )}
+      {sel && <NoteView onClose={() => open()}><IdeaDetail key={sel.id} idea={sel} onDeleted={() => open()} /></NoteView>}
 
       <VoiceNote open={recording} onClose={() => setRecording(false)} onCreated={id => { setRecording(false); open(id); }} />
     </Page>
   );
 }
 
-function IdeaCard({ idea, active, onClick }: { idea: Idea; active: boolean; onClick: () => void }) {
-  const meta = [idea.author, idea.key, idea.bpm && `${idea.bpm} BPM`].filter(Boolean).join(" · ");
+/** La nota abierta: ocupa casi toda la pantalla y crece con su contenido. */
+function NoteView({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape" && !(e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement)) onClose(); };
+    window.addEventListener("keydown", h);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", h); document.body.style.overflow = prev; };
+  }, [onClose]);
   return (
-    <button type="button" onClick={onClick} aria-pressed={active}
-      className={cx("text-left p-3.5 rounded-[14px] bg-tubo border-[1.5px] flex flex-col gap-2 transition hover:bg-tubo-alto", active ? "border-senal" : "border-transparent")}>
-      <span className="text-base font-semibold leading-snug">{idea.title}</span>
-      <span className="text-[13px] text-crema/70">{meta}</span>
-      <span className="flex gap-2.5 font-mono text-[11px] text-crema/65">
-        <span aria-label={`${idea.demos.length} demos`} className="inline-flex items-center gap-1"><Icon name="nota" size={13} />{idea.demos.length}</span>
-        <span aria-label={`${idea.comments.length} comentarios`} className="inline-flex items-center gap-1"><Icon name="comentario" size={13} />{idea.comments.length}</span>
-        <span className="ml-auto">{ago(idea.updatedAt)}</span>
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 anim-fade" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div role="dialog" aria-modal="true" aria-label="Idea"
+        className="relative mx-auto w-full max-w-[1240px] min-h-full md:min-h-0 md:my-8 md:w-[calc(100%-64px)] p-5 pt-6 md:p-10 bg-tubo md:rounded-[28px]">
+        <button type="button" aria-label="Cerrar" onClick={onClose}
+          className="absolute right-4 top-4 md:right-6 md:top-6 size-11 rounded-full bg-noche text-xl z-10">×</button>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function NoteCard({ idea, onClick }: { idea: Idea; onClick: () => void }) {
+  const meta = [idea.author, idea.key, idea.bpm && `${idea.bpm} BPM`].filter(Boolean).join(" · ");
+  const status = STATUS.find(s => s.value === idea.status);
+  return (
+    <button type="button" onClick={onClick}
+      className="text-left p-4 rounded-[16px] bg-tubo border-[1.5px] border-transparent hover:border-crema/20 hover:bg-tubo-alto transition flex flex-col gap-2.5 min-h-[180px]">
+      <span className={cx("self-start font-mono text-[10px] tracking-[.1em] px-2 py-1 rounded-full",
+        idea.status === "lista" ? "bg-senal text-noche" : idea.status === "desarrollo" ? "bg-crema/15 text-crema" : "bg-noche text-crema/70")}>
+        {status?.col}
+      </span>
+      <span className="text-[17px] font-semibold leading-snug">{idea.title}</span>
+      {idea.lyrics.trim()
+        ? <span className="text-[13px] leading-relaxed text-crema/65 whitespace-pre-line line-clamp-4">{idea.lyrics.trim()}</span>
+        : <span className="text-[13px] text-crema/40 italic">sin letra todavía</span>}
+      <span className="mt-auto pt-1 flex gap-2.5 font-mono text-[11px] text-crema/60">
+        <span className="truncate">{meta}</span>
+        <span aria-label={`${idea.demos.length} demos`} className="ml-auto inline-flex items-center gap-1 shrink-0"><Icon name="nota" size={13} />{idea.demos.length}</span>
+        <span aria-label={`${idea.comments.length} comentarios`} className="inline-flex items-center gap-1 shrink-0"><Icon name="comentario" size={13} />{idea.comments.length}</span>
+        <span className="shrink-0">{ago(idea.updatedAt)}</span>
       </span>
     </button>
   );
