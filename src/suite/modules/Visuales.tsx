@@ -1,57 +1,38 @@
-/* Visuales: el estudio del muro CRT ya existe y funciona; no se
-   reescribe. Aquí se abre (o se ve incrustado en ordenador) y se
-   prepara el sitio para guardar sesiones por bolo cuando haya backend. */
-import { useState } from "react";
+/* Visuales: el estudio del muro CRT y la portada flotante (ahora dentro
+   de la suite, en /visuales/estudio), los videolyrics y, cuando haya
+   backend, las sesiones guardadas por bolo. */
 import { Link } from "react-router";
 import { Page } from "@/suite/Shell";
 import { useCollection } from "@/data/hooks";
 import { upcomingGigs } from "@/data/selectors";
-import { Button, Card, CardTitle, Pill, Toggle } from "@/components/ui";
+import { Card, CardTitle, Pill } from "@/components/ui";
 import { dateLabel, daysUntil } from "@/lib/format";
 import { useMedia } from "./composicion/audio";
 import { Icon } from "@/components/ui/icons";
 
-const STUDIO = "/suite/estudio-visuales.html";
-
 export default function Visuales() {
   const { data: gigs } = useCollection("gigs");
   const desktop = useMedia("(min-width: 1024px)");
-  const [embed, setEmbed] = useState(true);
   const next = upcomingGigs(gigs).slice(0, 6);
 
-  const open = (
-    <a href={STUDIO} target="_blank" rel="noopener" className="inline-flex items-center justify-center gap-2 h-11 px-[18px] rounded-full bg-senal text-noche font-semibold text-[15px] whitespace-nowrap hover:brightness-110">
-      abrir estudio <Icon name="externo" size={14} className="inline align-[-2px]" />
-    </a>
-  );
-
   return (
-    <Page title="visuales" kicker="MURO CRT" actions={<>
-      {desktop && <Toggle checked={embed} onChange={setEmbed} label="ver aquí" />}
-      {open}
-    </>}>
-      <p className="-mt-2 max-w-[640px] text-crema/75 leading-relaxed">
-        Es el estudio de siempre: muro de teles, texturas, portada y exportar en GIF o vídeo. Se abre tal cual, con sus propios controles.
-      </p>
-
-      {desktop ? (
-        embed && (
-          <div className="relative rounded-[20px] overflow-hidden bg-marco p-2">
-            <iframe src={STUDIO} title="Estudio de visuales (muro CRT)" className="w-full h-[80vh] rounded-[14px] bg-noche border-0" allow="fullscreen" />
-          </div>
-        )
-      ) : (
-        <div className="relative rounded-[20px] overflow-hidden bg-marco p-2">
-          <div className="relative rounded-[14px] bg-noche aspect-[4/3] grid place-items-center text-center p-6 vig">
-            <span className="scan absolute inset-0" />
-            <div className="relative flex flex-col items-center gap-3">
-              <p className="text-2xl font-bold tracking-[-.02em]">solo en ordenador</p>
-              <p className="text-sm text-crema/70 max-w-[260px]">El estudio necesita pantalla grande y ratón. Ábrelo desde el portátil.</p>
-              {open}
-            </div>
+    <Page title="visuales" kicker="MURO CRT">
+      <Link to="/visuales/estudio" className="group relative block rounded-[20px] overflow-hidden bg-marco p-2">
+        <div className="relative rounded-[14px] bg-noche aspect-[21/9] max-h-[360px] w-full grid place-items-center text-center p-6 vig">
+          <span className="scan absolute inset-0" />
+          <div className="relative flex flex-col items-center gap-3">
+            <p className="font-mono text-[11px] text-senal tracking-wider">ESTUDIO</p>
+            <p className="text-3xl font-extrabold tracking-[-.02em]">muro CRT · portada flotante</p>
+            <p className="text-sm text-crema/70 max-w-[440px]">
+              La pared de teles con lo que emite cada pantalla, o la portada con elementos a la deriva. Exporta en vídeo, PNG o GIF.
+              {!desktop && " Mejor desde el ordenador."}
+            </p>
+            <span className="inline-flex items-center gap-2 h-11 px-[18px] rounded-full bg-senal text-noche font-semibold text-[15px] group-hover:brightness-110">
+              abrir estudio <Icon name="flecha" size={14} />
+            </span>
           </div>
         </div>
-      )}
+      </Link>
 
       <Card>
         <CardTitle action={<Pill tone="senal">nuevo</Pill>}>videolyrics</CardTitle>

@@ -184,6 +184,9 @@ importers:
       astro:
         specifier: ^5.18.2
         version: 5.18.2(@types/node@26.6.5)(jiti@2.7.0)(lightningcss@1.32.0)(rollup@4.65.1)(typescript@7.0.2)(yaml@2.9.1)
+      gifenc:
+        specifier: 1.0.3
+        version: 1.0.3
       jsqr:
         specifier: ^1.4.0
         version: 1.4.0
@@ -1687,6 +1690,9 @@ packages:
   get-east-asian-width@1.7.0:
     resolution: {integrity: sha512-XjH1AECxf0giL2V1aU8vKyRR2ppRUb5c0EvT7zuJTokQ74bNo52zOtghqdWIqrhUD79fo3x0WfKZdOqxF6LG1Q==}
     engines: {node: '>=18'}
+
+  gifenc@1.0.3:
+    resolution: {integrity: sha512-xdr6AdrfGBcfzncONUOlXMBuc5wJDtOueE3c5rdG0oNgtINLD+f2iFZltrBRZYzACRbKr+mSVU/x98zv2u3jmw==}
 
   github-slugger@2.0.0:
     resolution: {integrity: sha512-IaOQ9puYtjrkq7Y0Ygl9KDZnrf/aiUJYUpVf89y8kyaxbRG7Y1SrX/jaumrv81vc61+kiMempujsM3Yw7w5qcw==}
@@ -3918,6 +3924,8 @@ snapshots:
   get-caller-file@2.0.5: {}
 
   get-east-asian-width@1.7.0: {}
+
+  gifenc@1.0.3: {}
 
   github-slugger@2.0.0: {}
 

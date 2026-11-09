@@ -24,6 +24,7 @@ const Rider = lazy(() => import("./modules/Rider"));
 const Visuales = lazy(() => import("./modules/Visuales"));
 const LyricSync = lazy(() => import("./modules/visuales/lyric/LyricSync"));
 const LyricDesigner = lazy(() => import("./modules/visuales/lyric/Designer"));
+const EstudioMuro = lazy(() => import("./modules/visuales/muro/Estudio"));
 const Presupuestos = lazy(() => import("./modules/Presupuestos"));
 const Merch = lazy(() => import("./modules/Merch"));
 const MerchPuesto = lazy(() => import("./modules/MerchPuesto"));
@@ -56,6 +57,7 @@ function Routed() {
       <Route path="visuales/letra" element={g("visuales", <LyricSync />)} />
       <Route path="visuales/letra/:songId" element={g("visuales", <LyricSync />)} />
       <Route path="visuales/video/:songId" element={g("visuales", <LyricDesigner />)} />
+      <Route path="visuales/estudio" element={g("visuales", <EstudioMuro />)} />
       <Route element={<Shell />}>
         <Route index element={<Inicio />} />
         <Route path="bolos" element={g("bolos", <Bolos />)} />
