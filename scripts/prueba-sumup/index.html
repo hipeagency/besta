@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Prueba SumUp</title>
+<style>
+  :root { --noche:#0F0B08; --tubo:#1C1510; --senal:#E8662C; --crema:#F6E6CC; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--noche); color:var(--crema); font:16px/1.45 system-ui,-apple-system,sans-serif; padding:20px 16px 40px; max-width:560px; margin-inline:auto; }
+  h1 { font-size:26px; margin:0 0 4px; letter-spacing:-.02em; }
+  .k { font:12px ui-monospace,Menlo,monospace; color:var(--senal); letter-spacing:.12em; }
+  p { color:rgba(246,230,204,.75); }
+  label { display:block; font-size:13px; margin:14px 0 6px; color:rgba(246,230,204,.75); }
+  input { width:100%; height:48px; border-radius:12px; border:1.5px solid rgba(246,230,204,.25); background:var(--tubo); color:var(--crema); padding:0 12px; font-size:16px; }
+  button { width:100%; min-height:56px; border-radius:14px; border:0; font-size:17px; font-weight:700; margin-top:10px; cursor:pointer; }
+  .p { background:var(--senal); color:var(--noche); }
+  .g { background:transparent; color:var(--crema); border:1.5px solid rgba(246,230,204,.25); }
+  .box { background:var(--tubo); border-radius:18px; padding:16px; margin:18px 0; }
+  .res { border:2px solid var(--senal); }
+  pre { white-space:pre-wrap; word-break:break-all; font:12px ui-monospace,Menlo,monospace; color:rgba(246,230,204,.8); margin:8px 0 0; }
+  small { color:rgba(246,230,204,.55); }
+</style>
+</head>
+<body>
+  <div class="k">BESTA · PRUEBA</div>
+  <h1>¿Abre SumUp desde la web?</h1>
+
+  <div id="result" class="box res" hidden></div>
+
+  <div class="box">
+    <label for="key">Clave de afiliado (affiliate key) de SumUp</label>
+    <input id="key" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="pega aquí la clave">
+    <label for="appid">Identificador de app (el que pusiste al crear la clave)</label>
+    <input id="appid" autocomplete="off" autocapitalize="off" spellcheck="false" value="es.besta.suite">
+    <label for="amount">Importe (€)</label>
+    <input id="amount" inputmode="decimal" value="1.00">
+    <small>Usa 1 € y devuélvelo luego desde SumUp.</small>
+  </div>
+
+  <button class="p" id="ios">Prueba A · cobrar y volver aquí</button>
+  <button class="g" id="ios-novuelta">Prueba B · solo abrir SumUp con el importe</button>
+  <button class="g" id="android">Prueba C · formato Android</button>
+
+  <div class="box">
+    <p style="margin:0">Qué mirar en cada prueba:</p>
+    <ol style="color:rgba(246,230,204,.75);padding-left:20px">
+      <li>¿Se abre SumUp?</li>
+      <li>¿Sale el importe ya puesto, o da error de clave?</li>
+      <li>¿Deja cobrar acercando la tarjeta (Tap to Pay)?</li>
+      <li>Al terminar, ¿vuelve sola a esta página y sale un recuadro naranja arriba?</li>
+    </ol>
+    <small>Si vuelve, haz captura del recuadro naranja y pásamela.</small>
+  </div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const store = { get: k => { try { return localStorage.getItem(k) || ""; } catch { return ""; } },
+                  set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
+  $("key").value = store.get("sumup-key");
+  $("appid").value = store.get("sumup-appid") || "es.besta.suite";
+
+  // ¿Volvemos de SumUp? Enseñar todo lo que traiga la dirección.
+  const q = new URLSearchParams(location.search);
+  if ([...q.keys()].length) {
+    const st = q.get("smp-status");
+    const r = $("result");
+    r.hidden = false;
+    r.innerHTML = `<div class="k">HA VUELTO DE SUMUP</div>
+      <h1 style="margin-top:6px"></h1>
+      <pre></pre>`;
+    r.querySelector("h1").textContent = st === "success" ? "✓ cobrado" : st ? "✗ " + st : "sin estado";
+    r.querySelector("pre").textContent = [...q.entries()].map(([k, v]) => `${k} = ${v}`).join("\n")
+      + `\n\nabierta en: ${navigator.standalone ? "app de pantalla de inicio" : "navegador"}\n${navigator.userAgent}`;
+  }
+
+  function params() {
+    const key = $("key").value.trim(), appid = $("appid").value.trim();
+    const amount = Number($("amount").value.replace(",", ".")).toFixed(2);
+    if (!key) { alert("Falta la clave de afiliado."); return null; }
+    store.set("sumup-key", key); store.set("sumup-appid", appid);
+    const back = location.origin + location.pathname;
+    const tx = "BESTA-" + Date.now().toString(36).toUpperCase();
+    return { key, appid, amount, back, tx };
+  }
+  function go(url) { location.href = url; }
+
+  $("ios").onclick = () => {
+    const p = params(); if (!p) return;
+    const u = new URLSearchParams({ amount: p.amount, currency: "EUR", "affiliate-key": p.key, title: "Prueba BESTA",
+      "foreign-tx-id": p.tx, callbacksuccess: p.back + "?vuelta=ok", callbackfail: p.back + "?vuelta=fallo" });
+    go("sumupmerchant://pay/1.0?" + u);
+  };
+  $("ios-novuelta").onclick = () => {
+    const p = params(); if (!p) return;
+    const u = new URLSearchParams({ amount: p.amount, currency: "EUR", "affiliate-key": p.key, title: "Prueba BESTA" });
+    go("sumupmerchant://pay/1.0?" + u);
+  };
+  $("android").onclick = () => {
+    const p = params(); if (!p) return;
+    const u = new URLSearchParams({ "affiliate-key": p.key, "app-id": p.appid, total: p.amount, amount: p.amount, currency: "EUR",
+      title: "Prueba BESTA", "foreign-tx-id": p.tx, callback: p.back + "?vuelta=android" });
+    go("sumupmerchant://pay/1.0?" + u);
+  };
+</script>
+</body>
+</html>

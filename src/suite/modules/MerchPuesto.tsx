@@ -10,6 +10,7 @@ import { Button, useToast } from "@/components/ui";
 import { Icon } from "@/components/ui/icons";
 import { LOW, PAYMENTS, itemName, moveCents, sizeLabel, swatch } from "./merch/shared";
 import { cx, dateShort, eur } from "@/lib/format";
+import { CardCharge } from "@/suite/pay/CardCharge";
 
 type CartItem = { variantId: string; qty: number };
 
@@ -29,6 +30,7 @@ export default function MerchPuesto() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [pay, setPay] = useState<PayMethod>("efectivo");
   const [done, setDone] = useState<{ total: number; pay: PayMethod } | null>(null);
+  const [card, setCard] = useState(false);   // cobrando con tarjeta (SumUp)
   const sell = useAction((items: CartItem[], p: PayMethod, who: string) => api.sell(items, p, who, gig?.id));
 
   const active = products.filter(p => !p.archived);
@@ -59,15 +61,23 @@ export default function MerchPuesto() {
     setPicked(x => (x === p.id ? null : p.id));
   }
 
+  /* Registra la venta ya cobrada. Lanza el error para que el cobro con
+     tarjeta pueda avisar de que el dinero sí está cobrado. */
+  async function record(p: PayMethod) {
+    await sell.run(cart, p, by);
+    setCard(false);
+    setDone({ total, pay: p });
+    setCart([]); setPicked(null);
+  }
   async function charge() {
+    if (pay === "tarjeta") { setCard(true); return; }
     try {
-      await sell.run(cart, pay, by);
-      setDone({ total, pay });
-      setCart([]); setPicked(null);
+      await record(pay);
     } catch (e) {
       toast((e as Error).message, "error");
     }
   }
+  const units = cart.reduce((s, c) => s + c.qty, 0);
 
   return (
     <div className="min-h-dvh flex flex-col max-w-[720px] mx-auto">
@@ -165,6 +175,13 @@ export default function MerchPuesto() {
           {cart.length ? `cobrar ${eur(total)}` : "cobrar"}
         </Button>
       </footer>
+
+      {card && (
+        <CardCharge amountCents={total} title={`${units} ${units === 1 ? "artículo" : "artículos"} de merch`}
+          onPaid={() => record("tarjeta")}
+          onCancel={() => setCard(false)}
+          onCash={() => { setCard(false); setPay("efectivo"); }} />
+      )}
 
       {done && (
         <div role="dialog" aria-modal="true" aria-label="Venta cobrada" className="fixed inset-0 z-50 bg-noche flex flex-col items-center justify-center gap-6 p-6 text-center anim-fade">
