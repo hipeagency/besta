@@ -176,8 +176,11 @@ export interface Idea {
 }
 
 // ---------- rider ----------
-export interface RiderInput { ch: string; source: string; mic: string; stand: string }
-export interface StagePos { memberId: ID; label: string; x: number; y: number }  // % del escenario
+export interface RiderInput { ch: string; source: string; mic: string; stand: string; dest?: string }  // dest: FOH + IEM, solo IEM…
+export interface StagePos { memberId: ID; label: string; detail?: string; x: number; y: number }  // % del escenario; detail: «CH 01-06 · 13-14»
+/** Material propio: qué traemos y de quién es. owner es el nombre tal cual
+    sale en el papel («Pau», «banda», «sala»), así el papel no depende de members. */
+export interface RiderGear { id: string; qty: number; item: string; owner: string; note?: string }
 export interface RiderBlock { id: string; name: string; enabled: boolean; body?: string }
 
 export interface Rider {
@@ -188,6 +191,7 @@ export interface Rider {
   inputs: RiderInput[];
   stage: StagePos[];
   stageSize: string;       // «6 × 4 m»
+  gear?: RiderGear[];      // bloque «material» (los riders antiguos no lo traen)
   sentTo: { gigId: ID; date: ISODate }[];
 }
 

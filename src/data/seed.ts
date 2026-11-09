@@ -8,6 +8,7 @@ import type {
   Member, Gig, TicketEvent, Order, Ticket, Song, Setlist, Idea, Rider,
   Quote, Lead, Product, MerchMove, MerchRequest, Subscriber, Expense, Income, Settlement, AuditEntry, Settings,
 } from "./types";
+import { RIDER_TEMPLATE } from "./riderTemplate";
 
 export interface DB {
   members: Member[];
@@ -228,38 +229,7 @@ const ideas: Idea[] = [
 
 const riders: Rider[] = [
   {
-    id: "rider-full", name: "banda completa", version: "2026.1", stageSize: "6 × 4 m mín.",
-    blocks: [
-      { id: "musicos", name: "necesidades por músico", enabled: true, body: "Seis músicos. Voz con micro propio. Piano con soporte en X y banqueta." },
-      { id: "inputs", name: "input list", enabled: true },
-      { id: "plano", name: "plano de escenario", enabled: true },
-      { id: "backline", name: "backline", enabled: true, body: "Batería completa (bombo 22\"), amplis de guitarra ×2, ampli de bajo." },
-      { id: "monitores", name: "monitoraje", enabled: true, body: "5 envíos + IEM para voz." },
-      { id: "corriente", name: "corriente", enabled: false, body: "4 puntos de corriente en escenario." },
-      { id: "camerino", name: "camerino y catering", enabled: true, body: "Camerino para 8 personas. Agua y algo de cena." },
-      { id: "contactos", name: "contactos", enabled: true, body: "Técnico: [nombre] · [teléfono]\nManagement: Maxim · [teléfono]" },
-    ],
-    inputs: [
-      { ch: "01", source: "bombo", mic: "Beta 91 / D112", stand: "corto" },
-      { ch: "02", source: "caja", mic: "SM57", stand: "corto" },
-      { ch: "03", source: "hi-hat", mic: "condensador", stand: "corto" },
-      { ch: "04", source: "overheads L/R", mic: "condensador ×2", stand: "alto" },
-      { ch: "06", source: "bajo · Lars", mic: "DI", stand: "—" },
-      { ch: "07", source: "guitarra · Pau", mic: "SM57", stand: "corto" },
-      { ch: "08", source: "guitarra · Albert", mic: "SM57", stand: "corto" },
-      { ch: "09", source: "piano L/R · Carlinhos", mic: "DI ×2", stand: "—" },
-      { ch: "11", source: "voz · Maxim", mic: "propio", stand: "jirafa" },
-      { ch: "12", source: "coro · Pau", mic: "SM58", stand: "jirafa" },
-      { ch: "13", source: "coro · Albert", mic: "SM58", stand: "jirafa" },
-    ],
-    stage: [
-      { memberId: "victor", label: "Víctor · batería", x: 50, y: 22 },
-      { memberId: "lars", label: "Lars · bajo", x: 28, y: 34 },
-      { memberId: "carlinhos", label: "Carlinhos · piano", x: 76, y: 34 },
-      { memberId: "pau", label: "Pau · gtr", x: 20, y: 68 },
-      { memberId: "albert", label: "Albert · gtr", x: 78, y: 68 },
-      { memberId: "maxim", label: "Maxim · voz", x: 50, y: 74 },
-    ],
+    ...structuredClone(RIDER_TEMPLATE), id: "rider-full", name: "banda completa",
     sentTo: [{ gigId: "bcn-2026-12-12", date: "2026-10-20" }, { gigId: "benicarlo-2026-08-29", date: "2026-08-10" }],
   },
   {

@@ -44,6 +44,7 @@ export function StagePlot({ stage, onChange, className }: { stage: StagePos[]; o
                 onChange && "cursor-grab active:cursor-grabbing touch-none focus-visible:outline-senal min-h-9 grid place-items-center")}
               style={{ left: `${p.x}%`, top: `${p.y}%` }}>
               {p.label}
+              {p.detail && <span className="block font-mono font-normal text-[10px] opacity-80">{p.detail}</span>}
             </span>
           );
         })}

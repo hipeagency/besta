@@ -15,6 +15,16 @@ import { Icon } from "@/components/ui/icons";
 import { cx, dateShort } from "@/lib/format";
 import { RiderDoc } from "./rider/RiderDoc";
 import { BlockEditor } from "./rider/BlockEditor";
+import { RIDER_TEMPLATE } from "@/data/riderTemplate";
+
+/* Los riders de antes del bloque «material» lo reciben apagado, para
+   que salga en el menú de bloques. Solo se guarda si se edita algo. */
+function withGear(r: RiderT): RiderT {
+  const x = structuredClone(r);
+  if (!x.blocks.some(b => b.id === "material")) x.blocks.push({ id: "material", name: "material que traemos", enabled: false });
+  x.gear ??= [];
+  return x;
+}
 
 /* Al imprimir solo sale el papel: fuera la navegación de la suite y la cabecera. */
 const PRINT_CSS = `@media print {
@@ -45,7 +55,7 @@ export default function Rider() {
     const d = latest.current;
     if (d) void api.update("riders", d.id, d);
   }, []);
-  useEffect(() => { if (server && draft?.id !== server.id) setDraft(structuredClone(server)); }, [server, draft?.id]);
+  useEffect(() => { if (server && draft?.id !== server.id) setDraft(withGear(server)); }, [server, draft?.id]);
   useEffect(() => flush, [flush]);
   const edit = (fn: (r: RiderT) => RiderT) => setDraft(cur => {
     if (!cur) return cur;
@@ -209,23 +219,31 @@ function Sections({ rider, current, onPick, onToggle, onAdd }: {
 function NewFormat({ open, onClose, from, onCreated }: { open: boolean; onClose: () => void; from: RiderT; onCreated: (id: string) => void }) {
   const toast = useToast();
   const [name, setName] = useState("");
-  useEffect(() => { if (open) setName(""); }, [open]);
+  const [base, setBase] = useState<"actual" | "plantilla">("actual");
+  useEffect(() => { if (open) { setName(""); setBase("actual"); } }, [open]);
   const create = useAction((x: RiderT) => api.insert("riders", x));
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const n = name.trim();
     if (!n) return;
-    const x: RiderT = { ...structuredClone(from), id: uid("rider-"), name: n, sentTo: [] };
+    const src = base === "plantilla" ? RIDER_TEMPLATE : from;
+    const x: RiderT = { ...structuredClone(src), id: uid("rider-"), name: n, sentTo: [] };
     await create.run(x);
-    toast(`Formato «${n}» creado a partir de «${from.name}»`, "ok");
+    toast(`Formato «${n}» creado a partir de ${base === "plantilla" ? "la plantilla" : `«${from.name}»`}`, "ok");
     onCreated(x.id);
   }
 
   return (
     <Sheet open={open} onClose={onClose} title="nuevo formato" width={420}>
       <form onSubmit={submit} className="flex flex-col gap-4 pt-2">
-        <p className="text-sm text-crema/70">Se copia «{from.name}» tal cual; luego quitas o cambias lo que no toque.</p>
+        <Field label="partir de">{id => (
+          <Select id={id} value={base} onChange={e => setBase(e.target.value as "actual" | "plantilla")}>
+            <option value="actual">«{from.name}» (copia tal cual)</option>
+            <option value="plantilla">plantilla completa · directo a línea + IEM (oct. 2026)</option>
+          </Select>
+        )}</Field>
+        <p className="text-sm text-crema/70">Luego quitas o cambias lo que no toque.</p>
         <Field label="nombre del formato">{id => <Input id={id} autoFocus required value={name} onChange={e => setName(e.target.value)} placeholder="trío, festival, fiesta privada…" />}</Field>
         <Button type="submit" variant="primary" size="lg" disabled={create.pending || !name.trim()}>crear formato</Button>
       </form>
