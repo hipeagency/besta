@@ -268,40 +268,63 @@ export interface MerchInfo {
   product: string; variant: string; qty: number; priceCents: number;
   name: string; email: string; phone?: string;
   delivery?: "concierto" | "envio"; gigLabel?: string; address?: string; note?: string;
+  encargo?: boolean;       // no había stock: se apunta y se avisa cuando llegue
+  paid?: boolean;          // comprado y pagado online: queda guardado, por entregar
 }
 
 const deliveryLabel = (m: MerchInfo) =>
   m.delivery === "envio" ? `envío${m.address ? ": " + m.address : ""}` : m.delivery === "concierto" ? `recoger en concierto${m.gigLabel ? ": " + m.gigLabel : ""}` : undefined;
 const merchNext = (m: MerchInfo) =>
-  m.delivery === "envio" ? "Te diremos cómo pagar y cuándo sale el envío."
+  m.paid ? "Ya está pagado y te lo guardamos. En breve nos ponemos en contacto contigo para darte más info y acordar cómo te lo damos: en un concierto o por envío. El recibo te llega aparte, de Stripe."
+  : m.encargo ? "Ahora mismo no nos queda. Te lo apuntamos y te escribimos en cuanto llegue para acordar cómo te lo damos. No pagas nada hasta entonces."
+  : m.delivery === "envio" ? "Te diremos cómo pagar y cuándo sale el envío."
   : m.delivery === "concierto" ? "Se paga al recogerlo en el concierto (efectivo, bizum o tarjeta)."
   : "Te contactamos para confirmar tu merch y acordar cómo te lo damos.";
 
 export function merchReceived(m: MerchInfo): Mail {
-  const t = kv([["pedido", `${m.qty} × ${m.product} · ${m.variant}`], ["total", eur(m.qty * m.priceCents)], ["entrega", deliveryLabel(m)], ["nota", m.note]]);
+  const t = kv([["pedido", `${m.qty} × ${m.product} · ${m.variant}`], [m.paid ? "pagado" : "total", eur(m.qty * m.priceCents)], ["entrega", deliveryLabel(m)], ["nota", m.note]]);
   const first = m.name.split(" ")[0];
   return {
-    subject: "Hemos recibido tu pedido de merch",
+    subject: m.paid ? "Tu merch de besta está pagado" : m.encargo ? "Te apuntamos tu merch: te avisamos cuando llegue" : "Hemos recibido tu pedido de merch",
     html: layout({
-      preheader: `${m.product} · ${m.variant} · te escribimos en breve`,
-      headline: "recibido. te lo guardamos.",
+      preheader: `${m.product} · ${m.variant} · ${m.paid ? "pagado, te lo guardamos" : m.encargo ? "te avisamos cuando llegue" : "te escribimos en breve"}`,
+      headline: m.paid ? "pagado. es tuyo." : m.encargo ? "apuntado. te avisamos." : "recibido. te lo guardamos.",
       body: [
-        p(`Hola, ${esc(first)}: nos ha llegado tu solicitud. Te escribimos en breve para confirmarla.`),
+        p(m.paid ? `Hola, ${esc(first)}: gracias por tu compra.` : m.encargo ? `Hola, ${esc(first)}: nos ha llegado tu encargo.` : `Hola, ${esc(first)}: nos ha llegado tu solicitud. Te escribimos en breve para confirmarla.`),
         t.html,
         p(merchNext(m)),
       ].join("\n"),
     }),
-    text: `recibido. te lo guardamos.\n\nHola, ${first}: nos ha llegado tu solicitud. Te escribimos en breve para confirmarla.\n\n${t.text}\n\n${merchNext(m)}` + textFooter,
+    text: `${m.paid ? "pagado. es tuyo." : m.encargo ? "apuntado. te avisamos." : "recibido. te lo guardamos."}\n\nHola, ${first}: ${m.paid ? "gracias por tu compra." : m.encargo ? "nos ha llegado tu encargo." : "nos ha llegado tu solicitud. Te escribimos en breve para confirmarla."}\n\n${t.text}\n\n${merchNext(m)}` + textFooter,
   };
 }
 
 export function merchNotification(m: MerchInfo): Mail {
-  const t = kv([["producto", `${m.qty} × ${m.product} · ${m.variant}`], ["total", eur(m.qty * m.priceCents)], ["entrega", deliveryLabel(m)], ["nombre", m.name], ["email", m.email], ["teléfono", m.phone], ["nota", m.note]]);
+  const t = kv([["producto", `${m.qty} × ${m.product} · ${m.variant}`], [m.paid ? "pagado" : "total", eur(m.qty * m.priceCents)], ["entrega", deliveryLabel(m)], ["nombre", m.name], ["email", m.email], ["teléfono", m.phone], ["nota", m.note]]);
   const suite = `${siteUrl()}/suite/`;
   return {
-    subject: `Merch web: ${m.qty} × ${m.product} ${m.variant} · ${m.name}`,
-    html: layout({ preheader: `${m.name} pide ${m.product}`, headline: "nueva solicitud de merch.", body: [t.html, p("Apártalo desde merch en la suite. Responde a este email para escribirle."), button(suite, "abrir en la suite")].join("\n") }),
-    text: `nueva solicitud de merch.\n\n${t.text}\n\nApártalo desde merch en la suite: ${suite}`,
+    subject: `${m.paid ? "Merch pagado online" : m.encargo ? "Encargo web (sin stock)" : "Merch web"}: ${m.qty} × ${m.product} ${m.variant} · ${m.name}`,
+    html: layout({ preheader: `${m.name} ${m.paid ? "ha pagado" : "pide"} ${m.product}`, headline: m.paid ? "merch pagado. por entregar." : m.encargo ? "encargo de merch sin stock." : "nueva solicitud de merch.", body: [t.html, p(m.paid ? "Ya está pagado y apartado: sale en reservas como «pagado · por entregar». Responde a este email para acordar la entrega." : m.encargo ? "No hay stock: encárgalo desde merch en la suite y queda por pedir. Responde a este email para escribirle." : "Apártalo desde merch en la suite. Responde a este email para escribirle."), button(suite, "abrir en la suite")].join("\n") }),
+    text: `${m.paid ? "merch pagado. por entregar." : m.encargo ? "encargo de merch sin stock." : "nueva solicitud de merch."}\n\n${t.text}\n\n${m.paid ? "Pagado y apartado; míralo en reservas" : m.encargo ? "No hay stock: encárgalo desde merch en la suite" : "Apártalo desde merch en la suite"}: ${suite}`,
+  };
+}
+
+/* Devolución de una compra de merch online (desde la suite o desde Stripe). */
+export function merchRefundEmail(m: MerchInfo): Mail {
+  const first = m.name.split(" ")[0];
+  const what = `${m.qty} × ${m.product}${m.variant ? ` · ${m.variant}` : ""}`;
+  const total = eur(m.qty * m.priceCents);
+  return {
+    subject: "Te hemos devuelto el dinero de tu merch",
+    html: layout({
+      preheader: `devolución · ${what} · ${total}`,
+      headline: "te hemos devuelto el dinero.",
+      body: [
+        p(`Hola, ${esc(first)}: hemos devuelto <b>${esc(total)}</b> de tu compra (${esc(what)}). Según tu banco, tarda entre 5 y 10 días en aparecer en la tarjeta.`),
+        p("Si ha sido un error, escríbenos y lo arreglamos."),
+      ].join("\n"),
+    }),
+    text: `te hemos devuelto el dinero.\n\nHola, ${first}: hemos devuelto ${total} de tu compra (${what}). Según tu banco, tarda entre 5 y 10 días en aparecer en la tarjeta.\n\nSi ha sido un error, escríbenos y lo arreglamos.` + textFooter,
   };
 }
 

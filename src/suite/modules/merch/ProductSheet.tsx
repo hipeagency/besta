@@ -2,14 +2,15 @@
    cualquier movimiento y todo lo que le ha pasado. Los datos del
    producto (nombre, precio, tallas…) van plegados al final: se tocan poco. */
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useMe } from "@/suite/session";
 import { useAction, useCollection } from "@/data/hooks";
 import { api, uid } from "@/data/api";
 import type { MerchMove, PayMethod, Product } from "@/data/types";
-import { Button, Field, IconButton, Input, Progress, Segmented, Select, Sheet, Stat, Textarea, Toggle, useToast } from "@/components/ui";
+import { Button, Field, IconButton, Input, Modal, Progress, Segmented, Select, Sheet, Stat, Textarea, Toggle, useToast } from "@/components/ui";
 import { Icon } from "@/components/ui/icons";
 import { MoneyInput } from "../presupuestos/money";
-import { ALL_PAYMENTS, LOW, heldOf, isOpenReserve, money, stockOf } from "./shared";
+import { ALL_PAYMENTS, LOW, freeOf, heldOf, isOpenReserve, money, shortOf, stockOf } from "./shared";
 import { MoveRow } from "./Moves";
 import { NotifyButton, productDraft } from "@/suite/NotifyList";
 import { ReservationRow } from "./Reservations";
@@ -67,13 +68,13 @@ export function ProductSheet({ id, onClose }: { id: string | null; onClose: () =
                     <td className="py-2 font-sans">{v.label || "única"}</td>
                     <td className="text-right">{v.stock + held}</td>
                     <td className={cx("text-right", held ? "text-crema" : "text-crema/40")}>{held || "—"}</td>
-                    <td className={cx("text-right", v.stock <= LOW && "text-senal-suave")}>{v.stock}</td>
+                    <td className={cx("text-right", v.stock <= LOW && "text-senal-suave")}>{v.stock < 0 ? <span className="font-sans">faltan {shortOf(v)}</span> : v.stock}</td>
                   </tr>
                 );
               })}
               {p.variants.length > 1 && (
                 <tr className="border-t border-crema/20 font-semibold">
-                  <td className="py-2 font-sans">total</td><td className="text-right">{s.box}</td><td className="text-right">{s.held || "—"}</td><td className="text-right">{s.free}</td>
+                  <td className="py-2 font-sans">total</td><td className="text-right">{s.box}</td><td className="text-right">{s.held || "—"}</td><td className={cx("text-right", s.short > 0 && "text-senal-suave")}>{s.short ? <span className="font-sans">{s.free} · faltan {s.short}</span> : s.free}</td>
                 </tr>
               )}
             </tbody>
@@ -146,17 +147,21 @@ function MoveForm({ p }: { p: Product }) {
   useEffect(() => { setVid(p.variants[0]?.id ?? ""); setGig(todayGig); reset("vender", p.variants[0]); }, [p.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const takes = action === "vender" || action === "reservar" || action === "regalar";
+  /* Unidades de esta reserva que no hay: quedan como encargo. */
+  const encargo = action === "reservar" && v ? Math.max(0, n - freeOf(v)) : 0;
   const withGig = takes;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!v) return;
-    if (takes && n > v.stock) { toast(v.stock ? `Solo quedan ${v.stock} libres.` : "No queda nada libre de esta talla.", "error"); return; }
+    // Reservar sin stock sí se puede: queda como encargo. Vender o regalar, no.
+    if (takes && action !== "reservar" && n > v.stock) { toast(v.stock > 0 ? `Solo quedan ${v.stock} libres.` : "No queda nada libre de esta talla.", "error"); return; }
     if (action === "reservar" && !who.trim()) { toast("¿Para quién es la reserva?", "error"); return; }
     const base = { productId: p.id, variantId: v.id, by, note: note.trim() || undefined, customer: who.trim() || undefined, gigId: withGig && gig ? gig : undefined };
     try {
       if (action === "vender") await move.run({ ...base, kind: "venta", qty: -n, unitCents: unit, payment: pay });
       if (action === "reservar") await move.run({ ...base, kind: "reserva", qty: -n, unitCents: unit, open: true });
+      if (action === "reservar" && encargo) { toast(`Encargo apuntado: faltan ${encargo} por pedir`, "ok"); reset(action); return; }
       if (action === "regalar") await move.run({ ...base, kind: "regalo", qty: -n, unitCents: 0 });
       if (action === "reponer") await move.run({ ...base, kind: "reposicion", qty: n, unitCents: unit });
       if (action === "recuento") {
@@ -169,7 +174,7 @@ function MoveForm({ p }: { p: Product }) {
     reset(action);
   }
 
-  const label = { vender: `vender ${n} · ${eur(n * unit)}`, reservar: `reservar ${n} · ${eur(n * unit)}`, reponer: `reponer +${n}`, regalar: `regalar ${n}`, recuento: "guardar recuento" }[action];
+  const label = { vender: `vender ${n} · ${eur(n * unit)}`, reservar: `${encargo ? "encargar" : "reservar"} ${n} · ${eur(n * unit)}`, reponer: `reponer +${n}`, regalar: `regalar ${n}`, recuento: "guardar recuento" }[action];
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-3 rounded-2xl bg-noche p-4">
@@ -179,10 +184,10 @@ function MoveForm({ p }: { p: Product }) {
         {p.variants.length > 1 ? (
           <Field label="talla">{fid => (
             <Select id={fid} value={v?.id} onChange={e => { const nv = p.variants.find(y => y.id === e.target.value); setVid(e.target.value); if (action === "recuento" && nv) setN(nv.stock + heldOf(moves, nv.id)); }}>
-              {p.variants.map(x => <option key={x.id} value={x.id}>{x.label || "—"} · {x.stock} libres</option>)}
+              {p.variants.map(x => <option key={x.id} value={x.id}>{x.label || "—"} · {x.stock < 0 ? `faltan ${shortOf(x)}` : `${x.stock} libres`}</option>)}
             </Select>
           )}</Field>
-        ) : <div className="flex flex-col justify-end pb-2.5 text-sm text-crema/70">talla única · {v?.stock ?? 0} libres</div>}
+        ) : <div className="flex flex-col justify-end pb-2.5 text-sm text-crema/70">talla única · {v && v.stock < 0 ? `faltan ${shortOf(v)}` : `${v?.stock ?? 0} libres`}</div>}
         <Field label={action === "recuento" ? "hay en la caja" : "unidades"} hint={action === "recuento" ? "contando lo apartado" : undefined}>{fid => (
           <Input id={fid} type="number" inputMode="numeric" min={action === "recuento" ? 0 : 1} required value={n} onChange={e => setN(Math.max(0, Math.floor(Number(e.target.value) || 0)))} className="font-mono" />
         )}</Field>
@@ -218,6 +223,7 @@ function MoveForm({ p }: { p: Product }) {
         </div>
       )}
       <Field label={action === "regalar" ? "por qué" : "nota"}>{fid => <Input id={fid} value={note} placeholder={action === "reponer" ? "imprenta, segunda tirada…" : action === "recuento" ? "cuadre tras contar la caja" : ""} onChange={e => setNote(e.target.value)} />}</Field>
+      {encargo > 0 && <p className="text-sm text-senal-suave">{encargo === n ? "No hay" : `Solo hay ${freeOf(v!)}`}: {encargo === 1 ? "1 queda" : `${encargo} quedan`} como encargo, por pedir. Se cubre al reponer y entonces se puede entregar.</p>}
       {action === "recuento" && v && <p className="text-sm text-crema/70">En sistema: {box} en caja. Ajuste: <span className="font-mono">{n - box > 0 ? "+" : ""}{n - box}</span></p>}
       <Button type="submit" variant="primary" disabled={move.pending || !v}>{label}</Button>
     </form>
@@ -234,6 +240,27 @@ function Settings({ p, onClose }: { p: Product; onClose: () => void }) {
   useEffect(() => { setName(p.name); setPrice(p.priceCents); setCost(p.costCents); setInfo(p.info ?? ""); }, [p.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const setVariants = (variants: Product["variants"]) => patch.run({ variants });
   const fresh = p.name === "producto nuevo";
+
+  /* Borrar se lleva su historial: movimientos y pedidos de la web apuntan al
+     producto y, huérfanos, seguirían sumando. Lo pendiente se resuelve antes. */
+  const { data: moves } = useCollection("moves");
+  const { data: requests } = useCollection("requests");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const mine = moves.filter(m => m.productId === p.id);
+  const asks = requests.filter(r => r.productId === p.id);
+  const bag = money(mine);
+  const blocked = mine.some(isOpenReserve) ? "Tiene reservas sin entregar: entrégalas o cancélalas antes de borrarlo."
+    : asks.some(r => r.status === "nueva") ? "Tiene pedidos de la web sin atender: resuélvelos antes de borrarlo." : "";
+  const remove = useAction(async () => {
+    await Promise.all([...mine.map(m => api.remove("moves", m.id)), ...asks.map(r => api.remove("requests", r.id))]);
+    await api.remove("products", p.id);
+  });
+  async function confirmRemove() {
+    try { await remove.run(); } catch (err) { toast((err as Error).message, "error"); return; }
+    setConfirmDelete(false);
+    toast(`${p.name} borrado`, "ok");
+    onClose();
+  }
 
   return (
     <details open={fresh} className="rounded-2xl border border-crema/12 p-4 group/s">
@@ -258,6 +285,19 @@ function Settings({ p, onClose }: { p: Product; onClose: () => void }) {
             {p.published && <NotifyButton size="sm" draft={productDraft(p)} />}
           </div>
         )}
+        {!p.archived && p.published && (
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[13px] text-crema/75">en la web se puede</span>
+            <Segmented size="sm" value={p.webMode ?? "reservar"} className="self-start"
+              onChange={webMode => { patch.run({ webMode }); toast(webMode === "comprar" ? "Ahora se compra y se paga online" : "Ahora solo se reserva: se paga al recogerlo", "ok"); }}
+              options={[{ value: "reservar", label: "solo reservar" }, { value: "comprar", label: "comprar online" }]} />
+            <p className="text-xs text-crema/55">
+              {(p.webMode ?? "reservar") === "comprar"
+                ? "Se paga con tarjeta al momento (Stripe) y sale en reservas como «pagado · por entregar». Lo agotado no se cobra: se encarga y se avisa."
+                : "Lo piden, os llega a pedidos web y se paga al recogerlo. Lo agotado se puede encargar."}
+            </p>
+          </div>
+        )}
 
         <div className="flex flex-col gap-2">
           <span className="text-[13px] text-crema/75">tallas</span>
@@ -266,7 +306,7 @@ function Settings({ p, onClose }: { p: Product; onClose: () => void }) {
               <li key={x.id} className="flex items-center gap-2">
                 <Input aria-label="Nombre de la talla" defaultValue={x.label} placeholder="única" className="flex-1"
                   onBlur={e => e.target.value.trim() !== x.label && setVariants(p.variants.map(y => (y.id === x.id ? { ...y, label: e.target.value.trim() } : y)))} />
-                <span className={cx("w-20 text-right font-mono text-sm", x.stock <= LOW ? "text-senal-suave" : "")}>{x.stock} libres</span>
+                <span className={cx("w-20 text-right font-mono text-sm", x.stock <= LOW ? "text-senal-suave" : "")}>{x.stock < 0 ? `faltan ${shortOf(x)}` : `${x.stock} libres`}</span>
                 <IconButton label={x.stock ? `No se puede quitar ${x.label || "la talla"}: aún tiene stock` : `Quitar talla ${x.label}`}
                   disabled={!!x.stock || p.variants.length === 1} onClick={() => setVariants(p.variants.filter(y => y.id !== x.id))} className="text-crema/60">
                   <Icon name="x" size={16} />
@@ -278,10 +318,26 @@ function Settings({ p, onClose }: { p: Product; onClose: () => void }) {
           <p className="text-xs text-crema/55">Solo se quita una talla cuando está a cero. Para meter unidades, «reponer».</p>
         </div>
 
-        <Button variant="quiet" className="self-start" onClick={() => { patch.run({ archived: !p.archived }); toast(p.archived ? "Producto recuperado" : "Producto archivado", "ok"); if (!p.archived) onClose(); }}>
-          {p.archived ? "recuperar producto" : "archivar producto"}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="quiet" onClick={() => { patch.run({ archived: !p.archived }); toast(p.archived ? "Producto recuperado" : "Producto archivado", "ok"); if (!p.archived) onClose(); }}>
+            {p.archived ? "recuperar producto" : "archivar producto"}
+          </Button>
+          <Button variant="quiet" onClick={() => blocked ? toast(blocked, "error") : setConfirmDelete(true)}><Icon name="basura" size={16} />borrar producto</Button>
+        </div>
       </div>
+
+      {confirmDelete && createPortal(<Modal open onClose={() => setConfirmDelete(false)} title="¿borrar producto?">
+        <p className="text-crema/80 mb-5">
+          {p.name}. No se puede deshacer.
+          {mine.length > 0
+            ? <> Se borran también sus {mine.length} movimientos{bag.spent || bag.earned ? <> ({eur(bag.spent)} invertido, {eur(bag.earned)} vendido), y dejan de contar en las cifras del merch</> : null}. Si solo quieres quitarlo de en medio, archívalo.</>
+            : null}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="primary" onClick={confirmRemove} disabled={remove.pending}>{remove.pending ? "borrando…" : "sí, borrar"}</Button>
+          <Button onClick={() => setConfirmDelete(false)}>cancelar</Button>
+        </div>
+      </Modal>, document.body)}
     </details>
   );
 }

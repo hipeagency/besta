@@ -1,13 +1,15 @@
 /* Reservas abiertas. En el puesto atiendes a una persona, no a un apunte:
    viene Lars y quiere lo suyo, sea una camiseta o cuatro cosas. Por eso
-   van agrupadas por quién las tiene, con su total y «entregar todo». */
+   van agrupadas por quién las tiene, con su total y «entregar todo».
+   Una reserva sin stock detrás es un encargo: sale marcada y no se puede
+   entregar hasta reponer (lo que entra va a las más antiguas). */
 import { useState } from "react";
 import { useAction, useCollection } from "@/data/hooks";
 import { api } from "@/data/api";
 import type { Gig, MerchMove, PayMethod, Product } from "@/data/types";
 import { Button, Field, Input, Select, useToast } from "@/components/ui";
 import { MoneyInput } from "../presupuestos/money";
-import { ALL_PAYMENTS, dayLabel, haystack, isOpenReserve, itemName, moveCents } from "./shared";
+import { ALL_PAYMENTS, coverage, dayLabel, haystack, isOpenReserve, itemName, moveCents } from "./shared";
 import { gigName } from "./Moves";
 import { cx, eur } from "@/lib/format";
 
@@ -46,8 +48,15 @@ export function Reservations() {
 
 function PersonCard({ who, rows, products, gigs }: { who: string; rows: MerchMove[]; products: Product[]; gigs: Gig[] }) {
   const toast = useToast();
+  const { data: moves } = useCollection("moves");
   const [paying, setPaying] = useState(false);
-  const deliverAll = useAction(async (pay: PayMethod) => { for (const m of rows) await api.deliverReservation(m.id, pay); });
+  const missing = coverage(products, moves);
+  const ready = rows.filter(m => !missing.get(m.id));
+  const waiting = rows.length - ready.length;
+  const deliverAll = useAction(async (pay: PayMethod) => { for (const m of ready) await api.deliverReservation(m.id, pay); });
+  // Lo pagado online ya está cobrado: entregarlo no pide forma de pago.
+  const allPaid = ready.every(m => m.online === "pagado");
+  const deliverPaid = async () => { try { await deliverAll.run("online"); toast(`Entregado a ${who}`, "ok"); } catch (e) { toast((e as Error).message, "error"); } };
   const units = rows.reduce((s, m) => s - m.qty, 0);
   const total = rows.reduce((s, m) => s + moveCents(m), 0);
 
@@ -56,14 +65,14 @@ function PersonCard({ who, rows, products, gigs }: { who: string; rows: MerchMov
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <span className="flex-1 min-w-0">
           <span className="block text-[17px] font-semibold truncate">{who}</span>
-          <span className="block text-xs text-noche/65">{units} ud · desde {dayLabel(rows[0].at)}</span>
+          <span className="block text-xs text-noche/65">{units} ud · desde {dayLabel(rows[0].at)}{waiting ? ` · ${waiting === rows.length ? "todo" : waiting} por pedir` : ""}</span>
         </span>
         <span className="font-mono text-lg">{eur(total)}</span>
-        {rows.length > 1 && <Button size="sm" variant="dark" aria-expanded={paying} onClick={() => setPaying(x => !x)}>entregar todo</Button>}
+        {rows.length > 1 && ready.length > 0 && <Button size="sm" variant="dark" aria-expanded={allPaid ? undefined : paying} disabled={deliverAll.pending} onClick={() => (allPaid ? deliverPaid() : setPaying(x => !x))}>{waiting ? `entregar lo que hay · ${ready.length}` : "entregar todo"}</Button>}
       </div>
       {paying && (
         <PayPicker onPick={async pay => {
-          try { await deliverAll.run(pay); toast(`Entregado a ${who} y cobrado`, "ok"); } catch (e) { toast((e as Error).message, "error"); }
+          try { await deliverAll.run(pay); toast(waiting ? `Entregado a ${who} lo que hay; el resto sigue por pedir` : `Entregado a ${who} y cobrado`, "ok"); } catch (e) { toast((e as Error).message, "error"); }
           setPaying(false);
         }} disabled={deliverAll.pending} />
       )}
@@ -84,12 +93,19 @@ function PayPicker({ onPick, disabled }: { onPick: (p: PayMethod) => void; disab
 /** Una reserva abierta: entregar (y cobrar), editar o anular. Va sobre fondo crema. */
 export function ReservationRow({ m, p, gigs, showCustomer }: { m: MerchMove; p?: Product; gigs: Gig[]; showCustomer?: boolean }) {
   const toast = useToast();
-  const [mode, setMode] = useState<"" | "pay" | "edit">("");
+  const { data: products } = useCollection("products");
+  const { data: moves } = useCollection("moves");
+  const missing = coverage(products, moves).get(m.id) ?? 0;
+  const [mode, setMode] = useState<"" | "pay" | "edit" | "refund">("");
   const deliver = useAction((pay: PayMethod) => api.deliverReservation(m.id, pay));
   const cancel = useAction(() => api.cancelReservation(m.id));
   const v = p?.variants.find(x => x.id === m.variantId);
   const n = -m.qty;
   const meta = [dayLabel(m.at), gigName(gigs, m.gigId), m.by && `apuntó ${m.by}`, m.note].filter(Boolean).join(" · ");
+  const paid = m.online === "pagado", paying = m.online === "pendiente";
+  const { data: requests } = useCollection("requests");
+  const req = paid ? requests.find(r => r.moveId === m.id) : undefined;
+  const refund = useAction((id: string) => api.refundMerch(id));
 
   return (
     <li className="pt-2.5 mt-1.5 border-t border-noche/15 text-sm">
@@ -100,15 +116,38 @@ export function ReservationRow({ m, p, gigs, showCustomer }: { m: MerchMove; p?:
         </span>
         <span className="font-mono shrink-0">{eur(moveCents(m))}</span>
       </div>
-      <div className="flex flex-wrap -ml-2.5">
-        {(["pay", "edit"] as const).map(k => (
+      {paid && <p className="mt-1 inline-block rounded-md bg-noche px-2 py-0.5 text-xs font-semibold text-crema">pagado online · por entregar</p>}
+      {paying && <p className="mt-1 inline-block rounded-md bg-noche/15 px-2 py-0.5 text-xs font-semibold">pagando online… si no paga en 30 min, se libera</p>}
+      {missing > 0 && (
+        <p className="mt-1 inline-block rounded-md bg-senal px-2 py-0.5 text-xs font-semibold text-noche">
+          encargo · {missing === n ? "sin stock" : `faltan ${missing} de ${n}`}, por pedir
+        </p>
+      )}
+      {!paying && <div className="flex flex-wrap -ml-2.5">
+        {(["pay", "edit"] as const).filter(k => k !== "pay" || !missing).map(k => (
           <button key={k} type="button" aria-expanded={mode === k} onClick={() => setMode(x => (x === k ? "" : k))}
             className={cx("h-10 px-2.5", k === "pay" ? "font-semibold underline" : "text-noche/75 hover:text-noche")}>{k === "pay" ? "entregar" : "editar"}</button>
         ))}
-        <button type="button" disabled={cancel.pending} className="h-10 px-2.5 text-noche/75 hover:text-noche"
-          onClick={async () => { if (!confirm(`¿Anular la reserva de ${m.customer ?? "esta persona"}? Las ${n} ud vuelven a estar libres.`)) return; await cancel.run(); toast("Reserva anulada: vuelve al stock", "ok"); }}>anular</button>
-      </div>
-      {mode === "pay" && <PayPicker disabled={deliver.pending} onPick={async pay => { await deliver.run(pay); toast("Entregada y cobrada", "ok"); }} />}
+        {paid && req && <button type="button" aria-expanded={mode === "refund"} onClick={() => setMode(x => (x === "refund" ? "" : "refund"))} className="h-10 px-2.5 text-noche/75 hover:text-noche">devolver</button>}
+        {!paid && <button type="button" disabled={cancel.pending} className="h-10 px-2.5 text-noche/75 hover:text-noche"
+          onClick={async () => { if (!confirm(missing ? `¿Anular el encargo de ${m.customer ?? "esta persona"}? Deja de contar como pendiente de pedir.` : `¿Anular la reserva de ${m.customer ?? "esta persona"}? Las ${n} ud vuelven a estar libres.`)) return; await cancel.run(); toast("Reserva anulada: vuelve al stock", "ok"); }}>anular</button>}
+      </div>}
+      {mode === "refund" && req && (
+        <div className="flex flex-col gap-2 py-1">
+          <p className="text-xs text-noche/75">Stripe le devuelve {eur(moveCents(m))} a la tarjeta, la reserva se anula y la unidad vuelve al stock. Le llega un email. No se puede deshacer.</p>
+          <div className="flex gap-2">
+            <Button size="sm" variant="dark" disabled={refund.pending} onClick={async () => { try { await refund.run(req.id); toast("Devuelto: dinero en camino y unidad al stock", "ok"); } catch (e) { toast((e as Error).message, "error"); } }}>{refund.pending ? "devolviendo…" : `sí, devolver ${eur(moveCents(m))}`}</Button>
+            <Button size="sm" variant="quiet" className="!text-noche/70" onClick={() => setMode("")}>cancelar</Button>
+          </div>
+        </div>
+      )}
+      {mode === "pay" && !missing && paid && (
+        <div className="flex flex-wrap items-center gap-2 py-1">
+          <span className="text-xs text-noche/70">ya está pagado</span>
+          <Button size="sm" variant="dark" disabled={deliver.pending} onClick={async () => { try { await deliver.run("online"); toast("Entregada", "ok"); } catch (e) { toast((e as Error).message, "error"); } }}>marcar entregada</Button>
+        </div>
+      )}
+      {mode === "pay" && !missing && !paid && <PayPicker disabled={deliver.pending} onPick={async pay => { try { await deliver.run(pay); toast("Entregada y cobrada", "ok"); } catch (e) { toast((e as Error).message, "error"); } }} />}
       {mode === "edit" && <EditReservation m={m} gigs={gigs} onDone={() => setMode("")} />}
     </li>
   );

@@ -275,7 +275,7 @@ function MerchTab({ g }: { g: Gig }) {
   const sales = moves.filter(m => m.gigId === g.id && m.kind === "venta");
   const units = sales.reduce((s, m) => s + -m.qty, 0);
   const total = sales.reduce((s, m) => s + -m.qty * m.unitCents, 0);
-  const low = products.filter(p => !p.archived).flatMap(p => p.variants.filter(v => v.stock <= 3).map(v => `${p.name}${v.label ? " " + v.label : ""}: ${v.stock}`));
+  const low = products.filter(p => !p.archived).flatMap(p => p.variants.filter(v => v.stock <= 3).map(v => `${p.name}${v.label ? " " + v.label : ""}: ${v.stock < 0 ? `faltan ${-v.stock}` : v.stock}`));
   return (
     <Card>
       <div className="grid grid-cols-2 gap-4 mb-4"><Stat label="unidades vendidas" value={units} /><Stat label="ventas" value={eur(total)} /></div>

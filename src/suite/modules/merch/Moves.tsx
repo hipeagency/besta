@@ -68,6 +68,8 @@ export function MoveRow({ m, p, gigs, sizeOnly }: { m: MerchMove; p?: Product; g
   const meta = [
     hhmm(m.at), m.customer, gigName(gigs, m.gigId), m.payment, m.by && `atendió ${m.by}`, m.note,
     m.reservedAt && `reservado el ${dateShort(m.reservedAt.slice(0, 10))}`,
+    m.online === "pagado" && m.paidAt && `pagado online el ${dateShort(m.paidAt.slice(0, 10))}`,
+    m.refundedAt && "devuelto en Stripe",
   ].filter(Boolean).join(" · ");
   const amount = m.kind === "venta" || m.kind === "reserva" ? eur(moveCents(m))
     : m.kind === "reposicion" && m.unitCents ? `−${eur(m.qty * m.unitCents)}` : "";

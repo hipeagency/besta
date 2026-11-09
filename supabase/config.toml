@@ -427,6 +427,12 @@ verify_jwt = false
 [functions.public-forms]
 verify_jwt = false
 
+[functions.merch-checkout]
+verify_jwt = false
+
+[functions.merch-actions]
+verify_jwt = true
+
 [functions.bandsintown-import]
 verify_jwt = false
 

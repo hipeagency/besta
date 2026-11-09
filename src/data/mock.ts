@@ -5,8 +5,9 @@
    forma (Api), así que las pantallas no saben cuál usan.
    ========================================================= */
 import { createSeed, type DB } from "./seed";
+import { coverage, onlineGuard } from "@/suite/modules/merch/shared";
 import type {
-  ID, Order, Ticket, ScanResult, Quote, Lead, Gig, Song, MerchMove, MerchRequest, PayMethod, Subscriber, Member, Product, TicketEvent, NewsInput, NewsStats, NewsCampaign, NewsContact, NewsAdd, Topic,
+  ID, Order, Ticket, ScanResult, Quote, Lead, Gig, Song, MerchMove, MerchRequest, MerchCheckout, PayMethod, Subscriber, Member, Product, TicketEvent, NewsInput, NewsStats, NewsCampaign, NewsContact, NewsAdd, Topic,
 } from "./types";
 
 export type Collection = keyof DB;
@@ -313,7 +314,9 @@ export const mockApi = {
     const v = p?.variants.find(v => v.id === move.variantId);
     if (!v) throw new Error("Esa talla ya no existe.");
     // qty lleva signo; en un recuento es la diferencia con lo contado.
-    v.stock = Math.max(0, v.stock + move.qty);
+    // Solo una reserva (encargo) o un recuento dejan lo libre en negativo.
+    if (v.stock + move.qty < 0 && move.kind !== "reserva" && move.kind !== "recuento") throw new Error(`No queda stock suficiente (quedan ${Math.max(0, v.stock)}).`);
+    v.stock += move.qty;
     d.moves.unshift({ ...move, id: uid("m"), at: now() });
     save();
   },
@@ -324,9 +327,48 @@ export const mockApi = {
     const d = load();
     const v = d.products.find(p => p.id === input.productId && p.published && !p.archived)?.variants.find(v => v.id === input.variantId);
     if (!v) throw new Error("Esa talla ya no está disponible.");
-    if (v.stock < input.qty) throw new Error(v.stock ? `Solo quedan ${v.stock}.` : "Esa talla está agotada.");
+    // Sin stock también se acepta: es un encargo y se avisa cuando haya.
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) throw new Error("Revisa el email: ahí te escribimos.");
     d.requests.unshift({ ...input, id: uid("rq"), status: "nueva", createdAt: now() });
+    save();
+  },
+
+  /* Comprar online. De verdad: la Edge Function «checkout» aparta, abre
+     Stripe y el webhook la marca pagada. De prueba se da por pagada al momento. */
+  async checkoutMerch(input: MerchCheckout): Promise<{ redirectUrl: string }> {
+    const d = load();
+    const p = d.products.find(p => p.id === input.productId && p.published && !p.archived);
+    const v = p?.variants.find(v => v.id === input.variantId);
+    if (!p || !v) throw new Error("Esa talla ya no está disponible.");
+    if (p.webMode !== "comprar") throw new Error("Este producto no se vende online: pídelo y te escribimos.");
+    if (!Number.isInteger(input.qty) || input.qty < 1 || input.qty > 5) throw new Error("Puedes comprar entre 1 y 5.");
+    if (v.stock < input.qty) throw new Error(v.stock > 0 ? `Solo quedan ${v.stock}.` : "Esa talla está agotada: puedes encargarla.");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) throw new Error("Revisa el email: ahí te mandamos el recibo.");
+    v.stock -= input.qty;
+    const at = now(), reqId = uid("rq");
+    const m: MerchMove = { id: uid("m"), productId: p.id, variantId: v.id, kind: "reserva", qty: -input.qty, unitCents: p.priceCents, by: "web", customer: `${input.name} · web`, open: true, online: "pagado", paidAt: at, payment: "online", note: "pagado online", at };
+    d.moves.unshift(m);
+    d.requests.unshift({ ...input, id: reqId, status: "apartada", moveId: m.id, pay: "pagado", amountCents: input.qty * p.priceCents, paidAt: at, createdAt: at });
+    save();
+    return { redirectUrl: "/?compra=merch#merch" };
+  },
+
+  /* Devolver una compra online. De verdad: Stripe devuelve y se manda email. */
+  async refundMerch(requestId: ID): Promise<void> {
+    const d = load();
+    const r = d.requests.find(x => x.id === requestId);
+    if (!r) throw new Error("Ese pedido ya no existe.");
+    if (r.pay === "devuelto") return;
+    if (r.pay !== "pagado") throw new Error("Solo se puede devolver una compra pagada online.");
+    const at = now();
+    r.pay = "devuelto"; r.refundedAt = at;
+    if (r.status !== "entregada") r.status = "cancelada";
+    const m = d.moves.find(x => x.id === r.moveId);
+    if (m?.open) {
+      const v = d.products.find(p => p.id === m.productId)?.variants.find(v => v.id === m.variantId);
+      if (v) v.stock -= m.qty;   // sin entregar: la unidad vuelve
+      d.moves = d.moves.filter(x => x.id !== m.id);
+    } else if (m) m.refundedAt = at;
     save();
   },
 
@@ -337,8 +379,7 @@ export const mockApi = {
     const p = r && d.products.find(p => p.id === r.productId);
     const v = p?.variants.find(v => v.id === r!.variantId);
     if (!r || !p || !v) throw new Error("Esa solicitud ya no existe.");
-    if (v.stock < r.qty) throw new Error(`No hay stock: quedan ${v.stock}.`);
-    v.stock -= r.qty;
+    v.stock -= r.qty;   // sin stock queda en negativo: encargo
     const m: MerchMove = { id: uid("m"), productId: p.id, variantId: v.id, kind: "reserva", qty: -r.qty, unitCents: p.priceCents, by, customer: `${r.name} · web`, gigId: r.gigId, open: true, note: r.delivery === "envio" ? "envío" : r.delivery === "concierto" ? "recoge en concierto" : undefined, at: now() };
     d.moves.unshift(m);
     r.status = "apartada"; r.moveId = m.id;
@@ -349,7 +390,10 @@ export const mockApi = {
     const d = load();
     const m = d.moves.find(x => x.id === moveId);
     if (!m) return;
-    m.open = false; m.kind = "venta"; m.payment = payment; m.reservedAt = m.at; m.at = now();
+    const missing = coverage(d.products, d.moves).get(moveId) ?? 0;
+    if (missing) throw new Error(`Aún no hay para entregarla: faltan ${missing}. Al reponer se cubre.`);
+    if (m.online === "pendiente") throw new Error("Está pagando online ahora mismo: espera a que termine.");
+    m.open = false; m.kind = "venta"; m.payment = m.online === "pagado" ? "online" : payment; m.reservedAt = m.at; m.at = now();
     d.requests.forEach(r => { if (r.moveId === moveId) r.status = "entregada"; });
     save();
   },
@@ -358,6 +402,7 @@ export const mockApi = {
     const d = load();
     const m = d.moves.find(x => x.id === moveId);
     if (!m) return;
+    onlineGuard(m);
     const v = d.products.find(p => p.id === m.productId)?.variants.find(v => v.id === m.variantId);
     if (v) v.stock -= m.qty; // la reserva restó: lo devolvemos
     d.moves = d.moves.filter(x => x.id !== moveId);

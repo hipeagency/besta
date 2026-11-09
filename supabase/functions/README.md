@@ -6,7 +6,9 @@ escriben en el esquema `besta` (ver `../migrations/20261029100000_besta_v2.sql`)
 | función | quién la llama | JWT | qué hace |
 |---|---|---|---|
 | `checkout` | web (POST `{eventId, qty, email, newsletter}`) | no | reserva plazas (`besta.reserve_order`) y abre Stripe Checkout → `{url}` |
-| `stripe-webhook` | Stripe | no (firma) | pago completado → `besta.fulfill_order` + email de entradas; sesión caducada → pedido `caducado`; devolución → `devuelto` + entradas canceladas + email |
+| `merch-checkout` | web (POST `{productId, variantId, qty, name, email, phone?, note?}`) | no | merch en modo «comprar»: aparta el stock como reserva «pendiente» y abre Stripe Checkout → `{url}` (`_shared/merch.ts`) |
+| `merch-actions` | suite (POST `{action: "refund", requestId}`) | sí, módulo `merch` | devolución de una compra de merch online en Stripe: se anula (la unidad vuelve si no se había entregado) + email |
+| `stripe-webhook` | Stripe | no (firma) | pago completado → `besta.fulfill_order` + email de entradas; sesión caducada → pedido `caducado`; devolución → `devuelto` + entradas canceladas + email. Merch (`metadata.merch_request_id`): pagado → «pagado · por entregar» + emails; caducado → el stock vuelve; devuelto → se anula (o, si ya se entregó, la venta queda como devuelta) |
 | `ticket-qr` | emails (GET `?code=BST-XXXXXX`) | no | PNG del QR `BESTA:T:<code>` |
 | `public-forms` | web (POST `{type: "lead" \| "merch" \| "subscribe", …}`) | no | contratación, solicitud de merch y «avísame» (+ Brevo) |
 | `order-actions` | suite (POST `{action: "refund" \| "resend", orderId}`) | sí, módulo `entradas` | devolución en Stripe / reenvío de entradas |

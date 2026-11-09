@@ -1,6 +1,9 @@
 /* Merch en la web: de momento no se paga online. Eliges producto y
    talla, nos dejas tus datos y te escribimos para confirmar y acordar
-   cómo te lo damos y cómo pagar. */
+   cómo te lo damos y cómo pagar. Si la talla está agotada se puede
+   encargar: te la apuntamos y te avisamos cuando llegue (sin pagar nada).
+   Un producto en modo «comprar» se paga online (Stripe) si hay stock;
+   al volver de pagar, ?compra=merch enseña el «pagado». */
 import { useEffect, useState } from "react";
 import { api } from "@/data/api";
 import type { Product } from "@/data/types";
@@ -15,11 +18,22 @@ const tone: Record<Product["color"], string> = {
 export default function MerchRequest({ products: initial, empty = false }: { products: Product[]; empty?: boolean }) {
   const [products, setProducts] = useState(initial);
   const [open, setOpen] = useState<Product | null>(null);
+  const [paid, setPaid] = useState(false);
+
+  // Vuelta de Stripe: se enseña una vez y se limpia la URL.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("compra") !== "merch") return;
+    setPaid(true);
+    url.searchParams.delete("compra");
+    history.replaceState(null, "", url.pathname + url.search + url.hash);
+  }, []);
 
   // El stock de verdad se lee al cargar (el HTML se generó en el build).
   useEffect(() => { if (!empty) api.publicProducts().then(setProducts).catch(() => {}); }, [empty]);
 
-  const available = empty ? [] : products.filter(p => p.published && !p.archived && p.variants.some(v => v.stock > 0));
+  // Lo agotado también sale: se puede encargar.
+  const available = empty ? [] : products.filter(p => p.published && !p.archived);
 
   if (!available.length) return (
     <div className="rounded-[28px] border-[1.5px] border-dashed border-crema/25 p-7 sm:p-10 flex flex-wrap items-center justify-between gap-6">
@@ -37,6 +51,7 @@ export default function MerchRequest({ products: initial, empty = false }: { pro
       <div className="grid gap-5 grid-cols-2 lg:grid-cols-4">
         {available.map(p => {
           const sizes = p.variants.filter(v => v.label);
+          const soldOut = !p.variants.some(v => v.stock > 0);
           return (
             <div key={p.id} className="flex flex-col gap-3">
               <div className={cx("aspect-[4/5] rounded-3xl grid place-items-center font-mono text-[13px]", tone[p.color])}>[foto {p.name}]</div>
@@ -46,24 +61,32 @@ export default function MerchRequest({ products: initial, empty = false }: { pro
                   {sizes.map(v => <span key={v.id} className={cx("px-2 py-1 rounded-md", v.stock > 0 ? "bg-tubo" : "bg-tubo/40 text-crema/40 line-through")}>{v.label}</span>)}
                 </div>
               )}
-              <button type="button" onClick={() => setOpen(p)} className="h-11 rounded-full border-[1.5px] border-crema/35 hover:border-crema font-semibold">lo quiero</button>
+              <button type="button" onClick={() => setOpen(p)} className="h-11 rounded-full border-[1.5px] border-crema/35 hover:border-crema font-semibold">{soldOut ? "agotado · encárgalo" : p.webMode === "comprar" ? "comprar" : "lo quiero"}</button>
             </div>
           );
         })}
       </div>
       {open && <RequestModal product={open} onClose={() => setOpen(null)} />}
+      {paid && (
+        <Modal open onClose={() => setPaid(false)} title="pagado. es tuyo." tone="crema">
+          <p className="text-lg leading-relaxed">Gracias. Te lo guardamos y en breve nos ponemos en contacto contigo para darte más info y acordar cómo te lo damos: en un concierto o por envío. Te llegan por email la confirmación y el recibo.</p>
+        </Modal>
+      )}
     </>
   );
 }
 
 function RequestModal({ product, onClose }: { product: Product; onClose: () => void }) {
   const inStock = product.variants.filter(v => v.stock > 0);
-  const [variantId, setVariantId] = useState(inStock[0]?.id ?? "");
+  const [variantId, setVariantId] = useState((inStock[0] ?? product.variants[0])?.id ?? "");
   const [qty, setQty] = useState(1);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const v = product.variants.find(x => x.id === variantId);
+  const left = Math.max(0, v?.stock ?? 0);
+  const encargo = !!v && qty > left;   // no hay (o no hay tantas): se encarga
+  const buy = product.webMode === "comprar" && !encargo;   // se paga ahora; si no, se pide o se encarga
   const light = "h-12 bg-white border-noche/25 text-noche placeholder:text-noche/40";
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
@@ -71,6 +94,14 @@ function RequestModal({ product, onClose }: { product: Product; onClose: () => v
     const f = new FormData(e.currentTarget);
     setError(""); setBusy(true);
     try {
+      if (buy) {
+        const { redirectUrl } = await api.checkoutMerch({
+          productId: product.id, variantId, qty, name: String(f.get("name")), email: String(f.get("email")),
+          phone: String(f.get("phone") || "") || undefined, note: String(f.get("note") || "") || undefined,
+        });
+        window.location.href = redirectUrl;   // a Stripe; vuelve con ?compra=merch
+        return;
+      }
       await api.requestMerch({
         productId: product.id, variantId, qty, name: String(f.get("name")), email: String(f.get("email")),
         phone: String(f.get("phone") || "") || undefined,
@@ -84,19 +115,21 @@ function RequestModal({ product, onClose }: { product: Product; onClose: () => v
   return (
     <Modal open onClose={onClose} title={sent ? "apuntado." : product.name} tone="crema">
       {sent ? (
-        <p className="text-lg leading-relaxed">Nos ponemos en contacto contigo para confirmar tu merch y acordar cómo te lo damos y cómo pagar.</p>
+        <p className="text-lg leading-relaxed">{encargo
+          ? "Te lo apuntamos. En cuanto llegue tu talla te escribimos para acordar cómo te lo damos. No pagas nada hasta entonces."
+          : "Nos ponemos en contacto contigo para confirmar tu merch y acordar cómo te lo damos y cómo pagar."}</p>
       ) : (
         <form onSubmit={submit} className="grid grid-cols-1 sm:grid-cols-2 gap-3 [&_label]:text-noche/75">
           {product.variants.some(x => x.label) && (
             <Field label="talla">{id => (
               <Select id={id} value={variantId} onChange={e => { setVariantId(e.target.value); setQty(1); }} className="h-12 bg-white border-noche/25 text-noche">
-                {product.variants.map(x => <option key={x.id} value={x.id} disabled={x.stock === 0}>{x.label}{x.stock === 0 ? " · agotada" : x.stock <= 3 ? ` · quedan ${x.stock}` : ""}</option>)}
+                {product.variants.map(x => <option key={x.id} value={x.id}>{x.label}{x.stock <= 0 ? " · agotada, se encarga" : x.stock <= 3 ? ` · quedan ${x.stock}` : ""}</option>)}
               </Select>
             )}</Field>
           )}
           <div className="flex flex-col gap-1.5">
             <span className="text-[13px] text-noche/75">cuántas · {eur(product.priceCents * qty)}</span>
-            <div className="[&_button]:border-noche/30 [&_button:last-child]:bg-noche [&_button:last-child]:text-crema"><Stepper value={qty} onChange={setQty} max={Math.min(5, v?.stock ?? 1)} /></div>
+            <div className="[&_button]:border-noche/30 [&_button:last-child]:bg-noche [&_button:last-child]:text-crema"><Stepper value={qty} onChange={setQty} max={left > 0 ? Math.min(5, left) : 5} /></div>
           </div>
           <Field label="nombre">{id => <Input id={id} name="name" required autoComplete="name" className={light} />}</Field>
           <Field label="email">{id => <Input id={id} name="email" type="email" required autoComplete="email" className={light} />}</Field>
@@ -104,9 +137,16 @@ function RequestModal({ product, onClose }: { product: Product; onClose: () => v
 
           <Field label="algo más (opcional)" className="sm:col-span-2">{id => <Input id={id} name="note" className={light} />}</Field>
 
+          {encargo && (
+            <p className="sm:col-span-2 rounded-xl bg-senal text-noche px-4 py-3 text-sm font-medium">
+              {left ? `Solo quedan ${left}` : product.variants.some(x => x.label) ? "Esta talla está agotada" : "Está agotado"}. Te lo apuntamos y te avisamos en cuanto llegue. No pagas nada hasta entonces.
+            </p>
+          )}
           {error && <p role="alert" className="sm:col-span-2 rounded-xl bg-noche text-crema px-4 py-3 text-sm">{error}</p>}
-          <Button type="submit" variant="primary" size="lg" block className="sm:col-span-2" disabled={busy || !v || v.stock === 0}>{busy ? "enviando…" : "pedirlo"}</Button>
-          <p className="sm:col-span-2 text-xs text-noche/65">No pagas nada ahora: nos ponemos en contacto contigo para confirmar tu merch. Usamos tus datos solo para esta petición (<a href="/legal/privacidad/" className="underline">privacidad</a>).</p>
+          <Button type="submit" variant="primary" size="lg" block className="sm:col-span-2" disabled={busy || !v}>{busy ? (buy ? "abriendo el pago…" : "enviando…") : buy ? `pagar ${eur(product.priceCents * qty)}` : encargo ? "encargarlo" : "pedirlo"}</Button>
+          <p className="sm:col-span-2 text-xs text-noche/65">{buy
+            ? "Pagas con tarjeta en Stripe y te lo guardamos; luego te escribimos para dártelo en un concierto o enviártelo."
+            : "No pagas nada ahora: nos ponemos en contacto contigo para confirmar tu merch."} Usamos tus datos solo para {buy ? "este pedido" : "esta petición"} (<a href="/legal/privacidad/" className="underline">privacidad</a>{buy && <> · <a href="/legal/condiciones/" className="underline">condiciones de venta</a></>}).</p>
         </form>
       )}
     </Modal>

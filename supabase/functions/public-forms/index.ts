@@ -56,11 +56,12 @@ async function merch(db: Admin, b: Record<string, unknown>) {
   if (!Number.isInteger(qty) || qty < 1 || qty > 20) throw new HttpError("Revisa cuántas unidades quieres.");
 
   // Mismos mensajes que api.requestMerch. El stock no se aparta aquí:
-  // lo hace la banda al confirmar (reserva en la suite).
+  // lo hace la banda al confirmar (reserva en la suite). Sin stock se
+  // acepta igual: es un encargo y se avisa cuando llegue.
   const prod = await getRow<Product>(db, "products", productId);
   const v = prod && prod.doc.published && !prod.doc.archived ? prod.doc.variants?.find(x => x.id === variantId) : undefined;
   if (!prod || !v) throw new HttpError("Esa talla ya no está disponible.");
-  if (v.stock < qty) throw new HttpError(v.stock ? `Solo quedan ${v.stock}.` : "Esa talla está agotada.");
+  const encargo = v.stock < qty;
   const mail = email(b.email, "Revisa el email: ahí te escribimos.");
 
   // La web ya no pregunta la entrega (se acuerda al confirmar); se acepta por si llega.
@@ -88,7 +89,7 @@ async function merch(db: Admin, b: Record<string, unknown>) {
   if (error) throw error;
 
   const info: MerchInfo = {
-    product: prod.doc.name, variant: v.label, qty, priceCents: prod.doc.priceCents,
+    product: prod.doc.name, variant: v.label, qty, priceCents: prod.doc.priceCents, encargo,
     name: r.name, email: r.email, phone: r.phone, delivery, address: r.address, note: r.note,
     gigLabel: gig ? `${dateLabel(gig.date)} · ${gig.venue} · ${gig.city}` : undefined,
   };

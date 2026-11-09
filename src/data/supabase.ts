@@ -11,8 +11,9 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Collection, DB } from "./mock";
 import { uid } from "./mock";
+import { coverage, onlineGuard } from "@/suite/modules/merch/shared";
 import type {
-  ID, Order, Ticket, ScanResult, Quote, Lead, Gig, Song, MerchMove, MerchRequest, PayMethod,
+  ID, Order, Ticket, ScanResult, Quote, Lead, Gig, Song, MerchMove, MerchRequest, MerchCheckout, PayMethod,
   Subscriber, Member, Product, TicketEvent, NewsInput, NewsStats, NewsCampaign, NewsContact, NewsAdd, Topic,
 } from "./types";
 
@@ -160,6 +161,13 @@ export const supabaseApi = {
   // ---------- formularios de la web ----------
   async submitLead(input: Omit<Lead, "id" | "createdAt" | "status">): Promise<void> { await invoke("public-forms", { type: "lead", ...input }); },
   async requestMerch(input: Omit<MerchRequest, "id" | "status" | "createdAt" | "moveId">): Promise<void> { await invoke("public-forms", { type: "merch", ...input }); },
+  /* Devolver una compra online: Stripe devuelve el dinero, se anula y le llega un email. */
+  async refundMerch(requestId: ID): Promise<void> { await invoke("merch-actions", { action: "refund", requestId }); },
+  /* Comprar merch online: aparta en el servidor y devuelve la URL de pago de Stripe. */
+  async checkoutMerch(input: MerchCheckout): Promise<{ redirectUrl: string }> {
+    const { url } = await invoke<{ url: string }>("merch-checkout", { ...input });
+    return { redirectUrl: url };
+  },
   async subscribe(input: Omit<Subscriber, "id" | "createdAt">): Promise<void> { await invoke("public-forms", { type: "subscribe", ...input }); },
 
   // ---------- contratación ----------
@@ -222,7 +230,8 @@ export const supabaseApi = {
   },
 
   async moveStock(move: Omit<MerchMove, "id" | "at">): Promise<void> {
-    await adjust(move.productId, move.variantId, move.qty, move.kind === "recuento");
+    // Reserva sin stock = encargo (lo libre queda en negativo); recuento = lo contado manda.
+    await adjust(move.productId, move.variantId, move.qty, move.kind === "recuento" || move.kind === "reserva");
     await supabaseApi.insert("moves", { ...move, id: uid("m"), at: new Date().toISOString() });
   },
 
@@ -230,7 +239,7 @@ export const supabaseApi = {
     const r = await get("requests", requestId);
     const p = r && await get("products", r.productId);
     if (!r || !p) throw new Error("Esa solicitud ya no existe.");
-    await adjust(p.id, r.variantId, -r.qty);
+    await adjust(p.id, r.variantId, -r.qty, true);   // sin stock queda como encargo
     const m: MerchMove = { id: uid("m"), productId: p.id, variantId: r.variantId, kind: "reserva", qty: -r.qty, unitCents: p.priceCents, by, customer: `${r.name} · web`, gigId: r.gigId, open: true, note: r.delivery === "envio" ? "envío" : r.delivery === "concierto" ? "recoge en concierto" : undefined, at: new Date().toISOString() };
     await supabaseApi.insert("moves", m);
     await supabaseApi.update("requests", requestId, { status: "apartada", moveId: m.id });
@@ -239,13 +248,17 @@ export const supabaseApi = {
   async deliverReservation(moveId: ID, payment: PayMethod): Promise<void> {
     const m = await get("moves", moveId);
     if (!m) return;
-    await supabaseApi.update("moves", moveId, { open: false, kind: "venta", payment, reservedAt: m.at, at: new Date().toISOString() });
+    const missing = coverage(await supabaseApi.list("products"), await supabaseApi.list("moves")).get(moveId) ?? 0;
+    if (missing) throw new Error(`Aún no hay para entregarla: faltan ${missing}. Al reponer se cubre.`);
+    if (m.online === "pendiente") throw new Error("Está pagando online ahora mismo: espera a que termine.");
+    await supabaseApi.update("moves", moveId, { open: false, kind: "venta", payment: m.online === "pagado" ? "online" : payment, reservedAt: m.at, at: new Date().toISOString() });
     await markRequests(moveId, "entregada");
   },
 
   async cancelReservation(moveId: ID): Promise<void> {
     const m = await get("moves", moveId);
     if (!m) return;
+    onlineGuard(m);
     await adjust(m.productId, m.variantId, -m.qty);   // la reserva restó (qty negativa): se devuelve
     await supabaseApi.remove("moves", moveId);
     await markRequests(moveId, "cancelada");

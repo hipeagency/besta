@@ -1,6 +1,6 @@
 /* Merch: lo que hay en la caja, lo que sale, para quién y quién lo vendió.
-   Tres vistas: productos, reservas (con los pedidos de la web) y el libro
-   de movimientos. El cobro en el bolo va en el modo puesto (MerchPuesto.tsx). */
+   Vistas: productos, reservas (con los pedidos de la web), por pedir (lo
+   que nos piden y no tenemos) y el libro de movimientos. El cobro en el bolo va en el modo puesto (MerchPuesto.tsx). */
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { Page } from "@/suite/Shell";
@@ -13,10 +13,11 @@ import { Requests } from "./merch/Requests";
 import { Moves } from "./merch/Moves";
 import { Reservations } from "./merch/Reservations";
 import { ProductSheet, Recovery } from "./merch/ProductSheet";
-import { LOW, heldOf, isOpenReserve, money, sizeLabel, stockOf, swatch } from "./merch/shared";
+import { PorPedir, usePorPedir } from "./merch/PorPedir";
+import { LOW, heldOf, isOpenReserve, money, shortOf, sizeLabel, stockOf, swatch } from "./merch/shared";
 import { cx, eur, eur0 } from "@/lib/format";
 
-type View = "productos" | "reservas" | "movimientos";
+type View = "productos" | "reservas" | "porpedir" | "movimientos";
 
 export default function Merch() {
   const nav = useNavigate();
@@ -42,6 +43,7 @@ export default function Merch() {
   const held = moves.filter(isOpenReserve).reduce((s, m) => s - m.qty, 0);
   const openCount = moves.filter(isOpenReserve).length + requests.filter(r => r.status === "nueva").length;
   const next = upcomingGigs(gigs)[0];
+  const toOrder = usePorPedir().units;
 
   const stats: { label: string; value: React.ReactNode; to: Record<string, string>; sub?: string }[] = [
     { label: "invertido", value: eur0(bag.spent), to: { vista: "movimientos", tipo: "reposicion" } },
@@ -74,6 +76,7 @@ export default function Merch() {
       <Segmented value={view} onChange={v => go({ vista: v })} className="self-start" options={[
         { value: "productos", label: `productos · ${active.length}` },
         { value: "reservas", label: openCount ? `reservas · ${openCount}` : "reservas" },
+        ...(toOrder || view === "porpedir" ? [{ value: "porpedir" as const, label: toOrder ? `por pedir · ${toOrder}` : "por pedir" }] : []),
         { value: "movimientos", label: "movimientos" },
       ]} />
 
@@ -84,6 +87,7 @@ export default function Merch() {
           <div className="flex-[2_1_320px] min-w-0"><Requests /></div>
         </div>
       )}
+      {view === "porpedir" && <PorPedir onOpen={id => go({ vista: "porpedir", producto: id })} />}
       {view === "movimientos" && <Moves kind={kind} onKind={k => go(k ? { vista: "movimientos", tipo: k } : { vista: "movimientos" })} />}
 
       <ProductSheet id={editing} onClose={() => go({ vista: view })} />
@@ -142,7 +146,7 @@ function ProductCard({ p, moves, onOpen }: { p: Product; moves: MerchMove[]; onO
           const h = heldOf(moves, v.id);
           return (
             <span key={v.id} className={cx("min-w-12 px-2 py-1.5 rounded-[10px] text-center font-mono text-xs leading-tight", v.stock <= LOW ? "bg-senal text-noche" : "bg-noche text-crema")}
-              title={`${sizeLabel(v, p)}: ${v.stock} libres${h ? `, ${h} apartadas` : ""}`}>
+              title={`${sizeLabel(v, p)}: ${v.stock < 0 ? `faltan ${shortOf(v)} por pedir` : `${v.stock} libres`}${h ? `, ${h} apartadas` : ""}`}>
               {sizeLabel(v, p)}<br /><b className="font-medium">{v.stock}</b>{h ? <span className="opacity-70">+{h}</span> : null}
             </span>
           );
@@ -156,6 +160,7 @@ function ProductCard({ p, moves, onOpen }: { p: Product; moves: MerchMove[]; onO
       <span className="flex flex-wrap gap-1.5">
         {!p.archived && !p.published && <Pill>oculto en la web</Pill>}
         {s.free <= 0 && <Pill>agotado</Pill>}
+        {s.short > 0 && <Pill>faltan {s.short} por pedir</Pill>}
       </span>
     </button>
   );

@@ -2,6 +2,7 @@
    Stripe repite el aviso si tardamos o fallamos. A los eventos que no
    nos interesan se responde 200 sin más. */
 import { env } from "../_shared/env.ts";
+import { expireMerch, merchPaid, merchRequestFor, refundMerch } from "../_shared/merch.ts";
 import { markRefunded, sendTicketsOnce, subscribeBuyer } from "../_shared/orders.ts";
 import { Stripe, stripe } from "../_shared/stripe.ts";
 import { adminClient, patchDoc } from "../_shared/supabase.ts";
@@ -31,9 +32,14 @@ Deno.serve(async req => {
       case "checkout.session.completed":
       case "checkout.session.async_payment_succeeded": {
         const s = event.data.object;
-        const orderId = s.metadata?.order_id;
-        if (!orderId) break;  // una sesión que no es de entradas
         if (s.payment_status !== "paid") break;  // pago diferido: llegará async_payment_succeeded
+        if (s.metadata?.merch_request_id) {
+          const pi = typeof s.payment_intent === "string" ? s.payment_intent : s.payment_intent?.id;
+          await merchPaid(db, s.metadata.merch_request_id, pi, s.customer_details?.name?.trim());
+          break;
+        }
+        const orderId = s.metadata?.order_id;
+        if (!orderId) break;  // una sesión que no es nuestra
         const { error } = await db.rpc("fulfill_order", { o_id: orderId, session: s.id });
         if (error) throw error;
         const pi = typeof s.payment_intent === "string" ? s.payment_intent : s.payment_intent?.id;
@@ -48,6 +54,8 @@ Deno.serve(async req => {
       }
 
       case "checkout.session.expired": {
+        const merchId = event.data.object.metadata?.merch_request_id;
+        if (merchId) { await expireMerch(db, merchId); break; }
         const orderId = event.data.object.metadata?.order_id;
         if (orderId) await patchDoc<Order>(db, "orders", orderId, o => (o.status === "pendiente" ? { status: "caducado" } : null));
         break;
@@ -64,7 +72,9 @@ Deno.serve(async req => {
           if (error) throw error;
           orderId = data?.id;
         }
-        if (orderId) await markRefunded(db, orderId);
+        if (orderId) { await markRefunded(db, orderId); break; }
+        const merchId = await merchRequestFor(db, ch.metadata, pi);
+        if (merchId) await refundMerch(db, merchId);
         else console.warn("devolución sin pedido", pi);
         break;
       }

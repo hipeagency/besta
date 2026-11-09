@@ -14,15 +14,20 @@ export function getStaticPaths() {
       "Las fotos, la música, los textos y el logo son de besta o de sus autores, que nos los ceden. No se pueden usar sin permiso; si quieres algo para prensa, escríbenos.",
       "Los enlaces a plataformas externas (Spotify, Instagram, venta de entradas de otros…) llevan a webs que no controlamos.",
     ] } },
-    { params: { doc: "condiciones" }, props: { description: "Cómo funciona la compra de entradas de besta: pago, QR, cancelaciones y devoluciones.", title: "condiciones de venta", body: [
+    { params: { doc: "condiciones" }, props: { description: "Cómo funciona la compra de entradas y merch de besta: pago, QR, entregas, cancelaciones y devoluciones.", title: "condiciones de venta", body: [
       `Vende: ${OWNER}.`,
       "Las entradas se compran en besta.es y se pagan con tarjeta a través de Stripe. Al confirmarse el pago recibes un email con un QR por entrada y la factura. El precio incluye el IVA.",
       "Cada QR permite una sola entrada. No compartas tus entradas: la primera que se escanea es la que vale.",
-      "Si el concierto se cancela, se devuelve el importe íntegro a la misma tarjeta. Si se aplaza, la entrada vale para la nueva fecha o puedes pedir la devolución.",
-      "Al ser entradas para un concierto con fecha concreta, no hay derecho de desistimiento (art. 103.l de la Ley General para la Defensa de los Consumidores y Usuarios), salvo cancelación o aplazamiento.",
+      "Las entradas no se devuelven ni se cambian. Al ser entradas para un concierto con fecha concreta, no hay derecho de desistimiento (art. 103.l de la Ley General para la Defensa de los Consumidores y Usuarios).",
+      "Solo si el concierto se cancela se devuelve el importe íntegro a la misma tarjeta. Si se aplaza, la entrada vale para la nueva fecha o puedes pedir la devolución.",
+      "Cada pedido se trata completo: cuando hay devolución, es del pedido entero. No se devuelven entradas sueltas de un pedido.",
       "Si pierdes el email, desde el enlace «mis entradas» puedes volver a ver tus QR, o escríbenos y te los reenviamos.",
       "La sala puede tener sus propias normas de acceso (edad mínima, derecho de admisión, objetos prohibidos). Si las hay, las indicamos en la ficha del concierto.",
       "Está prohibido revender las entradas por encima de su precio. Las entradas compradas fuera de besta.es no tienen garantía.",
+      "Algunos conciertos los vende la sala, la promotora u otra plataforma: en ese caso te lo indicamos y el enlace te lleva a su web. Esa compra es con ellos y se rige por sus condiciones: el pago, el envío de las entradas, los cambios y las devoluciones los gestionan ellos, no besta.",
+      "Merch. Algunos productos se pueden comprar y pagar en besta.es con tarjeta (Stripe); el precio incluye el IVA. Al pagar recibes un email de confirmación y el recibo, y nos ponemos en contacto contigo para acordar la entrega: en un concierto o por envío.",
+      "Merch agotado. Si una talla está agotada puedes encargarla: no pagas nada; te avisamos cuando llegue y entonces decides si la quieres.",
+      "Devolver merch. Tienes 14 días naturales desde que lo recibes para devolverlo sin dar explicaciones (derecho de desistimiento): escríbenos a besta@besta.es. Te devolvemos lo que pagaste, a la misma tarjeta, en un máximo de 14 días desde que nos llega el producto sin usar y en su estado original. Los gastos de devolverlo corren de tu cuenta. Si te llega con un defecto, lo cambiamos o te devolvemos el dinero sin coste.",
       "Solo vendemos entradas en besta.es. Nunca te pediremos que pagues por mensaje directo, Bizum o WhatsApp.",
       "Si tienes cualquier queja, escríbenos a besta@besta.es y te contestamos lo antes posible. También puedes acudir a la oficina de consumo de tu municipio o a la Agència Catalana del Consum. Se aplica la ley española.",
     ] } },
@@ -62,7 +67,7 @@ const { title, description, body } = Astro.props;
   <main class="max-w-[720px] mx-auto px-5 py-16 flex flex-col gap-6">
     <a href="/" class="logo-crop w-24"><img src="/img/logo-crema.png" alt="besta" /></a>
     <h1 class="text-5xl font-extrabold tracking-[-.03em]">{title}</h1>
-    <p class="kicker text-crema/60 text-xs">actualizado el 29 de octubre de 2026</p>
+    <p class="kicker text-crema/60 text-xs">actualizado el 10 de noviembre de 2026</p>
     {body.map((p: string) => <p class="text-lg leading-relaxed text-crema/85">{p}</p>)}
   </main>
 </Base>

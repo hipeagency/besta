@@ -246,10 +246,19 @@ export interface Lead {
 
 // ---------- merch ----------
 export interface Variant { id: ID; label: string; stock: number }
-export interface Product { id: ID; name: string; priceCents: number; costCents: number; variants: Variant[]; archived: boolean; published: boolean; color: "senal" | "crema" | "tubo" | "noche"; info?: string }
+export interface Product {
+  id: ID; name: string; priceCents: number; costCents: number; variants: Variant[]; archived: boolean; published: boolean;
+  color: "senal" | "crema" | "tubo" | "noche"; info?: string;
+  /** En la web (si está publicado): «reservar» = se pide y se paga al recogerlo;
+      «comprar» = se paga online con Stripe. Lo agotado siempre se encarga, sin pagar. */
+  webMode?: WebMode;
+}
+export type WebMode = "reservar" | "comprar";
+/** Lo que manda la web al comprar merch online. */
+export interface MerchCheckout { productId: ID; variantId: ID; qty: number; name: string; email: string; phone?: string; note?: string }
 
 export type MoveKind = "venta" | "reserva" | "regalo" | "reposicion" | "recuento";
-export type PayMethod = "efectivo" | "bizum" | "tarjeta" | "otro";
+export type PayMethod = "efectivo" | "bizum" | "tarjeta" | "otro" | "online";   // online: Stripe, desde la web
 
 export interface MerchMove {
   id: ID;
@@ -264,6 +273,9 @@ export interface MerchMove {
   gigId?: ID;
   open?: boolean;          // reserva sin entregar
   reservedAt?: ISODateTime; // venta que empezó como reserva: cuándo se apartó
+  online?: "pendiente" | "pagado"; // compra en la web: pagando ahora / pagada (por entregar hasta que se entrega)
+  paidAt?: ISODateTime;
+  refundedAt?: ISODateTime; // devuelta en Stripe después de entregarla: deja de contar como ingreso
   note?: string;
   at: ISODateTime;
 }
@@ -285,6 +297,12 @@ export interface MerchRequest {
   note?: string;
   status: RequestStatus;
   moveId?: ID;             // la reserva que aparta el stock
+  /* Compra online (producto en modo «comprar»): nace ya apartada y espera el pago.
+     pendiente → pagado (por entregar), o caducado si no paga en 30 min, o devuelto. */
+  pay?: "pendiente" | "pagado" | "caducado" | "devuelto";
+  amountCents?: number;
+  paidAt?: ISODateTime;
+  refundedAt?: ISODateTime;
   createdAt: ISODateTime;
 }
 

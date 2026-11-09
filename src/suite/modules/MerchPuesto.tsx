@@ -103,7 +103,7 @@ export default function MerchPuesto() {
       <main className="flex-1 px-3.5 pb-4 flex flex-col gap-3">
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
           {active.map(p => {
-            const stock = p.variants.reduce((s, v) => s + v.stock - inCart(v.id), 0);
+            const stock = p.variants.reduce((s, v) => s + Math.max(0, v.stock) - inCart(v.id), 0);   // los encargos (negativo) no restan a otras tallas
             const n = p.variants.reduce((s, v) => s + inCart(v.id), 0);
             return (
               <button key={p.id} type="button" onClick={() => tapProduct(p)} disabled={stock <= 0}
@@ -124,7 +124,7 @@ export default function MerchPuesto() {
             <p className="text-[13px] text-crema/70">{current.name} · elige talla</p>
             <div className="grid grid-cols-4 gap-2">
               {current.variants.map(v => {
-                const l = left(v.id);
+                const l = Math.max(0, left(v.id));   // con encargos lo libre puede ser negativo: aquí es 0
                 return (
                   <button key={v.id} type="button" disabled={l <= 0} onClick={() => add(v.id)}
                     aria-label={`${current.name} ${sizeLabel(v, current)}, quedan ${l}`}
