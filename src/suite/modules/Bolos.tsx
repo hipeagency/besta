@@ -27,6 +27,8 @@ const WEB_HINT: Record<WebMode, string> = {
   publico: "Sale en la web con fecha, ciudad y sala.",
 };
 
+const MONTHS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+
 /* «2026-12» → «2026-12-31»: con solo el mes se guarda su último día, así no cuenta como pasado antes de tiempo. */
 const monthEnd = (ym: string) => {
   if (!/^\d{4}-\d{2}$/.test(ym)) return "";
@@ -104,6 +106,24 @@ export function NewGig({ open, onClose, gig }: { open: boolean; onClose: () => v
   // La fecha va en dos: mes y año por un lado, día por otro. Sin día, dateTbc.
   const ym = f.date.slice(0, 7);
   const day = f.date && !f.dateTbc ? f.date.slice(8, 10) : "";
+  // Mes y año con dos desplegables: <input type="month"> no existe en Safari ni Firefox (sale un texto que no deja escribir).
+  const [yDraft, setYDraft] = useState("");
+  useEffect(() => { if (open) setYDraft(""); }, [open]);
+  const curY = new Date().getFullYear();
+  const year = ym.slice(0, 4) || yDraft;
+  const month = ym.slice(5, 7);
+  const years = Array.from(new Set([curY - 1, curY, curY + 1, curY + 2, curY + 3, ...(year ? [Number(year)] : [])])).sort();
+  const pickMonth = (m: string) => {
+    if (!m) { setDate("", ""); return; }
+    // Sin año elegido: el próximo que toque (si el mes ya pasó este año, el siguiente).
+    const y = year || String(Number(m) < new Date().getMonth() + 1 ? curY + 1 : curY);
+    setDate(`${y}-${m}`, day);
+  };
+  const pickYear = (y: string) => {
+    setYDraft(y);
+    if (!y) { setDate("", ""); return; }
+    if (month) setDate(`${y}-${month}`, day);
+  };
   const setDate = (m: string, d: string) => setF(x => ({
     ...x,
     date: !m ? "" : d ? `${m}-${d > monthEnd(m).slice(8) ? monthEnd(m).slice(8) : d}` : monthEnd(m),
@@ -142,8 +162,19 @@ export function NewGig({ open, onClose, gig }: { open: boolean; onClose: () => v
           <span className="text-xs text-crema/55">{WEB_HINT[webMode(f)]}</span>
         </div>
         <p className="-mb-1 text-xs text-crema/55">Pon lo que sepáis: con un dato basta. Lo que falte sale «por confirmar».</p>
-        <div className="grid grid-cols-[1.4fr_1fr] gap-3">
-          <Field label="mes y año">{id => <Input id={id} type="month" value={ym} onChange={e => setDate(e.target.value, day)} />}</Field>
+        <div className="grid grid-cols-[1.3fr_1fr_1fr] gap-3">
+          <Field label="mes">{id => (
+            <Select id={id} value={month} onChange={e => pickMonth(e.target.value)}>
+              <option value="">sin fecha</option>
+              {MONTHS.map((n, i) => <option key={n} value={String(i + 1).padStart(2, "0")}>{n}</option>)}
+            </Select>
+          )}</Field>
+          <Field label="año">{id => (
+            <Select id={id} value={year} onChange={e => pickYear(e.target.value)}>
+              <option value="">—</option>
+              {years.map(y => <option key={y} value={String(y)}>{y}</option>)}
+            </Select>
+          )}</Field>
           <Field label="día" hint={ym && !day ? "Sin día: sale mes y año." : undefined}>{id => (
             <Select id={id} value={day} disabled={!ym} onChange={e => setDate(ym, e.target.value)}>
               <option value="">por confirmar</option>
