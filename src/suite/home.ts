@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Member } from "@/data/types";
 import { can } from "./nav";
 
-export type WidgetId = "pendiente" | "proximo" | "agenda" | "caja" | "entradas" | "pedidos" | "newsletter";
+export type WidgetId = "resumen" | "pendiente" | "proximo" | "agenda" | "presupuestos" | "caja" | "entradas" | "pedidos" | "newsletter";
 export type WidgetSize = "medio" | "ancho";
 
 export interface WidgetDef {
@@ -20,9 +20,11 @@ export interface WidgetDef {
 
 /* El orden de esta lista es el orden por defecto. */
 export const WIDGETS: WidgetDef[] = [
+  { id: "resumen", name: "resumen", desc: "las cifras clave: repertorio, próximo bolo, presupuestos y caja", size: "ancho", allowed: () => true },
   { id: "pendiente", name: "pendiente", desc: "lo que necesita que alguien haga algo", size: "medio", allowed: () => true },
   { id: "proximo", name: "próximo bolo", desc: "cuándo, dónde y qué falta por preparar", size: "medio", allowed: me => can("bolos", me) || can("entradas", me) },
   { id: "agenda", name: "agenda", desc: "los próximos bolos de un vistazo", size: "medio", allowed: me => can("bolos", me) },
+  { id: "presupuestos", name: "presupuestos", desc: "los últimos y en qué estado están", size: "medio", allowed: me => can("presupuestos", me) },
   { id: "caja", name: "caja", desc: "dinero de la banda y tu saldo", size: "medio", allowed: me => can("finanzas", me) },
   { id: "entradas", name: "entradas", desc: "venta del próximo bolo con entradas propias", size: "ancho", allowed: me => can("entradas", me) },
   { id: "pedidos", name: "últimos pedidos", desc: "las últimas compras de entradas", size: "medio", allowed: me => can("entradas", me) },
@@ -30,6 +32,8 @@ export const WIDGETS: WidgetDef[] = [
 ];
 
 interface Prefs { order: WidgetId[]; hidden: WidgetId[] }
+/* La caja ya sale en el resumen: de entrada, apagada (se puede encender). */
+const DEFAULT_HIDDEN: WidgetId[] = ["caja"];
 const key = (memberId: string) => `besta:inicio:${memberId}`;
 const ids = WIDGETS.map(w => w.id);
 
@@ -38,10 +42,10 @@ function read(memberId: string): Prefs {
     const raw = JSON.parse(localStorage.getItem(key(memberId)) || "null") as Partial<Prefs> | null;
     const order = (raw?.order ?? []).filter((x): x is WidgetId => ids.includes(x as WidgetId));
     // Módulos nuevos que aún no estaban guardados: al final, visibles.
-    for (const id of ids) if (!order.includes(id)) order.push(id);
-    return { order, hidden: (raw?.hidden ?? []).filter((x): x is WidgetId => ids.includes(x as WidgetId)) };
+    ids.forEach((id, i) => { if (!order.includes(id)) order.splice(Math.min(i, order.length), 0, id); });
+    return { order, hidden: raw ? (raw.hidden ?? []).filter((x): x is WidgetId => ids.includes(x as WidgetId)) : [...DEFAULT_HIDDEN] };
   } catch {
-    return { order: [...ids], hidden: [] };
+    return { order: [...ids], hidden: [...DEFAULT_HIDDEN] };
   }
 }
 
@@ -72,6 +76,6 @@ export function useHomeLayout(me: Member) {
       [order[a], order[b]] = [order[b], order[a]];
       save({ ...prefs, order });
     },
-    reset: () => save({ order: [...ids], hidden: [] }),
+    reset: () => save({ order: [...ids], hidden: [...DEFAULT_HIDDEN] }),
   };
 }

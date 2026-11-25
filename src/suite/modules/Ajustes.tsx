@@ -8,12 +8,13 @@ import { useMe } from "@/suite/session";
 import { can } from "@/suite/nav";
 import { useHomeLayout } from "@/suite/home";
 import { HomeModulesEditor } from "@/suite/HomeEditor";
-import { useTheme, type ThemePref } from "@/suite/theme";
+import { ACCENTS, useTheme, type ThemePref } from "@/suite/theme";
 import { useAction, useCollection } from "@/data/hooks";
 import { api, DATA_MODE } from "@/data/api";
 import { commonTasks } from "@/data/selectors";
 import { Button, Card, CardTitle, Segmented, useToast } from "@/components/ui";
 import { Icon } from "@/components/ui/icons";
+import { cx } from "@/lib/format";
 import { CommonTasks } from "./Bolo";
 
 export default function Ajustes() {
@@ -38,6 +39,27 @@ export default function Ajustes() {
               <Segmented<ThemePref> value={theme.pref} onChange={theme.setPref} size="sm" options={[{ value: "auto", label: "automático" }, { value: "claro", label: "claro" }, { value: "oscuro", label: "oscuro" }]} />
             </div>
             <p className="text-xs text-crema/55">«Automático» sigue al móvil u ordenador: claro de día, oscuro de noche.</p>
+            <div className="flex flex-col gap-2.5 pt-2 border-t border-crema/8">
+              <span className="text-sm text-crema/75">color de acento</span>
+              <div className="flex flex-wrap gap-2.5" role="radiogroup" aria-label="Color de acento">
+                {ACCENTS.map(a => {
+                  const on = theme.accent.toLowerCase() === a.hex.toLowerCase();
+                  return <button key={a.hex} type="button" role="radio" aria-checked={on} aria-label={a.name} title={a.name} onClick={() => theme.setAccent(a.hex)}
+                    className={cx("size-8 rounded-full transition hover:scale-110", on && "ring-2 ring-offset-2 ring-offset-tubo")} style={{ background: a.hex, ["--tw-ring-color" as string]: a.hex }} />;
+                })}
+                <label title="color propio" className={cx("relative size-8 rounded-full grid place-items-center cursor-pointer overflow-hidden", !ACCENTS.some(a => a.hex.toLowerCase() === theme.accent.toLowerCase()) && "ring-2 ring-offset-2 ring-offset-tubo ring-senal")}
+                  style={{ background: "conic-gradient(#E5484D,#F5A524,#A8D543,#3DD68C,#2CC8E0,#6E8BFF,#A78BFA,#F472B6,#E5484D)" }}>
+                  <span className="text-white text-lg leading-none drop-shadow">+</span>
+                  <input type="color" aria-label="Color propio" value={theme.accent} onChange={e => theme.setAccent(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                </label>
+              </div>
+              <div className="flex flex-wrap items-center gap-2.5 p-3 rounded-2xl bg-noche">
+                <Button size="sm" variant="primary">botón principal</Button>
+                <span className="px-2.5 py-1 rounded-full bg-senal/15 text-senal-suave font-mono text-xs">etiqueta</span>
+                <span className="ml-auto font-mono text-xl text-senal">1.240 €</span>
+              </div>
+              {theme.accent.toLowerCase() !== theme.brandAccent.toLowerCase() && <button type="button" onClick={() => theme.setAccent(theme.brandAccent)} className="self-start text-xs text-crema/60 underline hover:text-crema">volver al color de la marca</button>}
+            </div>
           </Card>
           <Card className="flex flex-col gap-3">
             <CardTitle className="!mb-0" action={<Button size="sm" variant="quiet" onClick={layout.reset}>restablecer</Button>}>inicio</CardTitle>
