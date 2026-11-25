@@ -3,7 +3,7 @@
    modo puesto de merch van a pantalla completa, fuera de esto. */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
-import { NAV, TABS, canSee, type NavItem } from "./nav";
+import { GROUPS, NAV, TABS, canSee, type NavItem } from "./nav";
 import { useMe } from "./session";
 import { useTheme, themeLabel } from "./theme";
 import { Icon } from "@/components/ui/icons";
@@ -27,7 +27,6 @@ export function Shell() {
   }, []);
   useEffect(() => { setPalette(false); window.scrollTo(0, 0); }, [loc.pathname]);
 
-  const groups = ["", "MÚSICA", "DIRECTO", "NEGOCIO", "AJUSTES"] as const;
 
   return (
     <div className="min-h-dvh md:flex">
@@ -40,7 +39,7 @@ export function Shell() {
         <button type="button" onClick={() => setPalette(true)} className="flex items-center justify-between h-10 px-3 rounded-[10px] bg-tubo text-sm text-crema/70 hover:text-crema">
           <span className="flex items-center gap-2"><Icon name="buscar" size={16} />buscar o saltar…</span><span className="font-mono text-[11px]">⌘K</span>
         </button>
-        {groups.map(g => {
+        {GROUPS.map(g => {
           const list = items.filter(i => i.group === g);
           if (!list.length) return null;
           return (

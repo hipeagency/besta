@@ -3,7 +3,7 @@
 import { Link } from "react-router";
 import { Page } from "@/suite/Shell";
 import { useMe } from "@/suite/session";
-import { NAV, TABS, can, canSee } from "@/suite/nav";
+import { GROUPS, NAV, TABS, can, canSee } from "@/suite/nav";
 import { useAction } from "@/data/hooks";
 import { api, DATA_MODE } from "@/data/api";
 import { Button, Segmented, useToast } from "@/components/ui";
@@ -21,15 +21,20 @@ export default function Mas() {
     <Page title="más">
       {can("merch", me) && <Link to="/merch/puesto" className="h-16 px-5 rounded-[18px] bg-senal text-noche flex items-center justify-between font-semibold text-[17px]">abrir puesto de merch <Icon name="flecha" /></Link>}
       {can("puerta", me) && <Link to="/puerta" className="h-16 px-5 rounded-[18px] bg-crema text-noche flex items-center justify-between font-semibold text-[17px]">escáner de puerta <Icon name="flecha" /></Link>}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-        {rest.map(i => (
-          <Link key={i.id} to={i.path} className="min-h-[88px] rounded-2xl bg-tubo p-4 flex flex-col gap-1">
-            <Icon name={i.icon} />
-            <span className="font-semibold mt-1">{i.name}</span>
-            <span className="text-xs text-crema/60">{i.desktopOnly ? "solo en ordenador" : i.desc}</span>
-          </Link>
-        ))}
-      </div>
+      {GROUPS.filter(g => g && rest.some(i => i.group === g)).map(g => (
+        <section key={g} className="flex flex-col gap-2">
+          <p className="px-1 font-mono text-[11px] tracking-[.14em] text-crema/55">{g}</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+            {rest.filter(i => i.group === g).map(i => (
+              <Link key={i.id} to={i.path} className="min-h-[88px] rounded-2xl bg-tubo p-4 flex flex-col gap-1">
+                <Icon name={i.icon} />
+                <span className="font-semibold mt-1">{i.name}</span>
+                <span className="text-xs text-crema/60">{i.desktopOnly ? "solo en ordenador" : i.desc}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ))}
       <div className="mt-4 flex items-center justify-between gap-3 p-3.5 rounded-2xl border border-crema/10">
         <span className="flex items-center gap-3">
           <span className="size-9 rounded-full bg-senal text-noche grid place-items-center font-semibold">{me.name[0]}</span>

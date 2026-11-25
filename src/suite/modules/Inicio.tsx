@@ -1,147 +1,391 @@
-/* Inicio: lo urgente de un vistazo. */
+/* Inicio: lo urgente arriba, lo demás a elección de cada uno.
+   «pendiente» junta en una sola lista todo lo que pide que alguien
+   haga algo; el resto son módulos que cada usuario enciende, apaga
+   y ordena desde «personalizar inicio». */
+import { useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { Page } from "@/suite/Shell";
 import { useMe } from "@/suite/session";
 import { can } from "@/suite/nav";
+import { useHomeLayout, type WidgetDef, type WidgetId } from "@/suite/home";
 import { useCollection } from "@/data/hooks";
 import { eventStats, gigChecklist, salesByDay, upcomingGigs, balances } from "@/data/selectors";
-import { Button, Card, CardTitle, Dot, Pill, Stat } from "@/components/ui";
-import { ago, cx, dateShort, daysUntil, eur, eur0, gigSub, gigTitle, maskEmail, monYear, todayLabel } from "@/lib/format";
-import { Icon } from "@/components/ui/icons";
+import { Button, Card, CardTitle, Dot, IconButton, Pill, Progress, Sheet, Stat } from "@/components/ui";
+import { ago, cx, dateShort, dayNum, daysUntil, eur, eur0, gigSub, gigTitle, maskEmail, mon, monYear, plural, todayLabel } from "@/lib/format";
+import { Icon, type IconName } from "@/components/ui/icons";
 import { NotifyButton, TOPIC_LABEL, songDraft, useNewsStats } from "@/suite/NotifyList";
-import type { Topic } from "@/data/types";
+import type { Gig, Member, Topic } from "@/data/types";
 
 export default function Inicio() {
   const { me } = useMe();
   const nav = useNavigate();
-  const { data: gigs } = useCollection("gigs");
-  const { data: events } = useCollection("events");
-  const { data: orders } = useCollection("orders");
-  const { data: tickets } = useCollection("tickets");
-  const { data: leads } = useCollection("leads");
-  const { data: quotes } = useCollection("quotes");
-  const { data: riders } = useCollection("riders");
-  const { data: setlists } = useCollection("setlists");
-  const { data: incomes } = useCollection("incomes");
-  const { data: expenses } = useCollection("expenses");
-  const { data: members } = useCollection("members");
-  const { data: settlements } = useCollection("settlements");
-  const { data: settings } = useCollection("settings");
+  const layout = useHomeLayout(me);
+  const [editing, setEditing] = useState(false);
+  const todo = usePendientes(me);
 
-  const next = upcomingGigs(gigs)[0];
-  const ev = next && events.find(e => e.gigId === next.id);
-  const stats = ev && eventStats(ev, { orders, tickets });
-  const bars = ev ? salesByDay(ev.id, { orders }) : [];
-  const maxBar = Math.max(1, ...bars.map(b => b.qty));
-  const peak = bars.reduce((a, b) => (b.qty > a.qty ? b : a), bars[0] ?? { qty: 0, day: "" });
-  const checklist = next ? gigChecklist(next, { quotes, riders, events, setlists, settings }) : [];
-  const newLeads = leads.filter(l => l.status === "nueva");
-  const recent = orders.filter(o => o.status !== "caducado").slice(0, 5);
-  const cash = incomes.reduce((s, i) => s + i.amountCents, 0) - expenses.reduce((s, e) => s + e.amountCents, 0);
-  const myBalance = balances(members.filter(m => m.band), expenses, settlements).find(b => b.member.id === me.id);
+  const actions: ReactNode[] = [];
+  if (me.role === "admin") actions.push(<Button key="bolo" variant="primary" onClick={() => nav("/bolos?nuevo=1")}>+ bolo</Button>);
+  if (can("finanzas", me)) actions.push(<Button key="gasto" onClick={() => nav("/finanzas?nuevo=1")}>+ gasto</Button>);
+  if (me.role === "staff" && can("puerta", me)) actions.push(<Button key="puerta" variant="primary" onClick={() => nav("/puerta")}>abrir puerta</Button>);
+  if (me.role === "musico" && can("ensayos", me)) actions.push(<Button key="ensayos" variant="primary" onClick={() => nav("/ensayos")}>abrir ensayos</Button>);
 
   return (
     <Page
       kicker={todayLabel()}
       title={`buenas, ${me.name}.`}
       actions={<>
-        {can("finanzas", me) && <Button onClick={() => nav("/finanzas?nuevo=1")}>+ gasto</Button>}
-        {me.role === "admin" && <Button variant="primary" onClick={() => nav("/bolos?nuevo=1")}>+ nuevo bolo</Button>}
+        {actions}
+        <IconButton label="personalizar inicio" onClick={() => setEditing(true)} className="border-[1.5px] border-crema/25 hover:border-crema/60 hover:bg-transparent"><Icon name="ajustes" size={18} /></IconButton>
       </>}
     >
-      {/* próximo bolo */}
-      {!can("bolos", me) && !can("entradas", me) ? null : next ? (
-        <Link to={can("bolos", me) ? `/bolos/${next.id}` : `/entradas/${ev?.id ?? ""}`} className="rounded-3xl bg-tubo overflow-hidden flex flex-wrap group">
-          <div className="relative flex-[1_1_260px] min-h-[150px] sm:min-h-[220px]">
-            <img src="/img/escenario-azul.jpg" alt="" className="absolute inset-0 size-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-b sm:bg-gradient-to-r from-transparent from-40% to-tubo" />
-          </div>
-          <div className="flex-[2_1_380px] p-5 sm:p-7 flex flex-col gap-4">
-            <div className="flex flex-wrap justify-between gap-3">
-              <div>
-                <p className="font-mono text-xs text-senal">PRÓXIMO BOLO{next.date && !next.dateTbc ? ` · ${daysUntil(next.date) === 0 ? "HOY" : `EN ${daysUntil(next.date)} DÍAS`}` : ""}</p>
-                <h2 className="text-[26px] sm:text-[30px] font-bold tracking-[-.02em]">{gigTitle(next)} · {next.dateTbc ? monYear(next.date).toLowerCase() : dateShort(next.date)}</h2>
-                <p className="text-crema/70">{[gigSub(next), next.doors && `puertas ${next.doors}`].filter(Boolean).join(" · ")}</p>
-              </div>
-              <span className="self-start h-10 px-4 rounded-full border-[1.5px] border-crema/25 grid place-items-center text-sm group-hover:border-crema/60">abrir ficha <Icon name="flecha" size={14} className="inline align-[-2px]" /></span>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-2">
-              {checklist.map(c => (
-                <div key={c.key} className="p-3 rounded-xl border border-crema/10 flex flex-col gap-0.5">
-                  <span className={cx("font-mono text-[11px]", c.done ? "text-crema/85" : "text-crema/55")}>{c.done ? <><Icon name="check" size={12} className="inline align-[-1px] mr-1" />hecho</> : "pendiente"}</span>
-                  <span className="text-[14px]">{c.name}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </Link>
+      <p className="-mt-2 md:-mt-3 text-crema/70 flex items-center gap-2">
+        <Dot tone={todo.length ? "senal" : "ok"} />
+        {todo.length ? `${plural(todo.length, "cosa pide", "cosas piden")} tu atención` : "todo al día"}
+      </p>
+
+      {layout.visible.length === 0 ? (
+        <Card className="flex flex-col items-start gap-3">
+          <p className="text-crema/75">Has quitado todos los módulos del inicio.</p>
+          <Button size="sm" onClick={() => setEditing(true)}>personalizar inicio</Button>
+        </Card>
       ) : (
-        <Card><p className="text-crema/70">No hay bolos a la vista. <Link className="underline" to="/bolos?nuevo=1">Crea uno</Link>.</p></Card>
-      )}
-
-      {/* entradas */}
-      {ev && stats && can("entradas", me) && (
-        <section className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="text-xl font-semibold">entradas · {next.city}</h2>
-            <span className="font-mono text-xs text-crema/75 flex items-center gap-2"><Dot tone={ev.salesEnabled ? "ok" : "mute"} />{ev.salesEnabled ? "venta activa" : "venta cerrada"}</span>
-          </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <Card className="!p-4"><Stat label="vendidas" value={stats.sold} sub={`de ${ev.capacity} · ${Math.round(stats.pct * 100)} %`} /></Card>
-            <Card className="!p-4"><Stat label="ingresos" value={eur0(stats.gross)} sub={`neto aprox. ${eur0(stats.net)}`} /></Card>
-            <Card className="!p-4"><Stat label="disponibles" value={stats.free} sub={`en pago ahora: ${stats.pending}`} /></Card>
-            <Card className="!p-4"><Stat label="dentro" value={stats.inside || "—"} sub={stats.inside ? "escaneadas" : "se activa el día del bolo"} /></Card>
-          </div>
-          <Card className="!p-4 hidden sm:block">
-            <div className="flex justify-between text-sm text-crema/70 mb-3"><span>ventas por día · últimas 3 semanas</span>{peak?.qty > 0 && <span className="font-mono">pico: {dateShort(peak.day)} · {peak.qty}</span>}</div>
-            <div role="img" aria-label="Ventas diarias de las últimas tres semanas" className="h-[110px] flex items-end gap-1">
-              {bars.map(b => (
-                <div key={b.day} title={`${dateShort(b.day)}: ${b.qty}`} className={cx("flex-1 rounded-t", b === peak && b.qty ? "bg-senal" : "bg-crema/30")} style={{ height: `${Math.max(3, (b.qty / maxBar) * 100)}%` }} />
-              ))}
+        <div className="grid gap-4 lg:grid-cols-2 lg:grid-flow-row-dense items-start">
+          {layout.visible.map(w => (
+            <div key={w.id} className={cx("min-w-0", w.size === "ancho" && "lg:col-span-2")}>
+              <Widget id={w.id} todo={todo} />
             </div>
-          </Card>
-        </section>
+          ))}
+        </div>
       )}
 
-      <div className="flex flex-wrap gap-4 items-start">
-        {can("entradas", me) && <Card className="flex-[3_1_420px] min-w-0">
-          <CardTitle action={ev && <Link to={`/entradas/${ev.id}`} className="text-sm text-crema/75 hover:text-crema">ver todos <Icon name="flecha" size={14} className="inline align-[-2px]" /></Link>}>últimos pedidos</CardTitle>
-          <ul className="flex flex-col">
-            {recent.map(o => (
-              <li key={o.id} className="flex items-center justify-between gap-3 py-2.5 border-t border-crema/8 text-sm">
-                <span className="min-w-0">
-                  <span className="block truncate">{o.email ? maskEmail(o.email) : `taquilla · ${o.method ?? "efectivo"}`}</span>
-                  <span className="text-xs text-crema/60">{ago(o.createdAt)}</span>
-                </span>
-                <span className="flex items-center gap-3 shrink-0">
-                  <Pill tone={o.status === "pagado" ? "ok" : o.status === "devuelto" ? "error" : "mute"}>{o.status}</Pill>
-                  <span className="font-mono w-[72px] text-right">{eur(o.amountCents)}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Card>}
+      <Customize open={editing} onClose={() => setEditing(false)} layout={layout} />
+    </Page>
+  );
+}
 
-        <div className="flex-[2_1_280px] min-w-0 flex flex-col gap-4">
-          {can("presupuestos", me) && <Card>
-            <CardTitle>solicitudes de contratación{newLeads.length ? ` · ${newLeads.length}` : ""}</CardTitle>
-            {newLeads.length === 0 && <p className="text-sm text-crema/60">Nada nuevo. Las que lleguen desde la web aparecen aquí.</p>}
-            {newLeads.map(l => (
-              <div key={l.id} className="flex items-center justify-between gap-3 py-2.5 border-t border-crema/8">
-                <span className="min-w-0"><span className="block truncate">{l.org}</span><span className="block font-mono text-[11px] text-crema/60">{l.city} · {ago(l.createdAt)}</span></span>
-                <Link to={`/presupuestos?lead=${l.id}`} className="shrink-0 h-[34px] px-3 rounded-full bg-senal/15 text-senal-suave grid place-items-center text-[13px] inline-flex items-center gap-1"><Icon name="flecha" size={14} />presupuesto</Link>
-              </div>
-            ))}
-          </Card>}
-          {can("finanzas", me) && <Link to="/finanzas" className="rounded-[20px] bg-crema text-noche p-5 flex flex-col gap-1">
-            <span className="text-sm">caja de la banda</span>
-            <span className="font-mono text-[32px] leading-tight">{eur0(cash)}</span>
-            <span className="text-[13px] text-noche/70">{myBalance && Math.abs(myBalance.cents) > 50 ? (myBalance.cents > 0 ? `te deben ${eur(myBalance.cents)}` : `debes ${eur(-myBalance.cents)}`) : "estás en paz con todos"}</span>
-          </Link>}
-          {me.role === "admin" && <Newsletter />}
+function Widget({ id, todo }: { id: WidgetId; todo: Todo[] }) {
+  switch (id) {
+    case "pendiente": return <Pendiente items={todo} />;
+    case "proximo": return <Proximo />;
+    case "agenda": return <Agenda />;
+    case "caja": return <Caja />;
+    case "entradas": return <Entradas />;
+    case "pedidos": return <Pedidos />;
+    case "newsletter": return <Newsletter />;
+  }
+}
+
+/* ---------- pendiente ---------- */
+interface Todo { id: string; icon: IconName; title: string; sub: string; cta: string; to: string; urgent?: boolean; rank: number }
+
+function usePendientes(me: Member): Todo[] {
+  const { data: gigs } = useCollection("gigs");
+  const { data: leads } = useCollection("leads");
+  const { data: quotes } = useCollection("quotes");
+  const { data: riders } = useCollection("riders");
+  const { data: events } = useCollection("events");
+  const { data: setlists } = useCollection("setlists");
+  const { data: settings } = useCollection("settings");
+  const { data: requests } = useCollection("requests");
+  const { data: products } = useCollection("products");
+  const { data: members } = useCollection("members");
+  const { data: expenses } = useCollection("expenses");
+  const { data: settlements } = useCollection("settlements");
+
+  return useMemo(() => {
+    const out: Todo[] = [];
+
+    if (can("presupuestos", me)) {
+      for (const l of leads.filter(x => x.status === "nueva")) out.push({
+        id: "lead-" + l.id, icon: "presupuestos", rank: 1, urgent: true,
+        title: `${l.org || l.name} quiere contrataros`,
+        sub: [l.city, l.date && dateShort(l.date), ago(l.createdAt)].filter(Boolean).join(" · "),
+        cta: "presupuestar", to: `/presupuestos?lead=${l.id}`,
+      });
+      const week = Date.now() - 7 * 864e5;
+      for (const q of quotes.filter(x => x.status === "enviado" && x.sentAt && Date.parse(x.sentAt) < week)) out.push({
+        id: "quote-" + q.id, icon: "presupuestos", rank: 4,
+        title: `${q.client} no ha contestado`,
+        sub: `${q.number} · enviado ${ago(q.sentAt!)}`,
+        cta: "revisar", to: `/presupuestos/${q.id}`,
+      });
+    }
+
+    if (can("bolos", me)) {
+      for (const g of upcomingGigs(gigs).filter(x => x.date && daysUntil(x.date) <= 45)) {
+        const missing = gigChecklist(g, { quotes, riders, events, setlists, settings }).filter(c => !c.done);
+        const tbc = g.status === "tentativo";
+        if (!missing.length && !tbc) continue;
+        const days = daysUntil(g.date);
+        const what = [tbc && "sin confirmar", missing.length && `falta ${missing.slice(0, 2).map(c => c.name).join(", ")}${missing.length > 2 ? ` y ${missing.length - 2} más` : ""}`].filter(Boolean).join(" · ");
+        out.push({
+          id: "gig-" + g.id, icon: "bolos", rank: days <= 14 ? 0 : 3, urgent: days <= 14,
+          title: `${gigTitle(g)} · ${g.dateTbc ? monYear(g.date).toLowerCase() : dateShort(g.date)}${days <= 14 ? ` · en ${days} días` : ""}`,
+          sub: what, cta: "abrir ficha", to: `/bolos/${g.id}`,
+        });
+      }
+    }
+
+    if (can("merch", me)) {
+      const fresh = requests.filter(r => r.status === "nueva");
+      if (fresh.length) out.push({
+        id: "requests", icon: "merch", rank: 2,
+        title: `${plural(fresh.length, "encargo", "encargos")} de merch por confirmar`,
+        sub: fresh.slice(0, 2).map(r => r.name).join(", ") + (fresh.length > 2 ? "…" : ""),
+        cta: "ver encargos", to: "/merch",
+      });
+      const low = products.filter(p => !p.archived).flatMap(p => p.variants.filter(v => v.stock <= 2).map(v => `${p.name}${p.variants.length > 1 ? " " + v.label : ""} (${v.stock})`));
+      if (low.length) out.push({
+        id: "stock", icon: "merch", rank: 5,
+        title: `poco stock en ${plural(low.length, "talla", "tallas")}`,
+        sub: low.slice(0, 3).join(" · ") + (low.length > 3 ? "…" : ""),
+        cta: "ver stock", to: "/merch",
+      });
+    }
+
+    if (can("finanzas", me) && me.band) {
+      const mine = balances(members.filter(m => m.band), expenses, settlements).find(b => b.member.id === me.id);
+      if (mine && mine.cents < -500) out.push({
+        id: "debt", icon: "finanzas", rank: 4,
+        title: `debes ${eur(-mine.cents)} a la banda`,
+        sub: "se liquida en finanzas", cta: "liquidar", to: "/finanzas",
+      });
+    }
+
+    return out.sort((a, b) => a.rank - b.rank);
+  }, [me, gigs, leads, quotes, riders, events, setlists, settings, requests, products, members, expenses, settlements]);
+}
+
+function Pendiente({ items }: { items: Todo[] }) {
+  const [all, setAll] = useState(false);
+  const shown = all ? items : items.slice(0, 5);
+  return (
+    <Card>
+      <CardTitle action={items.length > 0 && <span className="font-mono text-xs text-crema/60">{items.length}</span>}>pendiente</CardTitle>
+      {items.length === 0 ? (
+        <div className="py-6 flex flex-col items-center gap-2 text-center">
+          <span className="size-10 rounded-full bg-crema/8 grid place-items-center"><Icon name="check" /></span>
+          <p className="text-crema/70 text-sm">Nada esperando. Lo que necesite que hagas algo aparecerá aquí.</p>
+        </div>
+      ) : (
+        <ul className="flex flex-col -mx-2">
+          {shown.map(t => (
+            <li key={t.id}>
+              <Link to={t.to} className="group flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-crema/5">
+                <span className={cx("size-9 shrink-0 rounded-xl grid place-items-center", t.urgent ? "bg-senal/15 text-senal-suave" : "bg-crema/8 text-crema/80")}><Icon name={t.icon} size={17} /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[15px]">{t.title}</span>
+                  <span className="block truncate text-xs text-crema/60">{t.sub}</span>
+                </span>
+                <span className="shrink-0 hidden sm:inline-flex items-center gap-1 text-[13px] text-crema/70 group-hover:text-crema">{t.cta}<Icon name="flecha" size={13} /></span>
+                <Icon name="flecha" size={15} className="sm:hidden shrink-0 text-crema/50" />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+      {items.length > 5 && <button type="button" onClick={() => setAll(a => !a)} className="mt-2 text-sm text-crema/70 hover:text-crema">{all ? "ver menos" : `ver ${items.length - 5} más`}</button>}
+    </Card>
+  );
+}
+
+/* ---------- próximo bolo ---------- */
+function Proximo() {
+  const { me } = useMe();
+  const { data: gigs } = useCollection("gigs");
+  const { data: events } = useCollection("events");
+  const { data: quotes } = useCollection("quotes");
+  const { data: riders } = useCollection("riders");
+  const { data: setlists } = useCollection("setlists");
+  const { data: settings } = useCollection("settings");
+  const next = upcomingGigs(gigs)[0];
+
+  if (!next) return (
+    <Card className="flex flex-col items-start gap-3">
+      <CardTitle className="!mb-0">próximo bolo</CardTitle>
+      <p className="text-sm text-crema/70">No hay bolos a la vista.</p>
+      {me.role === "admin" && <Link to="/bolos?nuevo=1" className="text-sm underline">crear uno</Link>}
+    </Card>
+  );
+
+  const ev = events.find(e => e.gigId === next.id);
+  const list = gigChecklist(next, { quotes, riders, events, setlists, settings });
+  const done = list.filter(c => c.done).length;
+  const days = next.date && !next.dateTbc ? daysUntil(next.date) : null;
+  const to = can("bolos", me) ? `/bolos/${next.id}` : `/entradas/${ev?.id ?? ""}`;
+
+  return (
+    <Link to={to} className="group block rounded-[20px] bg-tubo overflow-hidden">
+      <div className="relative h-[120px] sm:h-[140px]">
+        <img src="/img/escenario-azul.jpg" alt="" className="absolute inset-0 size-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-tubo via-tubo/40 to-transparent" />
+        <span className="absolute top-3 left-4 font-mono text-xs text-crema/90 bg-noche/60 backdrop-blur px-2.5 py-1 rounded-full">
+          próximo bolo{days !== null ? ` · ${days === 0 ? "hoy" : `en ${days} días`}` : ""}
+        </span>
+      </div>
+      <div className="px-5 pb-5 -mt-6 relative flex flex-col gap-3">
+        <div className="flex items-end justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-[24px] font-bold tracking-[-.02em] leading-tight truncate">{gigTitle(next)}</h2>
+            <p className="text-sm text-crema/70 truncate">{[next.dateTbc ? monYear(next.date).toLowerCase() : dateShort(next.date), next.time, gigSub(next)].filter(Boolean).join(" · ")}</p>
+          </div>
+          <span className="shrink-0 size-10 rounded-full border-[1.5px] border-crema/25 grid place-items-center group-hover:border-crema/60"><Icon name="flecha" size={16} /></span>
+        </div>
+        {can("bolos", me) && list.length > 0 && <>
+          <div className="flex items-center gap-3">
+            <Progress value={done / list.length} className="flex-1" />
+            <span className="font-mono text-xs text-crema/70 shrink-0">{done}/{list.length} listo</span>
+          </div>
+          {done < list.length && <div className="flex flex-wrap gap-1.5">
+            {list.filter(c => !c.done).slice(0, 4).map(c => <Pill key={c.key}>{c.name}</Pill>)}
+            {list.length - done > 4 && <Pill>+{list.length - done - 4}</Pill>}
+          </div>}
+        </>}
+      </div>
+    </Link>
+  );
+}
+
+/* ---------- agenda ---------- */
+function Agenda() {
+  const { data: gigs } = useCollection("gigs");
+  const next = upcomingGigs(gigs).slice(0, 5);
+  return (
+    <Card>
+      <CardTitle action={<Link to="/bolos" className="text-sm text-crema/75 hover:text-crema">todos <Icon name="flecha" size={14} className="inline align-[-2px]" /></Link>}>agenda</CardTitle>
+      {next.length === 0 && <p className="text-sm text-crema/60">Sin bolos por delante.</p>}
+      <ul className="flex flex-col -mx-2">
+        {next.map((g: Gig) => (
+          <li key={g.id}>
+            <Link to={`/bolos/${g.id}`} className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-crema/5">
+              <span className="w-12 h-[50px] shrink-0 rounded-xl bg-noche grid place-items-center content-center leading-none">
+                <span className="text-[18px] font-bold">{g.date && !g.dateTbc ? dayNum(g.date) : "—"}</span>
+                <span className="font-mono text-[10px] text-crema/60 mt-1">{g.date ? mon(g.date) : "s/f"}</span>
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate">{gigTitle(g)}</span>
+                <span className="block truncate text-xs text-crema/60">{gigSub(g) || g.time || "hora por confirmar"}</span>
+              </span>
+              <Pill tone={g.status === "confirmado" ? "ok" : "mute"}>{g.status}</Pill>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
+/* ---------- caja ---------- */
+function Caja() {
+  const { me } = useMe();
+  const { data: incomes } = useCollection("incomes");
+  const { data: expenses } = useCollection("expenses");
+  const { data: members } = useCollection("members");
+  const { data: settlements } = useCollection("settlements");
+  const cash = incomes.reduce((s, i) => s + i.amountCents, 0) - expenses.reduce((s, e) => s + e.amountCents, 0);
+  const mine = balances(members.filter(m => m.band), expenses, settlements).find(b => b.member.id === me.id);
+  return (
+    <Link to="/finanzas" className="rounded-[20px] bg-crema text-noche p-5 flex flex-col gap-1">
+      <span className="text-sm">caja de la banda</span>
+      <span className="font-mono text-[32px] leading-tight">{eur0(cash)}</span>
+      <span className="text-[13px] text-noche/70">{mine && Math.abs(mine.cents) > 50 ? (mine.cents > 0 ? `te deben ${eur(mine.cents)}` : `debes ${eur(-mine.cents)}`) : "estás en paz con todos"}</span>
+    </Link>
+  );
+}
+
+/* ---------- entradas ---------- */
+function Entradas() {
+  const { data: gigs } = useCollection("gigs");
+  const { data: events } = useCollection("events");
+  const { data: orders } = useCollection("orders");
+  const { data: tickets } = useCollection("tickets");
+  const gig = upcomingGigs(gigs).find(g => events.some(e => e.gigId === g.id));
+  const ev = gig && events.find(e => e.gigId === gig.id);
+  if (!gig || !ev) return (
+    <Card><CardTitle className="!mb-1">entradas</CardTitle><p className="text-sm text-crema/60">Ningún bolo próximo vende entradas desde aquí.</p></Card>
+  );
+  const stats = eventStats(ev, { orders, tickets });
+  const bars = salesByDay(ev.id, { orders });
+  const maxBar = Math.max(1, ...bars.map(b => b.qty));
+  const peak = bars.reduce((a, b) => (b.qty > a.qty ? b : a), bars[0] ?? { qty: 0, day: "" });
+  return (
+    <Card className="flex flex-col gap-4">
+      <CardTitle className="!mb-0" action={<span className="font-mono text-xs text-crema/75 flex items-center gap-2"><Dot tone={ev.salesEnabled ? "ok" : "mute"} />{ev.salesEnabled ? "venta activa" : "venta cerrada"}</span>}>
+        <Link to={`/entradas/${ev.id}`} className="hover:underline">entradas · {gigTitle(gig)}</Link>
+      </CardTitle>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Stat label="vendidas" value={stats.sold} sub={`de ${ev.capacity} · ${Math.round(stats.pct * 100)} %`} />
+        <Stat label="ingresos" value={eur0(stats.gross)} sub={`neto aprox. ${eur0(stats.net)}`} />
+        <Stat label="disponibles" value={stats.free} sub={`en pago ahora: ${stats.pending}`} />
+        <Stat label="dentro" value={stats.inside || "—"} sub={stats.inside ? "escaneadas" : "el día del bolo"} />
+      </div>
+      <Progress value={stats.pct} />
+      <div className="hidden sm:block">
+        <div className="flex justify-between text-xs text-crema/60 mb-2"><span>ventas por día · últimas 3 semanas</span>{peak?.qty > 0 && <span className="font-mono">pico: {dateShort(peak.day)} · {peak.qty}</span>}</div>
+        <div role="img" aria-label="Ventas diarias de las últimas tres semanas" className="h-[80px] flex items-end gap-1">
+          {bars.map(b => (
+            <div key={b.day} title={`${dateShort(b.day)}: ${b.qty}`} className={cx("flex-1 rounded-t", b === peak && b.qty ? "bg-senal" : "bg-crema/25")} style={{ height: `${Math.max(3, (b.qty / maxBar) * 100)}%` }} />
+          ))}
         </div>
       </div>
-    </Page>
+    </Card>
+  );
+}
+
+/* ---------- pedidos ---------- */
+function Pedidos() {
+  const { data: orders } = useCollection("orders");
+  const recent = orders.filter(o => o.status !== "caducado").slice(0, 5);
+  return (
+    <Card>
+      <CardTitle action={<Link to="/entradas" className="text-sm text-crema/75 hover:text-crema">ver todos <Icon name="flecha" size={14} className="inline align-[-2px]" /></Link>}>últimos pedidos</CardTitle>
+      {recent.length === 0 && <p className="text-sm text-crema/60">Todavía no hay pedidos.</p>}
+      <ul className="flex flex-col">
+        {recent.map(o => (
+          <li key={o.id} className="flex items-center justify-between gap-3 py-2.5 border-t border-crema/8 text-sm">
+            <span className="min-w-0">
+              <span className="block truncate">{o.email ? maskEmail(o.email) : `taquilla · ${o.method ?? "efectivo"}`}</span>
+              <span className="text-xs text-crema/60">{ago(o.createdAt)}</span>
+            </span>
+            <span className="flex items-center gap-3 shrink-0">
+              <Pill tone={o.status === "pagado" ? "ok" : o.status === "devuelto" ? "error" : "mute"}>{o.status}</Pill>
+              <span className="font-mono w-[72px] text-right">{eur(o.amountCents)}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
+/* ---------- personalizar ---------- */
+function Customize({ open, onClose, layout }: { open: boolean; onClose: () => void; layout: ReturnType<typeof useHomeLayout> }) {
+  const list = layout.available;
+  return (
+    <Sheet open={open} onClose={onClose} title="personalizar inicio"
+      footer={<div className="flex justify-between gap-2"><Button size="sm" variant="quiet" onClick={layout.reset}>restablecer</Button><Button size="sm" variant="primary" onClick={onClose}>listo</Button></div>}>
+      <p className="text-sm text-crema/70 mb-4">Elige qué ves al entrar y en qué orden. Solo te afecta a ti, en este aparato.</p>
+      <ul className="flex flex-col gap-2">
+        {list.map((w: WidgetDef, i) => {
+          const on = layout.isOn(w.id);
+          return (
+            <li key={w.id} className={cx("flex items-center gap-2 p-2 pl-3 rounded-2xl bg-noche", !on && "opacity-60")}>
+              <button type="button" role="switch" aria-checked={on} onClick={() => layout.toggle(w.id)} className="flex-1 min-w-0 flex items-center gap-3 text-left">
+                <span className={cx("relative w-9 h-5 shrink-0 rounded-full transition", on ? "bg-senal" : "bg-crema/20")}>
+                  <span className={cx("absolute top-0.5 size-4 rounded-full bg-noche transition-all", on ? "left-[18px]" : "left-0.5")} />
+                </span>
+                <span className="min-w-0">
+                  <span className="block font-medium">{w.name}</span>
+                  <span className="block text-xs text-crema/60 truncate">{w.desc}</span>
+                </span>
+              </button>
+              <IconButton label={`subir ${w.name}`} disabled={i === 0} onClick={() => layout.move(w.id, -1)} className="size-9 disabled:opacity-25"><Icon name="arriba" size={16} /></IconButton>
+              <IconButton label={`bajar ${w.name}`} disabled={i === list.length - 1} onClick={() => layout.move(w.id, 1)} className="size-9 disabled:opacity-25"><Icon name="abajo" size={16} /></IconButton>
+            </li>
+          );
+        })}
+      </ul>
+    </Sheet>
   );
 }
 
