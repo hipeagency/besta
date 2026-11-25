@@ -4,15 +4,14 @@
    y ordena desde «personalizar inicio». */
 import { useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
-import { Page } from "@/suite/Shell";
 import { useMe } from "@/suite/session";
 import { can } from "@/suite/nav";
 import { useHomeLayout, type WidgetId } from "@/suite/home";
 import { HomeModulesEditor } from "@/suite/HomeEditor";
 import { useCollection } from "@/data/hooks";
-import { eventStats, gigChecklist, salesByDay, upcomingGigs, balances } from "@/data/selectors";
+import { eventStats, gigChecklist, quoteTotals, salesByDay, upcomingGigs, balances } from "@/data/selectors";
 import { Button, Card, CardTitle, Dot, IconButton, Pill, Progress, Sheet, Stat } from "@/components/ui";
-import { ago, cx, dateShort, dayNum, daysUntil, eur, eur0, gigSub, gigTitle, maskEmail, mon, monYear, plural, todayLabel } from "@/lib/format";
+import { ago, cx, dateShort, dayNum, daysUntil, eur, eur0, gigSub, gigTitle, maskEmail, mon, monYear, plural } from "@/lib/format";
 import { Icon, type IconName } from "@/components/ui/icons";
 import { NotifyButton, TOPIC_LABEL, songDraft, useNewsStats } from "@/suite/NotifyList";
 import type { Gig, Member, Topic } from "@/data/types";
@@ -23,26 +22,38 @@ export default function Inicio() {
   const layout = useHomeLayout(me);
   const [editing, setEditing] = useState(false);
   const todo = usePendientes(me);
+  const h = new Date().getHours();
+  const hello = h < 6 ? "buenas noches" : h < 14 ? "buenos días" : h < 21 ? "buenas tardes" : "buenas noches";
+  const today = new Date().toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
 
   const actions: ReactNode[] = [];
   if (me.role === "admin") actions.push(<Button key="bolo" variant="primary" onClick={() => nav("/bolos?nuevo=1")}>+ bolo</Button>);
+  if (can("presupuestos", me)) actions.push(<Button key="pres" onClick={() => nav("/presupuestos")}>presupuestos</Button>);
   if (can("finanzas", me)) actions.push(<Button key="gasto" onClick={() => nav("/finanzas?nuevo=1")}>+ gasto</Button>);
   if (me.role === "staff" && can("puerta", me)) actions.push(<Button key="puerta" variant="primary" onClick={() => nav("/puerta")}>abrir puerta</Button>);
   if (me.role === "musico" && can("ensayos", me)) actions.push(<Button key="ensayos" variant="primary" onClick={() => nav("/ensayos")}>abrir ensayos</Button>);
 
   return (
-    <Page
-      kicker={todayLabel()}
-      title={`buenas, ${me.name}.`}
-      actions={<>
-        {actions}
-        <IconButton label="personalizar inicio" onClick={() => setEditing(true)} className="border-[1.5px] border-crema/25 hover:border-crema/60 hover:bg-transparent"><Icon name="ajustes" size={18} /></IconButton>
-      </>}
-    >
-      <p className="-mt-2 md:-mt-3 text-crema/70 flex items-center gap-2">
-        <Dot tone={todo.length ? "senal" : "ok"} />
-        {todo.length ? `${plural(todo.length, "cosa pide", "cosas piden")} tu atención` : "todo al día"}
-      </p>
+    <main className="px-4 sm:px-6 lg:px-10 pt-6 md:pt-10 pb-12 flex flex-col gap-5 md:gap-6 max-w-[1400px]">
+      {/* cabecera */}
+      <header className="relative flex flex-col gap-3">
+        <div aria-hidden className="pointer-events-none absolute -top-32 right-0 w-[520px] h-[340px] max-w-full rounded-full bg-senal/10 blur-3xl" />
+        <p className="relative flex items-center gap-2.5 font-mono text-[11px] tracking-[.2em] uppercase text-crema/55">
+          <span className="size-2 rounded-full bg-senal shadow-[0_0_0_4px] shadow-senal/20" />besta<span className="text-crema/25">/</span>{today}
+        </p>
+        <h1 className="relative text-[40px] sm:text-[56px] lg:text-[68px] font-extrabold tracking-[-.045em] leading-[.95]">
+          {hello}, {me.name}<span className="text-senal">.</span>
+        </h1>
+        <p className="relative flex items-center gap-2 text-crema/70 md:text-[17px]">
+          <Dot tone={todo.length ? "senal" : "ok"} />
+          {todo.length ? `${plural(todo.length, "cosa pide", "cosas piden")} tu atención` : "todo al día"}
+        </p>
+        <div className="relative flex flex-wrap gap-2 mt-1">
+          {actions}
+          <Button onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))} className="hidden md:inline-flex">buscar <kbd className="font-mono text-[10px] px-1.5 py-0.5 rounded-md border border-crema/20">⌘K</kbd></Button>
+          <IconButton label="personalizar inicio" onClick={() => setEditing(true)} className="border-[1.5px] border-crema/25 hover:border-crema/60 hover:bg-transparent"><Icon name="ajustes" size={18} /></IconButton>
+        </div>
+      </header>
 
       {layout.visible.length === 0 ? (
         <Card className="flex flex-col items-start gap-3">
@@ -60,12 +71,14 @@ export default function Inicio() {
       )}
 
       <Customize open={editing} onClose={() => setEditing(false)} layout={layout} />
-    </Page>
+    </main>
   );
 }
 
 function Widget({ id, todo }: { id: WidgetId; todo: Todo[] }) {
   switch (id) {
+    case "resumen": return <Resumen />;
+    case "presupuestos": return <Presupuestos />;
     case "pendiente": return <Pendiente items={todo} />;
     case "proximo": return <Proximo />;
     case "agenda": return <Agenda />;
@@ -74,6 +87,71 @@ function Widget({ id, todo }: { id: WidgetId; todo: Todo[] }) {
     case "pedidos": return <Pedidos />;
     case "newsletter": return <Newsletter />;
   }
+}
+
+/* ---------- resumen ---------- */
+function Kpi({ to, k, v, sub, tone }: { to: string; k: string; v: ReactNode; sub: ReactNode; tone?: "senal" }) {
+  return (
+    <Link to={to} className="group min-h-[132px] p-4 sm:p-5 rounded-[18px] bg-tubo border border-crema/8 hover:border-senal/45 hover:-translate-y-0.5 transition flex flex-col gap-2">
+      <span className="font-mono text-[10px] tracking-[.16em] uppercase text-crema/55">{k}</span>
+      <span className={cx("text-[30px] sm:text-[36px] font-extrabold tracking-[-.04em] leading-none tabular-nums", tone === "senal" && "text-senal")}>{v}</span>
+      <span className="text-[12.5px] text-crema/60 leading-snug">{sub}</span>
+    </Link>
+  );
+}
+
+function Resumen() {
+  const { me } = useMe();
+  const { data: songs } = useCollection("songs");
+  const { data: gigs } = useCollection("gigs");
+  const { data: quotes } = useCollection("quotes");
+  const { data: incomes } = useCollection("incomes");
+  const { data: expenses } = useCollection("expenses");
+  const { data: members } = useCollection("members");
+  const { data: settlements } = useCollection("settlements");
+  const next = upcomingGigs(gigs)[0];
+  const days = next?.date && !next.dateTbc ? daysUntil(next.date) : null;
+  const open = quotes.filter(q => q.status === "enviado");
+  const openSum = open.reduce((s, q) => s + quoteTotals(q).total, 0);
+  const cash = incomes.reduce((s, i) => s + i.amountCents, 0) - expenses.reduce((s, e) => s + e.amountCents, 0);
+  const mine = balances(members.filter(m => m.band), expenses, settlements).find(b => b.member.id === me.id);
+  const cards: ReactNode[] = [];
+  if (can("ensayos", me)) cards.push(<Kpi key="rep" to="/ensayos" k="repertorio" v={songs.length} sub={`${songs.filter(s => s.own).length} propias · ${songs.filter(s => !s.own).length} versiones`} />);
+  if (can("bolos", me)) cards.push(<Kpi key="gig" to={next ? `/bolos/${next.id}` : "/bolos"} k="próximo bolo" tone="senal"
+    v={next ? (next.dateTbc ? monYear(next.date).toLowerCase() : dateShort(next.date)) : "—"}
+    sub={next ? `${gigTitle(next)}${days !== null ? ` · ${days === 0 ? "hoy" : `en ${days} días`}` : ""}` : "sin bolos a la vista"} />);
+  if (can("presupuestos", me)) cards.push(<Kpi key="q" to="/presupuestos" k="presupuestos en juego" v={open.length} sub={open.length ? `${eur0(openSum)} esperando respuesta` : "ninguno esperando respuesta"} />);
+  if (can("finanzas", me)) cards.push(<Kpi key="caja" to="/finanzas" k="caja de la banda" v={eur0(cash)}
+    sub={mine && Math.abs(mine.cents) > 50 ? (mine.cents > 0 ? `te deben ${eur(mine.cents)}` : `debes ${eur(-mine.cents)}`) : "estás en paz con todos"} />);
+  if (!cards.length) return null;
+  return <div className={cx("grid gap-3 grid-cols-2", cards.length >= 4 ? "lg:grid-cols-4" : cards.length === 3 ? "lg:grid-cols-3" : "")}>{cards}</div>;
+}
+
+/* ---------- presupuestos ---------- */
+function Presupuestos() {
+  const { data: quotes } = useCollection("quotes");
+  const recent = [...quotes].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5);
+  const tone = (st: string) => st === "aceptado" ? "bg-ok/15 text-crema" : st === "enviado" ? "bg-senal/15 text-senal-suave" : st === "rechazado" ? "bg-error/15 text-crema/80" : "bg-crema/8 text-crema/70";
+  return (
+    <Card>
+      <CardTitle action={<Link to="/presupuestos" className="text-sm text-crema/75 hover:text-crema">todos <Icon name="flecha" size={14} className="inline align-[-2px]" /></Link>}>presupuestos recientes</CardTitle>
+      {recent.length === 0 && <p className="text-sm text-crema/60">Aún no hay presupuestos.</p>}
+      <ul className="flex flex-col -mx-2">
+        {recent.map(q => (
+          <li key={q.id}>
+            <Link to={`/presupuestos/${q.id}`} className="flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-crema/5">
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-medium">{q.client || "sin cliente"}</span>
+                <span className="block font-mono text-[11px] text-crema/55 truncate">{q.number}{q.eventDate ? ` · ${dateShort(q.eventDate)}` : ""}</span>
+              </span>
+              <span className={cx("shrink-0 hidden sm:inline-block font-mono text-[10px] tracking-wider uppercase px-2 py-1 rounded-full", tone(q.status))}>{q.status}</span>
+              <span className="shrink-0 w-[80px] text-right font-mono">{eur0(quoteTotals(q).total)}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
 }
 
 /* ---------- pendiente ---------- */
