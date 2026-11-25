@@ -1,7 +1,7 @@
 /* Ficha de bolo: el centro de todo. Lo que pasa alrededor de un
    concierto (entradas, setlist, rider, merch, dinero) se ve aquí. */
 import { useState } from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { Page } from "@/suite/Shell";
 import { useAction, useCollection } from "@/data/hooks";
 import { api, uid } from "@/data/api";
@@ -20,6 +20,7 @@ const WEB_TOAST: Record<WebMode, string> = {
 };
 
 type Tab = "resumen" | "entradas" | "setlist" | "rider" | "merch" | "dinero";
+const TABS: Tab[] = ["resumen", "entradas", "setlist", "rider", "merch", "dinero"];
 
 export default function Bolo() {
   const { id } = useParams();
@@ -32,7 +33,11 @@ export default function Bolo() {
   const { data: riders } = useCollection("riders");
   const { data: setlists } = useCollection("setlists");
   const { data: settings } = useCollection("settings");
-  const [tab, setTab] = useState<Tab>("resumen");
+  /* La pestaña va en la URL (?tab=rider): se puede enlazar desde el inicio y el «atrás» del móvil vuelve donde estabas. */
+  const [params, setParams] = useSearchParams();
+  const tab: Tab = TABS.includes(params.get("tab") as Tab) ? (params.get("tab") as Tab) : "resumen";
+  const setTab = (t: Tab) => setParams(t === "resumen" ? {} : { tab: t }, { replace: true });
+  const nav = useNavigate();
   const [editing, setEditing] = useState(false);
   const patch = useAction((p: Partial<Gig>) => api.update("gigs", id!, p));
 
@@ -120,7 +125,8 @@ export default function Bolo() {
           </div>
 
           <div className="flex-[1_1_300px] min-w-0 flex flex-col gap-3">
-            <Checklist g={g} items={checklist} settings={settings} onChange={p => patch.run(p)} />
+            <Checklist g={g} items={checklist} settings={settings} onChange={p => patch.run(p)}
+              onGo={key => key === "presupuesto" ? nav(g.quoteId ? `/presupuestos/${g.quoteId}` : "/presupuestos") : setTab(key as Tab)} />
             <Bandsintown g={g} ev={ev} />
             <LinkCard onClick={() => setTab("entradas")} mod="ENTRADAS"
               main={ev ? `${eventStats(ev, { orders, tickets }).sold} / ${ev.capacity} vendidas` : g.ticketing === "externa" ? "las vende otro" : "sin venta"}
@@ -374,7 +380,8 @@ function Teaser({ g, onChange }: { g: Gig; onChange: (p: Partial<Gig>) => void }
 
 /* Checklist: lo automático, las tareas comunes (iguales en todos los
    bolos, ajuste «checklist») y las de este bolo. */
-function Checklist({ g, items, settings, onChange }: { g: Gig; items: CheckItem[]; settings: Settings[]; onChange: (p: Partial<Gig>) => void }) {
+function Checklist({ g, items, settings, onChange, onGo }: { g: Gig; items: CheckItem[]; settings: Settings[]; onChange: (p: Partial<Gig>) => void; onGo: (key: string) => void }) {
+  const done = items.filter(c => c.done).length;
   const toast = useToast();
   const [adding, setAdding] = useState("");
   const [editing, setEditing] = useState(false);
@@ -391,8 +398,11 @@ function Checklist({ g, items, settings, onChange }: { g: Gig; items: CheckItem[
   return (
     <section className="rounded-[20px] bg-crema text-noche p-5 flex flex-col gap-2.5">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="font-semibold">checklist</h2>
+        <h2 className="font-semibold">checklist <span className="font-mono text-sm text-noche/60">{done}/{items.length}</span></h2>
         <button type="button" onClick={() => setEditing(true)} className="text-xs text-noche/65 underline hover:text-noche">editar comunes</button>
+      </div>
+      <div className="h-1.5 rounded-full bg-noche/12 mb-1" role="progressbar" aria-valuenow={Math.round((done / Math.max(1, items.length)) * 100)} aria-valuemin={0} aria-valuemax={100} aria-label="Preparado">
+        <div className="h-full rounded-full bg-noche transition-all" style={{ width: `${(done / Math.max(1, items.length)) * 100}%` }} />
       </div>
       {items.map(c => (
         <div key={c.key} className="flex items-center gap-2.5 text-[15px]">
@@ -401,7 +411,9 @@ function Checklist({ g, items, settings, onChange }: { g: Gig; items: CheckItem[
               onChange={e => onChange({ checklist: { ...g.checklist, [c.key]: e.target.checked } })} />
             <span className="flex-1">{c.name}</span>
           </label>
-          {c.auto && <span className="font-mono text-[11px] text-noche/60">auto</span>}
+          {c.auto && (c.done
+            ? <span className="font-mono text-[11px] text-noche/60">auto</span>
+            : <button type="button" onClick={() => onGo(c.key)} className="h-7 px-2.5 rounded-full bg-noche text-crema text-xs inline-flex items-center gap-1">resolver <Icon name="flecha" size={12} /></button>)}
           {c.own && <button type="button" onClick={() => removeOwn(c.key)} aria-label={`Quitar «${c.name}»`} className="size-7 grid place-items-center rounded-full text-noche/55 hover:bg-noche/10"><Icon name="x" size={14} /></button>}
         </div>
       ))}
@@ -416,7 +428,7 @@ function Checklist({ g, items, settings, onChange }: { g: Gig; items: CheckItem[
 }
 
 /* Las tareas comunes: salen en todos los bolos. Quitar una no borra lo marcado. */
-function CommonTasks({ settings, onClose, onCancel }: { settings: Settings[]; onClose: () => void; onCancel: () => void }) {
+export function CommonTasks({ settings, onClose, onCancel }: { settings: Settings[]; onClose: () => void; onCancel: () => void }) {
   const doc = settings.find(s => s.id === "checklist");
   const [tasks, setTasks] = useState<Task[]>(commonTasks(settings));
   const [name, setName] = useState("");

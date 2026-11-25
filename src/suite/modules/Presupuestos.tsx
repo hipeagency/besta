@@ -101,13 +101,16 @@ export default function Presupuestos() {
                     </span>
                     <span className="text-right shrink-0">
                       <span className="block font-mono text-sm">{eur(quoteTotals(q).total)}</span>
-                      <span className={cx("block text-xs", q.status === "aceptado" ? "text-senal-suave" : "text-crema/65")}>{q.status}</span>
+                      <span className={cx("inline-flex items-center gap-1.5 text-xs", q.status === "aceptado" ? "text-senal-suave" : q.status === "enviado" ? "text-crema" : "text-crema/60")}>
+                        <span className={cx("size-1.5 rounded-full", q.status === "aceptado" ? "bg-senal" : q.status === "enviado" ? "bg-crema" : q.status === "rechazado" ? "bg-error" : "bg-crema/40")} />
+                        {q.status}{q.status === "aceptado" && q.gigId ? " · bolo" : ""}
+                      </span>
                     </span>
                   </Link>
                 </li>
               );
             })}
-            {!loading && !list.length && <li className="p-4 text-sm text-crema/60">Nada por aquí.</li>}
+            {!loading && !list.length && <li className="p-4 text-sm text-crema/60">{quotes.length ? `Ningún presupuesto ${filter === "todos" ? "" : filter}.` : "Aún no hay presupuestos. Crea el primero o conviértelo desde una solicitud."}</li>}
           </ul>
         </section>
 

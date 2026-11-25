@@ -15,6 +15,14 @@ export function Shell() {
   const { me, logout } = useMe();
   const theme = useTheme();
   const items = NAV.filter(i => canSee(i, me));
+  /* Avisos en el menú: lo que espera a alguien en cada módulo. */
+  const { data: leads } = useCollection("leads");
+  const { data: requests } = useCollection("requests");
+  const badges: Record<string, number> = {
+    presupuestos: leads.filter(l => l.status === "nueva").length,
+    merch: requests.filter(r => r.status === "nueva").length,
+  };
+  const moreBadge = items.filter(i => !(TABS as readonly string[]).includes(i.id)).reduce((n, i) => n + (badges[i.id] ?? 0), 0);
   const [palette, setPalette] = useState(false);
   const loc = useLocation();
 
@@ -50,14 +58,16 @@ export function Shell() {
                   className={({ isActive }) => cx("h-[38px] px-3 rounded-[10px] flex items-center gap-2.5 text-[15px] transition",
                     isActive ? "bg-senal text-noche font-semibold" : "text-crema/80 hover:text-crema hover:bg-crema/5")}>
                   <Icon name={i.icon} size={17} />{i.name}
+                  {!!badges[i.id] && <span className="ml-auto min-w-5 h-5 px-1.5 rounded-full bg-senal text-noche font-mono text-[11px] grid place-items-center" aria-label={`${badges[i.id]} pendientes`}>{badges[i.id]}</span>}
                 </NavLink>
               ))}
             </div>
           );
         })}
-        <div className="mt-auto flex items-center gap-2.5 p-2.5 rounded-xl border border-crema/10">
+        <div className="mt-auto flex items-center gap-1.5 p-2 rounded-xl border border-crema/10">
           <span className="size-8 rounded-full bg-senal text-noche grid place-items-center font-semibold text-sm">{me.name[0]}</span>
-          <span className="text-sm leading-tight flex-1"><span className="block">{me.name}</span><span className="block font-mono text-[11px] text-crema/55">{me.owner ? "superadmin" : me.role}</span></span>
+          <span className="text-sm leading-tight flex-1 min-w-0"><span className="block truncate">{me.name}</span><span className="block font-mono text-[11px] text-crema/55">{me.owner ? "superadmin" : me.role}</span></span>
+          <NavLink to="/ajustes" aria-label="Ajustes" title="Ajustes" className={({ isActive }) => cx("size-9 grid place-items-center rounded-full hover:bg-crema/10", isActive && "bg-crema/10")}><Icon name="ajustes" size={16} /></NavLink>
           <button type="button" onClick={theme.next} aria-label={themeLabel[theme.pref]} title={themeLabel[theme.pref]} className="size-9 grid place-items-center rounded-full hover:bg-crema/10 "><Icon name={theme.pref === "auto" ? "auto" : theme.pref === "claro" ? "sol" : "luna"} size={16} /></button>
           <button type="button" onClick={logout} aria-label="Salir" title="Salir" className="size-9 grid place-items-center rounded-full hover:bg-crema/10"><Icon name="salir" size={16} /></button>
         </div>
@@ -74,7 +84,10 @@ export function Shell() {
             <NavLink key={i.id} to={i.path} end={i.path === "/"}
               className={({ isActive }) => cx("flex flex-col items-center justify-center gap-1 text-[11px]", isActive ? "text-crema font-semibold" : "text-crema/65")}>
               {({ isActive }) => (<>
-                <span className={cx("w-11 h-7 rounded-full grid place-items-center", isActive && "bg-senal text-noche")}><Icon name={i.icon} size={19} /></span>
+                <span className={cx("relative w-11 h-7 rounded-full grid place-items-center", isActive && "bg-senal text-noche")}>
+                  <Icon name={i.icon} size={19} />
+                  {i.id === "mas" && moreBadge > 0 && <span className="absolute top-0 right-1.5 size-2 rounded-full bg-senal ring-2 ring-lateral" aria-label="hay cosas pendientes" />}
+                </span>
                 {i.name}
               </>)}
             </NavLink>
@@ -125,6 +138,7 @@ function CommandPalette({ onClose }: { onClose: () => void }) {
     const n = norm(q.trim());
     const all = [
       ...NAV.filter(i => canSee(i, me)).map(i => ({ kind: "módulo", label: i.name, sub: i.desc, to: i.path })),
+      { kind: "módulo", label: "ajustes", sub: "tema, inicio y tareas de cada bolo", to: "/ajustes" },
       ...gigs.map(g => ({ kind: "bolo", label: `${g.city} · ${dateShort(g.date)}`, sub: g.venue, to: `/bolos/${g.id}` })),
       ...songs.map(s => ({ kind: "canción", label: s.title, sub: s.artist, to: `/ensayos/${s.id}` })),
       ...quotes.map(x => ({ kind: "presupuesto", label: x.number, sub: x.client, to: `/presupuestos/${x.id}` })),

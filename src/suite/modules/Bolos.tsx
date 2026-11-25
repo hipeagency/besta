@@ -4,12 +4,12 @@ import { Link, useNavigate, useSearchParams } from "react-router";
 import { Page } from "@/suite/Shell";
 import { useAction, useCollection } from "@/data/hooks";
 import { api, uid } from "@/data/api";
-import { upcomingGigs, pastGigs } from "@/data/selectors";
+import { gigChecklist, upcomingGigs, pastGigs } from "@/data/selectors";
 import type { Contact, Gig, Ticketing, TicketEvent } from "@/data/types";
-import { Button, Field, IconButton, Input, Pill, Segmented, Select, Sheet, Toggle, useToast } from "@/components/ui";
+import { Button, Empty, Field, IconButton, Input, Pill, Progress, Segmented, Select, Sheet, Toggle, useToast } from "@/components/ui";
 import { Icon } from "@/components/ui/icons";
 import { MoneyInput } from "./presupuestos/money";
-import { daysUntil, gigDateShort, gigSub, gigTitle } from "@/lib/format";
+import { cx, dayNum, daysUntil, gigSub, gigTitle, mon, monthLong } from "@/lib/format";
 
 /* En la web: oculto, por desvelar (teaser con lo desvelado; internamente «secreto») o público. */
 export type WebMode = "oculto" | "secreto" | "publico";
@@ -39,40 +39,76 @@ const monthEnd = (ym: string) => {
 export default function Bolos() {
   const { data: gigs } = useCollection("gigs");
   const { data: events } = useCollection("events");
+  const { data: quotes } = useCollection("quotes");
+  const { data: riders } = useCollection("riders");
+  const { data: setlists } = useCollection("setlists");
+  const { data: settings } = useCollection("settings");
   const [params, setParams] = useSearchParams();
   const [tab, setTab] = useState<"proximos" | "pasados">("proximos");
   const creating = params.get("nuevo") === "1";
-  const list = tab === "proximos" ? upcomingGigs(gigs) : pastGigs(gigs);
+  const upcoming = upcomingGigs(gigs);
+  const list = tab === "proximos" ? upcoming : pastGigs(gigs);
+
+  /* Agrupados por mes: se lee como una agenda. Sin fecha, al final. */
+  const groups: { key: string; label: string; items: Gig[] }[] = [];
+  for (const g of list) {
+    const key = g.date ? g.date.slice(0, 7) : "sin-fecha";
+    const label = g.date ? monthLong(g.date) : "sin fecha";
+    const last = groups[groups.length - 1];
+    if (last?.key === key) last.items.push(g); else groups.push({ key, label, items: [g] });
+  }
 
   return (
     <Page title="bolos" actions={<Button variant="primary" onClick={() => setParams({ nuevo: "1" })}>+ nuevo bolo</Button>}>
-      <Segmented value={tab} onChange={setTab} options={[{ value: "proximos", label: `próximos · ${upcomingGigs(gigs).length}` }, { value: "pasados", label: "pasados" }]} className="self-start" />
-      <ul className="flex flex-col gap-2">
-        {list.map(g => {
-          const ev = events.find(e => e.gigId === g.id);
-          const d = daysUntil(g.date);
-          return (
-            <li key={g.id}>
-              <Link to={`/bolos/${g.id}`} className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-[18px] bg-tubo hover:bg-tubo-alto p-4 sm:px-5">
-                <span className="w-[104px] font-mono text-sm tracking-wider">{gigDateShort(g)}</span>
-                <span className="flex-[1_1_200px] min-w-0">
-                  <span className="block text-xl font-bold tracking-[-.01em]">{gigTitle(g)}</span>
-                  <span className="block text-sm text-crema/65 truncate">{gigSub(g)}</span>
-                </span>
-                <span className="flex flex-wrap gap-1.5">
-                  {g.status !== "confirmado" && <Pill>{g.status}</Pill>}
-                  {g.soldOut && <Pill tone="senal">sold out</Pill>}
-                  {g.ticketing === "propia" && ev && <Pill tone={ev.salesEnabled ? "senal" : "mute"} dot={ev.salesEnabled}>entradas propias</Pill>}
-                  {!g.published ? <Pill>oculto</Pill> : g.teaser ? <Pill>por desvelar</Pill> : <Pill>en la web</Pill>}
-                  {tab === "proximos" && g.date && !g.dateTbc && <Pill>{d === 0 ? "hoy" : `en ${d} d`}</Pill>}
-                  {(!g.date || g.dateTbc || !g.time) && <Pill>{!g.date ? "sin fecha" : g.dateTbc ? "día por confirmar" : "hora por confirmar"}</Pill>}
-                </span>
-              </Link>
-            </li>
-          );
-        })}
-        {!list.length && <li className="text-crema/60 p-4">Nada por aquí.</li>}
-      </ul>
+      <Segmented value={tab} onChange={setTab} options={[{ value: "proximos", label: `próximos · ${upcoming.length}` }, { value: "pasados", label: "pasados" }]} className="self-start" />
+      {!list.length && (tab === "proximos"
+        ? <Empty title="Sin bolos por delante" action={<Button variant="primary" onClick={() => setParams({ nuevo: "1" })}>+ nuevo bolo</Button>}>Crea uno con lo que sepáis: con la ciudad o el mes ya vale.</Empty>
+        : <Empty title="Aún no hay bolos pasados" />)}
+      {groups.map(gr => (
+        <section key={gr.key} className="flex flex-col gap-2">
+          <h2 className="px-1 font-mono text-[11px] tracking-[.14em] text-crema/55 uppercase">{gr.label}</h2>
+          <ul className="flex flex-col gap-2">
+            {gr.items.map(g => {
+              const ev = events.find(e => e.gigId === g.id);
+              const d = daysUntil(g.date);
+              const check = gigChecklist(g, { quotes, riders, events, setlists, settings });
+              const done = check.filter(c => c.done).length;
+              const soon = tab === "proximos" && g.date && !g.dateTbc && d <= 14;
+              return (
+                <li key={g.id}>
+                  <Link to={`/bolos/${g.id}`} className={cx("flex items-center gap-4 rounded-[18px] bg-tubo hover:bg-tubo-alto p-3 pr-4 sm:pr-5", g.status === "cancelado" && "opacity-60")}>
+                    <span className={cx("w-14 h-[60px] shrink-0 rounded-2xl grid place-items-center content-center leading-none", soon ? "bg-senal text-noche" : "bg-noche")}>
+                      <span className="text-[22px] font-bold">{g.date && !g.dateTbc ? dayNum(g.date) : "—"}</span>
+                      <span className={cx("font-mono text-[10px] mt-1", soon ? "text-noche/70" : "text-crema/60")}>{g.date ? mon(g.date) : "s/f"}</span>
+                    </span>
+                    <span className="flex-1 min-w-0 flex flex-col gap-1">
+                      <span className="flex items-center gap-2 min-w-0">
+                        <span className="text-lg font-bold tracking-[-.01em] truncate">{gigTitle(g)}</span>
+                        {g.status !== "confirmado" && <Pill className="shrink-0">{g.status}</Pill>}
+                        {g.soldOut && <Pill tone="senal" className="shrink-0">sold out</Pill>}
+                      </span>
+                      <span className="text-sm text-crema/65 truncate">
+                        {[gigSub(g), g.time || (g.date ? "hora por confirmar" : ""), tab === "proximos" && g.date && !g.dateTbc ? (d === 0 ? "hoy" : `en ${d} días`) : ""].filter(Boolean).join(" · ")}
+                      </span>
+                      {tab === "proximos" && g.status !== "cancelado" && check.length > 0 && (
+                        <span className="flex items-center gap-2.5 max-w-[320px]">
+                          <Progress value={done / check.length} className="flex-1" />
+                          <span className="font-mono text-[11px] text-crema/60 shrink-0">{done === check.length ? "listo" : `${done}/${check.length}`}</span>
+                        </span>
+                      )}
+                    </span>
+                    <span className="hidden sm:flex flex-wrap justify-end gap-1.5 max-w-[260px]">
+                      {g.ticketing === "propia" && ev && <Pill tone={ev.salesEnabled ? "senal" : "mute"} dot={ev.salesEnabled}>{ev.salesEnabled ? "a la venta" : "venta cerrada"}</Pill>}
+                      <Pill>{!g.published ? "oculto" : g.teaser ? "por desvelar" : "en la web"}</Pill>
+                    </span>
+                    <Icon name="flecha" size={16} className="shrink-0 text-crema/40" />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ))}
       <NewGig open={creating} onClose={() => setParams({})} />
     </Page>
   );

@@ -4,17 +4,18 @@ import { Link } from "react-router";
 import { Page } from "@/suite/Shell";
 import { useMe } from "@/suite/session";
 import { GROUPS, NAV, TABS, can, canSee } from "@/suite/nav";
-import { useAction } from "@/data/hooks";
+import { useAction, useCollection } from "@/data/hooks";
 import { api, DATA_MODE } from "@/data/api";
-import { Button, Segmented, useToast } from "@/components/ui";
-import { useTheme, type ThemePref } from "@/suite/theme";
+import { Button, useToast } from "@/components/ui";
 import { Icon } from "@/components/ui/icons";
 
 export default function Mas() {
   const { me, logout } = useMe();
   const toast = useToast();
   const reset = useAction(() => api.reset());
-  const theme = useTheme();
+  const { data: leads } = useCollection("leads");
+  const { data: requests } = useCollection("requests");
+  const badges: Record<string, number> = { presupuestos: leads.filter(l => l.status === "nueva").length, merch: requests.filter(r => r.status === "nueva").length };
   const rest = NAV.filter(i => !(TABS as readonly string[]).includes(i.id) && i.id !== "puerta" && canSee(i, me));
 
   return (
@@ -26,7 +27,8 @@ export default function Mas() {
           <p className="px-1 font-mono text-[11px] tracking-[.14em] text-crema/55">{g}</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
             {rest.filter(i => i.group === g).map(i => (
-              <Link key={i.id} to={i.path} className="min-h-[88px] rounded-2xl bg-tubo p-4 flex flex-col gap-1">
+              <Link key={i.id} to={i.path} className="relative min-h-[88px] rounded-2xl bg-tubo p-4 flex flex-col gap-1">
+                {!!badges[i.id] && <span className="absolute top-3 right-3 min-w-5 h-5 px-1.5 rounded-full bg-senal text-noche font-mono text-[11px] grid place-items-center">{badges[i.id]}</span>}
                 <Icon name={i.icon} />
                 <span className="font-semibold mt-1">{i.name}</span>
                 <span className="text-xs text-crema/60">{i.desktopOnly ? "solo en ordenador" : i.desc}</span>
@@ -42,10 +44,10 @@ export default function Mas() {
         </span>
         <Button size="sm" variant="quiet" onClick={logout}>salir</Button>
       </div>
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <span className="text-sm text-crema/75">tema</span>
-        <Segmented<ThemePref> value={theme.pref} onChange={theme.setPref} size="sm" options={[{ value: "auto", label: "automático" }, { value: "claro", label: "claro" }, { value: "oscuro", label: "oscuro" }]} />
-      </div>
+      <Link to="/ajustes" className="flex items-center justify-between gap-3 p-4 rounded-2xl bg-tubo">
+        <span className="flex items-center gap-3"><Icon name="ajustes" /><span><span className="block font-semibold">ajustes</span><span className="block text-xs text-crema/60">tema, inicio y tareas de cada bolo</span></span></span>
+        <Icon name="flecha" />
+      </Link>
       {DATA_MODE === "prueba" && <div className="rounded-2xl border border-dashed border-crema/20 p-4 flex flex-col gap-2 text-sm text-crema/70">
         <p><b className="text-crema">Modo de prueba.</b> Los datos son de ejemplo y viven en este navegador.</p>
         <Button size="sm" className="self-start" onClick={async () => { if (confirm("¿Volver a los datos de ejemplo? Se pierde lo que hayas cambiado.")) { await reset.run(); toast("Datos de prueba reiniciados", "ok"); } }}>reiniciar datos de prueba</Button>

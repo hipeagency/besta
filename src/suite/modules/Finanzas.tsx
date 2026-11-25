@@ -224,9 +224,9 @@ function Balances({ bal, max, plan, members, settlements }: { bal: ReturnType<ty
         </CardTitle>
         {plan.length === 0 && <p className="text-sm text-crema/60">Todo cuadrado.</p>}
         {plan.map(p => (
-          <div key={p.from.id + p.to.id} className="flex items-center justify-between gap-3 py-2.5 border-t border-crema/8">
+          <div key={p.from.id + p.to.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 py-2.5 border-t border-crema/8">
             <span className="inline-flex items-center gap-1.5">{p.from.name} <Icon name="flecha" size={14} /> {p.to.name}</span>
-            <span className="flex items-center gap-3">
+            <span className="flex items-center gap-2 ml-auto">
               <span className="font-mono">{eur(p.cents)}</span>
               <Button size="sm" variant="quiet" onClick={() => setDraft({ fromId: p.from.id, toId: p.to.id, cents: p.cents })}>parcial</Button>
               <Button size="sm" disabled={settle.pending} onClick={async () => {

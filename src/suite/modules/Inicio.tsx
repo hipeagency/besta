@@ -7,7 +7,8 @@ import { Link, useNavigate } from "react-router";
 import { Page } from "@/suite/Shell";
 import { useMe } from "@/suite/session";
 import { can } from "@/suite/nav";
-import { useHomeLayout, type WidgetDef, type WidgetId } from "@/suite/home";
+import { useHomeLayout, type WidgetId } from "@/suite/home";
+import { HomeModulesEditor } from "@/suite/HomeEditor";
 import { useCollection } from "@/data/hooks";
 import { eventStats, gigChecklist, salesByDay, upcomingGigs, balances } from "@/data/selectors";
 import { Button, Card, CardTitle, Dot, IconButton, Pill, Progress, Sheet, Stat } from "@/components/ui";
@@ -123,7 +124,8 @@ function usePendientes(me: Member): Todo[] {
         out.push({
           id: "gig-" + g.id, icon: "bolos", rank: days <= 14 ? 0 : 3, urgent: days <= 14,
           title: `${gigTitle(g)} · ${g.dateTbc ? monYear(g.date).toLowerCase() : dateShort(g.date)}${days <= 14 ? ` · en ${days} días` : ""}`,
-          sub: what, cta: "abrir ficha", to: `/bolos/${g.id}`,
+          sub: what, cta: "abrir ficha",
+          to: `/bolos/${g.id}${missing[0] && ["rider", "entradas", "setlist"].includes(missing[0].key) ? `?tab=${missing[0].key}` : ""}`,
         });
       }
     }
@@ -362,31 +364,11 @@ function Pedidos() {
 
 /* ---------- personalizar ---------- */
 function Customize({ open, onClose, layout }: { open: boolean; onClose: () => void; layout: ReturnType<typeof useHomeLayout> }) {
-  const list = layout.available;
   return (
     <Sheet open={open} onClose={onClose} title="personalizar inicio"
       footer={<div className="flex justify-between gap-2"><Button size="sm" variant="quiet" onClick={layout.reset}>restablecer</Button><Button size="sm" variant="primary" onClick={onClose}>listo</Button></div>}>
       <p className="text-sm text-crema/70 mb-4">Elige qué ves al entrar y en qué orden. Solo te afecta a ti, en este aparato.</p>
-      <ul className="flex flex-col gap-2">
-        {list.map((w: WidgetDef, i) => {
-          const on = layout.isOn(w.id);
-          return (
-            <li key={w.id} className={cx("flex items-center gap-2 p-2 pl-3 rounded-2xl bg-noche", !on && "opacity-60")}>
-              <button type="button" role="switch" aria-checked={on} onClick={() => layout.toggle(w.id)} className="flex-1 min-w-0 flex items-center gap-3 text-left">
-                <span className={cx("relative w-9 h-5 shrink-0 rounded-full transition", on ? "bg-senal" : "bg-crema/20")}>
-                  <span className={cx("absolute top-0.5 size-4 rounded-full bg-noche transition-all", on ? "left-[18px]" : "left-0.5")} />
-                </span>
-                <span className="min-w-0">
-                  <span className="block font-medium">{w.name}</span>
-                  <span className="block text-xs text-crema/60 truncate">{w.desc}</span>
-                </span>
-              </button>
-              <IconButton label={`subir ${w.name}`} disabled={i === 0} onClick={() => layout.move(w.id, -1)} className="size-9 disabled:opacity-25"><Icon name="arriba" size={16} /></IconButton>
-              <IconButton label={`bajar ${w.name}`} disabled={i === list.length - 1} onClick={() => layout.move(w.id, 1)} className="size-9 disabled:opacity-25"><Icon name="abajo" size={16} /></IconButton>
-            </li>
-          );
-        })}
-      </ul>
+      <HomeModulesEditor layout={layout} />
     </Sheet>
   );
 }
