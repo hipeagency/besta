@@ -4,7 +4,7 @@
    Los datos (canciones y listas) no viven aquí, los guarda
    la propia página en localStorage al preparar el directo.
    ========================================================= */
-const VERSION = "besta-suite-v2";
+const VERSION = "besta-suite-v3";
 const SHELL = "shell-" + VERSION;
 const RUNTIME = "runtime-" + VERSION;
 
@@ -15,6 +15,7 @@ const SHELL_URLS = [
   "/suite/ensayos.html",
   "/suite/suite.js",
   "/suite/suite-shell.css",
+  "/suite/suite-nav.css",
   "/manifest.json",
   "/assets/images/besta_color.png",
   "/assets/images/besta.png",
