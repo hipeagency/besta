@@ -113,7 +113,9 @@ function usePendientes(me: Member): Todo[] {
 
     if (can("bolos", me)) {
       for (const g of upcomingGigs(gigs).filter(x => x.date && daysUntil(x.date) <= 45)) {
-        const missing = gigChecklist(g, { quotes, riders, events, setlists, settings }).filter(c => !c.done);
+        // Un músico solo ve lo que le toca a él (el setlist); el resto es cosa de la banda.
+        const missing = gigChecklist(g, { quotes, riders, events, setlists, settings })
+          .filter(c => !c.done && (me.role === "admin" || c.key === "setlist"));
         const tbc = g.status === "tentativo";
         if (!missing.length && !tbc) continue;
         const days = daysUntil(g.date);
