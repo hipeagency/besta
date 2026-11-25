@@ -32,6 +32,7 @@ const Finanzas = lazy(() => import("./modules/Finanzas"));
 const Newsletter = lazy(() => import("./modules/Newsletter"));
 const Mas = lazy(() => import("./modules/Mas"));
 const Usuarios = lazy(() => import("./modules/Usuarios"));
+const Ajustes = lazy(() => import("./modules/Ajustes"));
 
 function Live({ children }: { children: ReactNode }) { useLiveData(); return <>{children}</>; }
 
@@ -74,6 +75,7 @@ function Routed() {
         <Route path="finanzas" element={g("finanzas", <Finanzas />)} />
         <Route path="usuarios" element={g("usuarios", <Usuarios />)} />
         <Route path="mas" element={<Mas />} />
+        <Route path="ajustes" element={<Ajustes />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

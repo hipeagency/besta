@@ -55,9 +55,10 @@ export function Shell() {
             </div>
           );
         })}
-        <div className="mt-auto flex items-center gap-2.5 p-2.5 rounded-xl border border-crema/10">
+        <div className="mt-auto flex items-center gap-1.5 p-2 rounded-xl border border-crema/10">
           <span className="size-8 rounded-full bg-senal text-noche grid place-items-center font-semibold text-sm">{me.name[0]}</span>
-          <span className="text-sm leading-tight flex-1"><span className="block">{me.name}</span><span className="block font-mono text-[11px] text-crema/55">{me.owner ? "superadmin" : me.role}</span></span>
+          <span className="text-sm leading-tight flex-1 min-w-0"><span className="block truncate">{me.name}</span><span className="block font-mono text-[11px] text-crema/55">{me.owner ? "superadmin" : me.role}</span></span>
+          <NavLink to="/ajustes" aria-label="Ajustes" title="Ajustes" className={({ isActive }) => cx("size-9 grid place-items-center rounded-full hover:bg-crema/10", isActive && "bg-crema/10")}><Icon name="ajustes" size={16} /></NavLink>
           <button type="button" onClick={theme.next} aria-label={themeLabel[theme.pref]} title={themeLabel[theme.pref]} className="size-9 grid place-items-center rounded-full hover:bg-crema/10 "><Icon name={theme.pref === "auto" ? "auto" : theme.pref === "claro" ? "sol" : "luna"} size={16} /></button>
           <button type="button" onClick={logout} aria-label="Salir" title="Salir" className="size-9 grid place-items-center rounded-full hover:bg-crema/10"><Icon name="salir" size={16} /></button>
         </div>
@@ -125,6 +126,7 @@ function CommandPalette({ onClose }: { onClose: () => void }) {
     const n = norm(q.trim());
     const all = [
       ...NAV.filter(i => canSee(i, me)).map(i => ({ kind: "módulo", label: i.name, sub: i.desc, to: i.path })),
+      { kind: "módulo", label: "ajustes", sub: "tema, inicio y tareas de cada bolo", to: "/ajustes" },
       ...gigs.map(g => ({ kind: "bolo", label: `${g.city} · ${dateShort(g.date)}`, sub: g.venue, to: `/bolos/${g.id}` })),
       ...songs.map(s => ({ kind: "canción", label: s.title, sub: s.artist, to: `/ensayos/${s.id}` })),
       ...quotes.map(x => ({ kind: "presupuesto", label: x.number, sub: x.client, to: `/presupuestos/${x.id}` })),
