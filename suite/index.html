@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="robots" content="noindex,nofollow,noarchive,nosnippet" />
 <meta name="theme-color" content="#050508" />
-<title>BESTA — suite</title>
+<title>BESTA — inicio</title>
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicons/favicon-32x32.png">
 <link rel="shortcut icon" href="/assets/favicons/favicon.ico">
 <link rel="manifest" href="/manifest.json">
@@ -22,7 +22,7 @@
 <div id="gate">
   <div class="gate-card">
     <img class="gate-logo" src="/assets/images/besta_color.png" alt="BESTA">
-    <p class="gate-kicker">suite interna</p>
+    <p class="gate-kicker">suite de la banda</p>
 
     <div id="gate-loading" class="gate-state">
       <p class="gate-muted">comprobando sesión…</p>
@@ -50,25 +50,54 @@
   </div>
 </div>
 
-<!-- ============ HUB ============ -->
+<!-- ============ INICIO ============ -->
 <main id="hub" hidden>
-  <header class="hub-head">
-    <div class="hub-brand">
-      <img src="/assets/images/besta_color.png" alt="BESTA">
-      <span>suite</span>
+  <section class="hub-hero">
+    <p class="hub-kicker"><span class="live-dot"></span><span id="hub-ws"></span><span class="sep">/</span><span id="hub-date"></span></p>
+    <h1 class="hub-title"><span id="hub-hello">Hola</span><span class="acc">.</span></h1>
+    <p class="hub-sub">Lo que se mueve en la banda, de un vistazo.</p>
+    <div class="hub-actions">
+      <a class="btn-acc" href="/suite/presupuestos.html">Nuevo presupuesto</a>
+      <a class="btn-soft" href="/suite/ensayos.html">Abrir ensayos</a>
+      <button type="button" class="btn-soft kbd-btn" data-open="palette">Buscar <kbd id="hub-kbd">⌘K</kbd></button>
     </div>
-    <div class="hub-account">
-      <span id="hub-email" class="mono"></span>
-      <button id="hub-logout" type="button" class="btn-ghost sm">salir</button>
-    </div>
-  </header>
-
-  <section class="hub-body">
-    <h1 class="hub-title">¿a dónde vamos?</h1>
-    <p class="hub-sub">Las cuatro patas de la gestión de la banda.</p>
-    <div id="hub-grid" class="hub-grid"></div>
-    <p class="hub-foot"><a href="/">← volver a besta.es</a></p>
   </section>
+
+  <section class="kpis" aria-label="Resumen">
+    <a class="kpi" href="/suite/ensayos.html" data-kpi="songs">
+      <span class="kpi-k">repertorio</span>
+      <span class="kpi-v sk">—</span>
+      <span class="kpi-s">canciones listas para ensayar</span>
+    </a>
+    <a class="kpi" href="/suite/presupuestos.html" data-kpi="gig">
+      <span class="kpi-k">próximo bolo</span>
+      <span class="kpi-v sk">—</span>
+      <span class="kpi-s">&nbsp;</span>
+    </a>
+    <a class="kpi" href="/suite/presupuestos.html" data-kpi="quotes">
+      <span class="kpi-k">presupuestos en juego</span>
+      <span class="kpi-v sk">—</span>
+      <span class="kpi-s">&nbsp;</span>
+    </a>
+    <a class="kpi" href="/suite/finanzas.html" data-kpi="spend">
+      <span class="kpi-k">gasto de la banda</span>
+      <span class="kpi-v sk">—</span>
+      <span class="kpi-s">acumulado en finanzas</span>
+    </a>
+  </section>
+
+  <section class="hub-cols">
+    <article class="panel">
+      <header class="panel-head"><h2>Agenda</h2><a href="/suite/presupuestos.html">ver todo</a></header>
+      <ul class="rows" id="hub-agenda"><li class="row-empty">cargando…</li></ul>
+    </article>
+    <article class="panel">
+      <header class="panel-head"><h2>Presupuestos recientes</h2><a href="/suite/presupuestos.html">ver todo</a></header>
+      <ul class="rows" id="hub-quotes"><li class="row-empty">cargando…</li></ul>
+    </article>
+  </section>
+
+  <section class="hub-spaces" id="hub-spaces"></section>
 </main>
 
 <script>
@@ -97,21 +126,125 @@
     return raw;
   }
 
-  function renderGrid() {
-    const grid = $("hub-grid");
-    grid.innerHTML = "";
-    BestaSuite.SPACES.forEach(space => {
-      const card = document.createElement(space.status === "soon" ? "div" : "a");
-      card.className = "space" + (space.status === "soon" ? " soon" : "");
-      if (space.status !== "soon") card.href = space.href;
-      card.innerHTML = `
-        <span class="space-glyph">${space.glyph}</span>
-        <h2>${space.name}</h2>
-        <p class="space-tag">${space.tagline}</p>
-        <p class="space-desc">${space.desc}</p>
-        ${space.status === "soon" ? '<span class="space-badge">próximamente</span>' : ''}`;
-      grid.appendChild(card);
+  const W = () => BestaSuite.WORKSPACE;
+  const esc = v => String(v == null ? "" : v).replace(/[&<>"']/g, c =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const cap = v => String(v || "").charAt(0).toUpperCase() + String(v || "").slice(1);
+  // es-ES no agrupa los miles de 4 cifras ("1800 €"): lo hacemos a mano.
+  const eur = n => Math.round(Number(n) || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " €";
+  const today = () => new Date().toISOString().slice(0, 10);
+  const fmtDay = iso => new Date(iso + "T12:00:00").toLocaleDateString("es-ES", { day: "numeric", month: "short" }).replace(".", "");
+  const STATUS = { borrador: "borrador", enviado: "enviado", aceptado: "aceptado", rechazado: "rechazado" };
+
+  function renderSpaces() {
+    const box = $("hub-spaces");
+    box.innerHTML = BestaSuite.GROUPS.map(g => `
+      <div class="space-group">
+        <h2 class="group-title">${esc(g.name)}</h2>
+        <div class="hub-grid">
+          ${BestaSuite.SPACES.filter(s => s.group === g.id).map(s => `
+            <a class="space${s.status === "soon" ? " soon" : ""}" href="${s.status === "soon" ? "#" : s.href}">
+              <span class="space-glyph">${BestaSuite.icon(s.icon, 20)}</span>
+              <span class="space-txt"><h3>${esc(cap(s.name))}</h3><p class="space-tag">${esc(s.tagline)}</p></span>
+              <span class="space-go" aria-hidden="true">→</span>
+            </a>`).join("")}
+        </div>
+      </div>`).join("");
+  }
+
+  function setKpi(key, value, sub, tone) {
+    const card = document.querySelector(`[data-kpi="${key}"]`);
+    if (!card) return;
+    const v = card.querySelector(".kpi-v");
+    v.classList.remove("sk");
+    v.innerHTML = value;
+    if (sub != null) card.querySelector(".kpi-s").textContent = sub;
+    if (tone) card.dataset.tone = tone;
+  }
+
+  async function loadDashboard() {
+    const supa = await BestaSuite.client();
+    const now = today();
+
+    // Repertorio
+    supa.from("songs").select("id", { count: "exact", head: true })
+      .then(({ count, error }) => {
+        if (error) throw error;
+        setKpi("songs", String(count || 0), (count === 1 ? "canción" : "canciones") + " listas para ensayar");
+      }).catch(() => setKpi("songs", "—", "sin datos de repertorio"));
+
+    // Gasto
+    supa.from("finance_expenses").select("amount")
+      .then(({ data, error }) => {
+        if (error) throw error;
+        const total = (data || []).reduce((a, r) => a + Number(r.amount || 0), 0);
+        setKpi("spend", eur(total), (data || []).length + " gastos registrados");
+      }).catch(() => setKpi("spend", "—", "sin datos de finanzas"));
+
+    // Presupuestos + agenda
+    let quotes = [];
+    try {
+      const { data, error } = await supa.from("booking_quotes")
+        .select("id,number,status,client,event_date,total,updated_at")
+        .eq("archived", false).order("updated_at", { ascending: false }).limit(60);
+      if (error) throw error;
+      quotes = data || [];
+      const open = quotes.filter(q => q.status === "enviado");
+      setKpi("quotes", String(open.length),
+        open.length ? eur(open.reduce((a, q) => a + Number(q.total || 0), 0)) + " pendientes de respuesta"
+                    : "ninguno esperando respuesta");
+      $("hub-quotes").innerHTML = quotes.length ? quotes.slice(0, 5).map(q => `
+        <li><a class="row" href="/suite/presupuestos.html">
+          <span class="row-main"><b>${esc(q.client || "sin cliente")}</b><small class="mono">${esc(q.number || "")}${q.event_date ? " · " + fmtDay(q.event_date) : ""}</small></span>
+          <span class="pill s-${esc(q.status)}">${esc(STATUS[q.status] || q.status)}</span>
+          <span class="row-num">${eur(q.total)}</span>
+        </a></li>`).join("")
+        : `<li class="row-empty">Aún no hay presupuestos. <a href="/suite/presupuestos.html">Crea el primero →</a></li>`;
+    } catch (_) {
+      setKpi("quotes", "—", "sin datos de presupuestos");
+      $("hub-quotes").innerHTML = `<li class="row-empty">No se pudieron cargar los presupuestos.</li>`;
+    }
+
+    let events = [];
+    try {
+      const r = await fetch("/events.json", { cache: "no-store" });
+      if (r.ok) events = ((await r.json()).events || []).map(e => ({
+        date: e.date, title: e.venue || e.title || "Concierto", where: [e.city, e.region].filter(Boolean).join(", "), kind: "concierto"
+      }));
+    } catch (_) {}
+    quotes.filter(q => q.status === "aceptado" && q.event_date).forEach(q => {
+      if (!events.some(e => e.date === q.event_date)) events.push({ date: q.event_date, title: q.client || "Bolo", where: "", kind: "confirmado" });
     });
+    events.sort((a, b) => a.date.localeCompare(b.date));
+    const upcoming = events.filter(e => e.date >= now);
+    const past = events.filter(e => e.date < now);
+    if (upcoming.length) {
+      const n = upcoming[0];
+      const days = Math.round((new Date(n.date + "T12:00:00") - new Date(now + "T12:00:00")) / 864e5);
+      setKpi("gig", fmtDay(n.date), `${n.title}${n.where ? " · " + n.where : ""} · ${days === 0 ? "hoy" : "en " + days + " días"}`, "acc");
+    } else {
+      setKpi("gig", "Sin fecha", past.length ? "último: " + fmtDay(past[past.length - 1].date) + " · " + past[past.length - 1].title : "cierra el primero desde presupuestos");
+    }
+    const agenda = upcoming.length ? upcoming.slice(0, 5) : past.slice(-3).reverse();
+    $("hub-agenda").innerHTML = agenda.length ? agenda.map(e => {
+      const d = new Date(e.date + "T12:00:00");
+      return `<li><div class="row${e.date < now ? " past" : ""}">
+        <span class="cal"><b>${d.getDate()}</b><small>${d.toLocaleDateString("es-ES", { month: "short" }).replace(".", "")}</small></span>
+        <span class="row-main"><b>${esc(e.title)}</b><small>${esc(e.where || "")}</small></span>
+        <span class="pill">${e.date < now ? "pasado" : esc(e.kind)}</span>
+      </div></li>`;
+    }).join("") + (upcoming.length ? "" : `<li class="row-empty">No hay fechas próximas. Estos fueron los últimos.</li>`)
+      : `<li class="row-empty">Sin conciertos todavía.</li>`;
+  }
+
+  function renderHello(session) {
+    const h = new Date().getHours();
+    const hi = h < 6 ? "Buenas noches" : h < 14 ? "Buenos días" : h < 21 ? "Buenas tardes" : "Buenas noches";
+    const name = BestaSuite.displayName(session);
+    $("hub-hello").textContent = name ? `${hi}, ${name}` : hi;
+    $("hub-ws").textContent = W().name;
+    if (!/Mac|iPhone|iPad/.test(navigator.platform)) $("hub-kbd").textContent = "Ctrl K";
+    $("hub-date").textContent = new Date().toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
   }
 
   function unlock(session) {
@@ -119,8 +252,10 @@
     if (target) { location.replace(target); return; }
     gate.hidden = true;
     hub.hidden = false;
-    $("hub-email").textContent = session?.user?.email || "";
-    renderGrid();
+    BestaSuite.mountNav({ active: "inicio" });
+    renderHello(session);
+    renderSpaces();
+    loadDashboard().catch(() => {});
   }
 
   function lock() {
@@ -232,7 +367,6 @@
     }
   });
 
-  $("hub-logout").addEventListener("click", () => BestaSuite.logout());
 })();
 </script>
 </body>

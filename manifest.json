@@ -1,12 +1,12 @@
 {
-  "name": "BESTA Suite",
+  "name": "BESTA · suite",
   "short_name": "BESTA",
-  "start_url": "/suite/ensayos.html",
+  "start_url": "/suite/",
   "scope": "/suite/",
   "display": "standalone",
   "background_color": "#050508",
   "theme_color": "#050508",
-  "description": "Directo de ensayos y setlist de BESTA",
+  "description": "Suite de gestión de la banda: ensayos, composición, presupuestos, rider, merch y finanzas",
   "icons": [
     {
       "src": "/assets/favicons/android-chrome-192x192.png",

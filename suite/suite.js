@@ -8,73 +8,171 @@
   const SUPABASE_URL = "https://vjydiddybwutbcfigtie.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqeWRpZGR5Ynd1dGJjZmlndGllIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxMjgxMDYsImV4cCI6MjA5MjcwNDEwNn0.0SHKjvATs4dyOPo1zKaq3CyG1mbgU5qb4I1vkNw5-V0";
 
+  /* --------------------------------------------------------
+     El espacio de trabajo (la banda). Todo lo que hace que la
+     suite sea "de BESTA" vive aquí y en ningún otro sitio:
+     cuando haya más bandas, esto vendrá de una tabla
+     `workspaces` en Supabase y el resto del código no cambia.
+     -------------------------------------------------------- */
+  const WORKSPACE = {
+    id: "besta",
+    name: "BESTA",
+    tagline: "suite de la banda",
+    logo: "/assets/images/besta_color.png",
+    site: "https://besta.es",
+    accent: "#db7f4e",
+    role: "owner",          // owner | admin | member — el superadmin crea espacios nuevos
+    members: [
+      { id: "voice",         name: "Màxim",     role: "voz" },
+      { id: "guitar_rhythm", name: "Albert",    role: "guitarra" },
+      { id: "guitar_lead",   name: "Pau",       role: "guitarra solista" },
+      { id: "bass",          name: "Lars",      role: "bajo" },
+      { id: "drums",         name: "Víctor",    role: "batería" },
+      { id: "piano",         name: "Carlinhos", role: "piano" }
+    ]
+  };
+
+  /* Colores de acento que se ofrecen en Ajustes. El primero es el de la marca. */
+  const ACCENTS = [
+    { name: "cobre",   hex: "#db7f4e" },
+    { name: "rojo",    hex: "#e5484d" },
+    { name: "ámbar",   hex: "#f5a524" },
+    { name: "lima",    hex: "#b8e04a" },
+    { name: "menta",   hex: "#3dd68c" },
+    { name: "cian",    hex: "#2cc8e0" },
+    { name: "azul",    hex: "#6e8bff" },
+    { name: "violeta", hex: "#a78bfa" },
+    { name: "rosa",    hex: "#f472b6" }
+  ];
+
   /* El árbol de la suite. Añadir un espacio nuevo es añadir una entrada aquí:
-     el hub y el conmutador de todas las páginas se enteran solos. */
+     el inicio, la barra lateral, la barra móvil y el buscador se enteran solos. */
+  const GROUPS = [
+    { id: "musica",  name: "música" },
+    { id: "negocio", name: "negocio" }
+  ];
   const SPACES = [
     {
-      id: "ensayos",
+      id: "ensayos", group: "musica", icon: "mic",
       name: "ensayos",
       href: "/suite/ensayos.html",
       tagline: "repertorio, setlists y directo",
       desc: "Letras, acordes, notas por instrumento, listas y el modo directo para el escenario.",
-      glyph: "♫",
-      status: "live"
+      glyph: "♫", status: "live", mode: "app", tab: true
     },
     {
-      id: "composicion",
+      id: "composicion", group: "musica", icon: "pen",
       name: "composición",
       href: "/suite/composicion.html",
       tagline: "ideas, acordes y demos",
       desc: "Cuadernos compartidos para componer canciones en equipo.",
-      glyph: "✎",
-      status: "live"
+      glyph: "✎", status: "live"
     },
     {
-      id: "visuales",
+      id: "visuales", group: "musica", icon: "tv",
       name: "visuales",
       href: "/suite/visuales.html",
       tagline: "estudio de muro CRT",
       desc: "Monta el muro de televisores, programa los pases y exporta el vídeo del directo.",
-      glyph: "▣",
-      status: "live"
+      glyph: "▣", status: "live", mode: "app"
     },
     {
-      id: "merch",
-      name: "merch",
-      href: "/suite/merch.html",
-      tagline: "stock, reservas y ventas",
-      desc: "Catálogo de productos con tallas y precio, control de stock y registro de cada venta o reserva.",
-      glyph: "◈",
-      status: "live"
-    },
-    {
-      id: "rider",
-      name: "rider",
-      href: "/suite/rider.html",
-      tagline: "rider técnico y plano de escenario",
-      desc: "El documento que se manda a la sala: necesidades por músico, input list, backline y escenario, listo para PDF.",
-      glyph: "▤",
-      status: "live"
-    },
-    {
-      id: "presupuestos",
+      id: "presupuestos", group: "negocio", icon: "file",
       name: "presupuestos",
       href: "/suite/presupuestos.html",
       tagline: "ofertas para salas y promotores",
       desc: "Conceptos, IVA y retención calculados solos, con su número, su estado y el PDF listo para mandar.",
-      glyph: "§",
-      status: "live"
+      glyph: "§", status: "live", tab: true
     },
     {
-      id: "finanzas",
+      id: "rider", group: "negocio", icon: "clipboard",
+      name: "rider",
+      href: "/suite/rider.html",
+      tagline: "rider técnico y plano de escenario",
+      desc: "El documento que se manda a la sala: necesidades por músico, input list, backline y escenario, listo para PDF.",
+      glyph: "▤", status: "live"
+    },
+    {
+      id: "merch", group: "negocio", icon: "shirt",
+      name: "merch",
+      href: "/suite/merch.html",
+      tagline: "stock, reservas y ventas",
+      desc: "Catálogo de productos con tallas y precio, control de stock y registro de cada venta o reserva.",
+      glyph: "◈", status: "live"
+    },
+    {
+      id: "finanzas", group: "negocio", icon: "wallet",
       name: "finanzas",
       href: "/suite/finanzas.html",
       tagline: "cachés, gastos y reparto",
       desc: "Ingresos por bolo, gastos de la banda y cuánto toca a cada uno con un resumen tipo Tricount.",
-      glyph: "€",
-      status: "live"
+      glyph: "€", status: "live", tab: true
     }
   ];
+
+  /* Iconos de línea propios (24×24, trazo). Sin librerías: cero peticiones. */
+  const ICONS = {
+    home: "M3.5 10.5 12 3.5l8.5 7V20a1 1 0 0 1-1 1H15v-6H9v6H4.5a1 1 0 0 1-1-1z",
+    mic: "M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7",
+    pen: "M4 20l4.2-1L19 8.2a2.1 2.1 0 0 0-3-3L5.2 16zM14.5 6.7l2.8 2.8",
+    tv: "M3.5 7.5h17v12h-17zM8.5 3.5l3.5 4 3.5-4",
+    file: "M14 3.5H6.5v17h11V7zM14 3.5V7h3.5M9.5 12.5h5M9.5 16h5",
+    clipboard: "M9 3.5h6v3H9zM7 5H5.5v15.5h13V5H17M9 11.5h6M9 15h4",
+    shirt: "M8.5 3.5 3.5 6.5l2 4.5 2.5-1v10.5h8V10l2.5 1 2-4.5-5-3a3.5 3.5 0 0 1-7 0z",
+    wallet: "M3.5 7.5h14a3 3 0 0 1 3 3v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2zM3.5 7.5l11-4v4M16.5 14h.01",
+    search: "M11 4.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zM20 20l-4.3-4.3",
+    sliders: "M4 7h9M17 7h3M4 17h3M11 17h9M15 5v4M9 15v4",
+    logout: "M14.5 4.5h4v15h-4M10 8l-4 4 4 4M6 12h10",
+    external: "M13.5 4.5h6v6M19.5 4.5l-8.5 8.5M17.5 13.5v6h-13v-13h6",
+    grid: "M4.5 4.5h6v6h-6zM13.5 4.5h6v6h-6zM4.5 13.5h6v6h-6zM13.5 13.5h6v6h-6z",
+    updown: "M8.5 9 12 5.5 15.5 9M8.5 15l3.5 3.5 3.5-3.5",
+    plus: "M12 5v14M5 12h14",
+    collapse: "M15 6l-6 6 6 6M20 4v16",
+    check: "M5 12.5l4.5 4.5L19 7.5",
+    close: "M6 6l12 12M18 6 6 18"
+  };
+  function icon(name, size) {
+    const s = size || 18;
+    return `<svg class="bs-ico" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" ` +
+      `stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" ` +
+      `aria-hidden="true"><path d="${ICONS[name] || ICONS.grid}"/></svg>`;
+  }
+
+  /* --------------------------------------------------------
+     Preferencias de personalización (por banda y aparato).
+     Hoy en localStorage; mañana en `workspace_settings`.
+     -------------------------------------------------------- */
+  const PREFS_KEY = "bs-prefs:" + WORKSPACE.id;
+  function prefs() {
+    try { return Object.assign({ accent: WORKSPACE.accent, rail: "open" }, JSON.parse(localStorage.getItem(PREFS_KEY) || "{}")); }
+    catch (_) { return { accent: WORKSPACE.accent, rail: "open" }; }
+  }
+  function savePrefs(patch) {
+    const next = Object.assign(prefs(), patch);
+    try { localStorage.setItem(PREFS_KEY, JSON.stringify(next)); } catch (_) {}
+    applyBrand();
+    return next;
+  }
+  function hexToRgb(hex) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || "").trim());
+    if (!m) return null;
+    const n = parseInt(m[1], 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  /* El acento de la banda se pinta en línea sobre <html>: gana a los :root
+     de cada página, así que ensayos, composición y el resto lo heredan
+     sin tocar sus hojas de estilo. */
+  function applyBrand() {
+    const p = prefs();
+    const rgb = hexToRgb(p.accent) || hexToRgb(WORKSPACE.accent);
+    const root = document.documentElement;
+    const lum = (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255;
+    root.style.setProperty("--accent", `rgb(${rgb.join(",")})`);
+    root.style.setProperty("--accent-rgb", rgb.join(", "));
+    root.style.setProperty("--accent-ink", lum > 0.55 ? "#111014" : "#fff8f2");
+    root.classList.toggle("bs-rail-collapsed", p.rail === "collapsed");
+  }
+  applyBrand();
 
   const HUB = "/suite/";
   let clientPromise = null;
@@ -270,124 +368,322 @@
   }
 
   /* --------------------------------------------------------
-     Conmutador: botón flotante que abre el árbol de espacios.
-     Se inyecta con su propio CSS para no depender de los
-     estilos de cada página (ensayos y visuales no se parecen).
+     Shell de navegación.
+     · Páginas de gestión (inicio, merch, finanzas…): barra
+       lateral en escritorio y barra de pestañas en móvil.
+     · Apps a pantalla completa (ensayos, visuales): el logo de
+       su propia cabecera abre el buscador; nada flota encima
+       del atril ni del muro.
+     · En todas: ⌘K / Ctrl+K abre el buscador de espacios.
+     Estilos en /suite/suite-nav.css (se inyecta solo).
      -------------------------------------------------------- */
-  const NAV_CSS = `
-  .bs-switch {
-    position: fixed; left: 14px; bottom: 14px; z-index: 3000;
-    width: 46px; height: 46px; border-radius: 50%;
-    display: grid; place-items: center; cursor: pointer;
-    background: #14121a; color: #f5f7ff;
-    border: 1px solid rgba(255,255,255,0.18);
-    box-shadow: 0 6px 22px rgba(0,0,0,0.45);
-    font: 600 17px/1 'Space Grotesk', system-ui, sans-serif;
-    padding: 0; transition: transform .15s, border-color .15s;
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const cap = s => String(s || "").charAt(0).toUpperCase() + String(s || "").slice(1);
+
+  function displayName(session) {
+    const u = session && session.user;
+    if (!u) return "";
+    const meta = u.user_metadata || {};
+    const raw = meta.name || meta.full_name || (u.email || "").split("@")[0];
+    return cap(String(raw).split(/[._-]/)[0]);
   }
-  .bs-switch:hover { transform: scale(1.06); border-color: #db7f4e; color: #db7f4e; }
-  .bs-switch[hidden] { display: none; }
-  .bs-sheet {
-    position: fixed; inset: 0; z-index: 3001;
-    display: grid; place-items: end start; padding: 14px;
-    background: rgba(0,0,0,0.55); backdrop-filter: blur(3px);
-    font-family: 'Space Grotesk', system-ui, sans-serif;
+  function initials(session) {
+    const n = displayName(session) || "?";
+    return n.slice(0, 1).toUpperCase();
   }
-  .bs-sheet[hidden] { display: none; }
-  .bs-panel {
-    width: min(300px, calc(100vw - 28px));
-    background: #0d0b11; color: #f5f7ff;
-    border: 1px solid rgba(255,255,255,0.14); border-radius: 14px;
-    overflow: hidden; box-shadow: 0 18px 50px rgba(0,0,0,0.6);
+
+  let navState = null;   // { active, session, palette, settings }
+
+  function ensureNavCss() {
+    if (document.querySelector('link[data-bs-nav]')) return;
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = "/suite/suite-nav.css";
+    link.setAttribute("data-bs-nav", "");
+    document.head.appendChild(link);
   }
-  .bs-panel-head {
-    padding: 12px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.08);
-    font-size: 10px; letter-spacing: .18em; text-transform: uppercase;
-    color: rgba(245,247,255,0.5);
+
+  function navItem(space, active, cls) {
+    const on = space.id === active;
+    return `<a class="${cls}${on ? " on" : ""}" href="${space.href}" ${on ? 'aria-current="page"' : ""}
+      data-tip="${esc(cap(space.name))}">${icon(space.icon)}<span>${esc(cap(space.name))}</span></a>`;
   }
-  .bs-item {
-    display: flex; align-items: center; gap: 11px; width: 100%;
-    padding: 11px 14px; background: none; border: 0; cursor: pointer;
-    color: inherit; text-align: left; text-decoration: none;
-    font: 600 14px/1.2 inherit;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
+
+  function buildRail(active) {
+    const rail = document.createElement("aside");
+    rail.className = "bs-rail";
+    rail.setAttribute("aria-label", "Navegación de la suite");
+    const groups = GROUPS.map(g => `
+      <div class="bs-rail-group">
+        <p class="bs-rail-label">${esc(g.name)}</p>
+        ${SPACES.filter(s => s.group === g.id).map(s => navItem(s, active, "bs-rail-item")).join("")}
+      </div>`).join("");
+    rail.innerHTML = `
+      <button type="button" class="bs-ws" aria-haspopup="menu" aria-expanded="false">
+        <span class="bs-ws-logo"><img src="${esc(WORKSPACE.logo)}" alt=""></span>
+        <span class="bs-ws-txt"><b>${esc(WORKSPACE.name)}</b><small>${esc(WORKSPACE.tagline)}</small></span>
+        ${icon("updown", 16)}
+      </button>
+      <div class="bs-ws-menu" role="menu" hidden>
+        <p class="bs-rail-label">tus espacios</p>
+        <a class="bs-ws-row on" href="${HUB}"><span class="bs-ws-logo sm"><img src="${esc(WORKSPACE.logo)}" alt=""></span>
+          <span>${esc(WORKSPACE.name)}</span>${icon("check", 16)}</a>
+        ${WORKSPACE.role === "owner" ? `<button type="button" class="bs-ws-row soon" disabled>
+          <span class="bs-ws-logo sm add">${icon("plus", 14)}</span><span>Nueva banda</span><em>pronto</em></button>` : ""}
+      </div>
+      <button type="button" class="bs-search" data-open="palette">
+        ${icon("search", 16)}<span>Buscar o saltar…</span><kbd>${/Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl"} K</kbd>
+      </button>
+      <nav class="bs-rail-nav">
+        <a class="bs-rail-item${active === "inicio" ? " on" : ""}" href="${HUB}" data-tip="Inicio">${icon("home")}<span>Inicio</span></a>
+        ${groups}
+      </nav>
+      <div class="bs-rail-foot">
+        <button type="button" class="bs-rail-item" data-open="settings" data-tip="Ajustes">${icon("sliders")}<span>Ajustes</span></button>
+        <a class="bs-rail-item" href="${esc(WORKSPACE.site)}" target="_blank" rel="noopener" data-tip="Web pública">${icon("external")}<span>Web pública</span></a>
+        <div class="bs-me">
+          <span class="bs-avatar" data-me-initial>·</span>
+          <span class="bs-me-txt"><b data-me-name></b><small data-me-email></small></span>
+          <button type="button" class="bs-icon-btn" data-logout title="Salir" aria-label="Salir">${icon("logout", 17)}</button>
+        </div>
+        <button type="button" class="bs-collapse" data-collapse title="Plegar barra" aria-label="Plegar barra lateral">${icon("collapse", 16)}</button>
+      </div>`;
+
+    const ws = rail.querySelector(".bs-ws"), menu = rail.querySelector(".bs-ws-menu");
+    ws.addEventListener("click", e => {
+      e.stopPropagation();
+      menu.hidden = !menu.hidden;
+      ws.setAttribute("aria-expanded", String(!menu.hidden));
+    });
+    document.addEventListener("click", e => {
+      if (!menu.hidden && !menu.contains(e.target)) { menu.hidden = true; ws.setAttribute("aria-expanded", "false"); }
+    });
+    rail.querySelector("[data-collapse]").addEventListener("click", () => {
+      savePrefs({ rail: prefs().rail === "collapsed" ? "open" : "collapsed" });
+    });
+    return rail;
   }
-  .bs-item:hover { background: rgba(255,255,255,0.06); }
-  .bs-item.on { color: #db7f4e; }
-  .bs-item .g {
-    width: 26px; height: 26px; flex: none; border-radius: 7px;
-    display: grid; place-items: center; font-size: 13px;
-    background: rgba(255,255,255,0.07); color: rgba(245,247,255,0.75);
+
+  function buildTabbar(active) {
+    const bar = document.createElement("nav");
+    bar.className = "bs-tabbar";
+    bar.setAttribute("aria-label", "Navegación de la suite");
+    const tabs = SPACES.filter(s => s.tab);
+    const inTabs = active === "inicio" || tabs.some(s => s.id === active);
+    bar.innerHTML = `
+      <a class="bs-tab${active === "inicio" ? " on" : ""}" href="${HUB}">${icon("home", 21)}<span>Inicio</span></a>
+      ${tabs.map(s => `<a class="bs-tab${s.id === active ? " on" : ""}" href="${s.href}">${icon(s.icon, 21)}<span>${esc(cap(s.name))}</span></a>`).join("")}
+      <button type="button" class="bs-tab${inTabs ? "" : " on"}" data-open="palette">${icon("grid", 21)}<span>Más</span></button>`;
+    return bar;
   }
-  .bs-item.on .g { background: rgba(219,127,78,0.16); color: #db7f4e; }
-  .bs-item .sub {
-    display: block; font: 400 11px/1.3 inherit; color: rgba(245,247,255,0.45);
-    margin-top: 2px;
+
+  /* ---------- buscador de espacios (⌘K) ---------- */
+  function buildPalette() {
+    const sheet = document.createElement("div");
+    sheet.className = "bs-overlay bs-palette";
+    sheet.hidden = true;
+    sheet.innerHTML = `
+      <div class="bs-pal" role="dialog" aria-modal="true" aria-label="Buscar en la suite">
+        <label class="bs-pal-input">${icon("search", 18)}
+          <input type="search" placeholder="¿A dónde vamos?" autocomplete="off" spellcheck="false">
+          <kbd>esc</kbd></label>
+        <div class="bs-pal-list" role="listbox"></div>
+        <div class="bs-pal-foot"><span><kbd>↑</kbd><kbd>↓</kbd> moverse</span><span><kbd>↵</kbd> abrir</span></div>
+      </div>`;
+    const input = sheet.querySelector("input"), list = sheet.querySelector(".bs-pal-list");
+    let idx = 0, rows = [];
+
+    const entries = () => [
+      { id: "inicio", label: "Inicio", sub: "resumen de la banda", icon: "home", href: HUB, group: "ir a" },
+      ...SPACES.map(s => ({ id: s.id, label: cap(s.name), sub: s.tagline, icon: s.icon, href: s.href, group: "ir a" })),
+      { id: "ajustes", label: "Ajustes y personalización", sub: "color de la suite, barra lateral", icon: "sliders", run: openSettings, group: "acciones" },
+      { id: "web", label: "Abrir la web pública", sub: WORKSPACE.site.replace(/^https?:\/\//, ""), icon: "external", href: WORKSPACE.site, blank: true, group: "acciones" },
+      { id: "salir", label: "Cerrar sesión", sub: "", icon: "logout", run: logout, group: "acciones" }
+    ];
+    const norm = s => String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+    function render() {
+      const q = norm(input.value.trim());
+      rows = entries().filter(e => !q || norm(e.label + " " + e.sub).includes(q));
+      idx = Math.min(idx, Math.max(rows.length - 1, 0));
+      let last = "";
+      list.innerHTML = rows.length ? rows.map((r, i) => {
+        const head = r.group !== last ? `<p class="bs-pal-group">${esc(r.group)}</p>` : "";
+        last = r.group;
+        const on = navState && navState.active === r.id;
+        return `${head}<button type="button" class="bs-pal-row${i === idx ? " sel" : ""}" data-i="${i}" role="option">
+          <span class="bs-pal-ico">${icon(r.icon, 17)}</span>
+          <span class="bs-pal-txt"><b>${esc(r.label)}</b>${r.sub ? `<small>${esc(r.sub)}</small>` : ""}</span>
+          ${on ? '<em>aquí</em>' : ""}</button>`;
+      }).join("") : `<p class="bs-pal-empty">Nada con «${esc(input.value)}».</p>`;
+    }
+    function go(r) {
+      if (!r) return;
+      close();
+      if (r.run) r.run();
+      else if (r.blank) window.open(r.href, "_blank", "noopener");
+      else location.href = r.href;
+    }
+    function open() { sheet.hidden = false; input.value = ""; idx = 0; render(); setTimeout(() => input.focus(), 0); }
+    function close() { sheet.hidden = true; }
+
+    input.addEventListener("input", () => { idx = 0; render(); });
+    input.addEventListener("keydown", e => {
+      if (e.key === "ArrowDown") { e.preventDefault(); idx = (idx + 1) % Math.max(rows.length, 1); render(); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); idx = (idx - 1 + rows.length) % Math.max(rows.length, 1); render(); }
+      else if (e.key === "Enter") { e.preventDefault(); go(rows[idx]); }
+    });
+    list.addEventListener("click", e => {
+      const b = e.target.closest(".bs-pal-row");
+      if (b) go(rows[+b.dataset.i]);
+    });
+    sheet.addEventListener("click", e => { if (e.target === sheet) close(); });
+    return { el: sheet, open, close };
   }
-  .bs-item.soon { opacity: .55; }
-  .bs-foot { display: flex; gap: 8px; padding: 10px 14px 12px; }
-  .bs-foot a, .bs-foot button {
-    flex: 1; padding: 8px 10px; border-radius: 8px; cursor: pointer;
-    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-    color: rgba(245,247,255,0.75); text-decoration: none; text-align: center;
-    font: 500 12px/1 inherit;
+
+  /* ---------- ajustes / personalización ---------- */
+  function buildSettings() {
+    const sheet = document.createElement("div");
+    sheet.className = "bs-overlay bs-settings";
+    sheet.hidden = true;
+    sheet.innerHTML = `
+      <div class="bs-set" role="dialog" aria-modal="true" aria-labelledby="bs-set-title">
+        <header class="bs-set-head">
+          <div><p class="bs-rail-label">${esc(WORKSPACE.name)}</p><h2 id="bs-set-title">Ajustes</h2></div>
+          <button type="button" class="bs-icon-btn" data-close aria-label="Cerrar">${icon("close", 18)}</button>
+        </header>
+        <section class="bs-set-sec">
+          <h3>Color de la suite</h3>
+          <p>El acento tiñe botones, enlaces y datos destacados en todos los espacios.</p>
+          <div class="bs-swatches">
+            ${ACCENTS.map(a => `<button type="button" class="bs-swatch" data-hex="${a.hex}" style="--sw:${a.hex}" title="${esc(a.name)}" aria-label="${esc(a.name)}"></button>`).join("")}
+            <label class="bs-swatch custom" title="Color propio">${icon("plus", 14)}<input type="color" aria-label="Color propio"></label>
+          </div>
+          <div class="bs-preview">
+            <span class="bs-preview-btn">Botón principal</span>
+            <span class="bs-preview-chip">etiqueta</span>
+            <span class="bs-preview-num">1.240 €</span>
+          </div>
+        </section>
+        <section class="bs-set-sec">
+          <h3>Barra lateral</h3>
+          <div class="bs-seg" data-seg="rail">
+            <button type="button" data-v="open">Completa</button>
+            <button type="button" data-v="collapsed">Solo iconos</button>
+          </div>
+        </section>
+        <section class="bs-set-sec">
+          <h3>Banda</h3>
+          <dl class="bs-kv">
+            <dt>Nombre</dt><dd>${esc(WORKSPACE.name)}</dd>
+            <dt>Miembros</dt><dd>${WORKSPACE.members.map(m => esc(m.name)).join(" · ")}</dd>
+          </dl>
+          <p class="bs-note">Los ajustes se guardan en este aparato.</p>
+        </section>
+        <footer class="bs-set-foot">
+          <button type="button" class="bs-link" data-reset>Restablecer color de la marca</button>
+        </footer>
+      </div>`;
+
+    function sync() {
+      const p = prefs();
+      sheet.querySelectorAll(".bs-swatch[data-hex]").forEach(b =>
+        b.classList.toggle("on", b.dataset.hex.toLowerCase() === String(p.accent).toLowerCase()));
+      const custom = sheet.querySelector(".bs-swatch.custom");
+      const isPreset = ACCENTS.some(a => a.hex.toLowerCase() === String(p.accent).toLowerCase());
+      custom.classList.toggle("on", !isPreset);
+      if (!isPreset) custom.style.setProperty("--sw", p.accent);
+      custom.querySelector("input").value = hexToRgb(p.accent) ? p.accent : WORKSPACE.accent;
+      sheet.querySelectorAll('[data-seg="rail"] button').forEach(b => b.classList.toggle("on", b.dataset.v === p.rail));
+    }
+    sheet.addEventListener("click", e => {
+      if (e.target === sheet || e.target.closest("[data-close]")) { close(); return; }
+      const sw = e.target.closest(".bs-swatch[data-hex]");
+      if (sw) { savePrefs({ accent: sw.dataset.hex }); sync(); return; }
+      const seg = e.target.closest('[data-seg="rail"] button');
+      if (seg) { savePrefs({ rail: seg.dataset.v }); sync(); return; }
+      if (e.target.closest("[data-reset]")) { savePrefs({ accent: WORKSPACE.accent }); sync(); }
+    });
+    sheet.querySelector('input[type="color"]').addEventListener("input", e => { savePrefs({ accent: e.target.value }); sync(); });
+    function open() { sync(); sheet.hidden = false; setTimeout(() => sheet.querySelector("[data-close]").focus(), 0); }
+    function close() { sheet.hidden = true; }
+    return { el: sheet, open, close };
   }
-  .bs-foot a:hover, .bs-foot button:hover { color: #f5f7ff; border-color: rgba(255,255,255,0.25); }
-  `;
+
+  function openPalette() { navState && navState.palette.open(); }
+  function openSettings() { navState && navState.settings.open(); }
+
+  /* Rellena nombre, email e inicial del usuario donde haya hueco. */
+  async function fillMe() {
+    try {
+      const supa = await client();
+      const res = await supa.auth.getSession();
+      const session = (res && res.data && res.data.session) || storedSession();
+      if (!session) return;
+      document.querySelectorAll("[data-me-name]").forEach(el => el.textContent = displayName(session));
+      document.querySelectorAll("[data-me-email]").forEach(el => el.textContent = (session.user && session.user.email) || "");
+      document.querySelectorAll("[data-me-initial]").forEach(el => el.textContent = initials(session));
+    } catch (_) {}
+  }
 
   function mountNav(opts) {
     const active = (opts && opts.active) || "";
-    if (document.querySelector(".bs-switch")) return;
+    if (navState) return navState;
+    ensureNavCss();
+    const space = SPACES.find(s => s.id === active);
+    const mode = (opts && opts.mode) || (space && space.mode) || "page";
 
-    const style = document.createElement("style");
-    style.textContent = NAV_CSS;
-    document.head.appendChild(style);
+    const palette = buildPalette(), settings = buildSettings();
+    navState = { active, palette, settings };
+    document.body.appendChild(palette.el);
+    document.body.appendChild(settings.el);
 
-    const btn = document.createElement("button");
-    btn.className = "bs-switch";
-    btn.type = "button";
-    btn.title = "Cambiar de espacio";
-    btn.setAttribute("aria-label", "Cambiar de espacio en la suite");
-    btn.textContent = "⠿";
+    if (mode === "page") {
+      document.documentElement.classList.add("bs-shell");
+      document.body.appendChild(buildRail(active));
+      document.body.appendChild(buildTabbar(active));
+    } else {
+      // Apps a pantalla completa: su logo pasa a ser la puerta al resto.
+      document.documentElement.classList.add("bs-app");
+      const brand = document.querySelector("header .brand, .topbar .brand");
+      if (brand) {
+        brand.classList.add("bs-brand-launch");
+        brand.insertAdjacentHTML("afterbegin", `<span class="bs-launch-ico">${icon("grid", 14)}</span>`);
+        brand.setAttribute("title", "Cambiar de espacio (⌘K)");
+        brand.setAttribute("role", "button");
+        brand.addEventListener("click", e => { e.preventDefault(); palette.open(); });
+      } else {
+        const btn = document.createElement("button");
+        btn.className = "bs-switch"; btn.type = "button";
+        btn.setAttribute("aria-label", "Cambiar de espacio en la suite");
+        btn.innerHTML = icon("grid", 18);
+        btn.addEventListener("click", () => palette.open());
+        document.body.appendChild(btn);
+      }
+    }
 
-    const sheet = document.createElement("div");
-    sheet.className = "bs-sheet";
-    sheet.hidden = true;
-    sheet.innerHTML = `
-      <div class="bs-panel" role="menu">
-        <div class="bs-panel-head">suite besta</div>
-        <div class="bs-list"></div>
-        <div class="bs-foot">
-          <a href="${HUB}">inicio suite</a>
-          <button type="button" class="bs-logout">salir</button>
-        </div>
-      </div>`;
-
-    const list = sheet.querySelector(".bs-list");
-    SPACES.forEach(space => {
-      const a = document.createElement("a");
-      a.className = "bs-item" + (space.id === active ? " on" : "") +
-                    (space.status === "soon" ? " soon" : "");
-      a.href = space.href;
-      a.innerHTML = `<span class="g">${space.glyph}</span>
-        <span>${space.name}<span class="sub">${space.tagline}</span></span>`;
-      list.appendChild(a);
+    document.addEventListener("click", e => {
+      const o = e.target.closest("[data-open]");
+      if (o) { e.preventDefault(); o.dataset.open === "settings" ? settings.open() : palette.open(); return; }
+      if (e.target.closest("[data-logout]")) logout();
     });
-
-    sheet.addEventListener("click", e => { if (e.target === sheet) sheet.hidden = true; });
-    sheet.querySelector(".bs-logout").addEventListener("click", logout);
-    btn.addEventListener("click", () => { sheet.hidden = !sheet.hidden; });
     document.addEventListener("keydown", e => {
-      if (e.key === "Escape" && !sheet.hidden) sheet.hidden = true;
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        palette.el.hidden ? palette.open() : palette.close();
+      } else if (e.key === "Escape") {
+        if (!palette.el.hidden) palette.close();
+        if (!settings.el.hidden) settings.close();
+      }
     });
-
-    document.body.appendChild(btn);
-    document.body.appendChild(sheet);
-    return { button: btn, sheet };
+    fillMe();
+    return navState;
   }
 
   window.BestaSuite = {
-    SUPABASE_URL, SUPABASE_ANON_KEY, SPACES, HUB, DB_DOWN_HTML, DB_DOWN_FIX,
-    client, guard, logout, mountNav, fatal, banner, isDbDown, withTimeout, reachable, storedSession
+    SUPABASE_URL, SUPABASE_ANON_KEY, WORKSPACE, ACCENTS, GROUPS, SPACES, HUB, DB_DOWN_HTML, DB_DOWN_FIX,
+    client, guard, logout, mountNav, fatal, banner, isDbDown, withTimeout, reachable, storedSession,
+    icon, prefs, savePrefs, applyBrand, displayName, openPalette, openSettings
   };
 })();
