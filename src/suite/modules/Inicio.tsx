@@ -124,7 +124,8 @@ function usePendientes(me: Member): Todo[] {
         out.push({
           id: "gig-" + g.id, icon: "bolos", rank: days <= 14 ? 0 : 3, urgent: days <= 14,
           title: `${gigTitle(g)} · ${g.dateTbc ? monYear(g.date).toLowerCase() : dateShort(g.date)}${days <= 14 ? ` · en ${days} días` : ""}`,
-          sub: what, cta: "abrir ficha", to: `/bolos/${g.id}`,
+          sub: what, cta: "abrir ficha",
+          to: `/bolos/${g.id}${missing[0] && ["rider", "entradas", "setlist"].includes(missing[0].key) ? `?tab=${missing[0].key}` : ""}`,
         });
       }
     }
