@@ -15,6 +15,14 @@ export function Shell() {
   const { me, logout } = useMe();
   const theme = useTheme();
   const items = NAV.filter(i => canSee(i, me));
+  /* Avisos en el menú: lo que espera a alguien en cada módulo. */
+  const { data: leads } = useCollection("leads");
+  const { data: requests } = useCollection("requests");
+  const badges: Record<string, number> = {
+    presupuestos: leads.filter(l => l.status === "nueva").length,
+    merch: requests.filter(r => r.status === "nueva").length,
+  };
+  const moreBadge = items.filter(i => !(TABS as readonly string[]).includes(i.id)).reduce((n, i) => n + (badges[i.id] ?? 0), 0);
   const [palette, setPalette] = useState(false);
   const loc = useLocation();
 
@@ -50,6 +58,7 @@ export function Shell() {
                   className={({ isActive }) => cx("h-[38px] px-3 rounded-[10px] flex items-center gap-2.5 text-[15px] transition",
                     isActive ? "bg-senal text-noche font-semibold" : "text-crema/80 hover:text-crema hover:bg-crema/5")}>
                   <Icon name={i.icon} size={17} />{i.name}
+                  {!!badges[i.id] && <span className="ml-auto min-w-5 h-5 px-1.5 rounded-full bg-senal text-noche font-mono text-[11px] grid place-items-center" aria-label={`${badges[i.id]} pendientes`}>{badges[i.id]}</span>}
                 </NavLink>
               ))}
             </div>
@@ -75,7 +84,10 @@ export function Shell() {
             <NavLink key={i.id} to={i.path} end={i.path === "/"}
               className={({ isActive }) => cx("flex flex-col items-center justify-center gap-1 text-[11px]", isActive ? "text-crema font-semibold" : "text-crema/65")}>
               {({ isActive }) => (<>
-                <span className={cx("w-11 h-7 rounded-full grid place-items-center", isActive && "bg-senal text-noche")}><Icon name={i.icon} size={19} /></span>
+                <span className={cx("relative w-11 h-7 rounded-full grid place-items-center", isActive && "bg-senal text-noche")}>
+                  <Icon name={i.icon} size={19} />
+                  {i.id === "mas" && moreBadge > 0 && <span className="absolute top-0 right-1.5 size-2 rounded-full bg-senal ring-2 ring-lateral" aria-label="hay cosas pendientes" />}
+                </span>
                 {i.name}
               </>)}
             </NavLink>
