@@ -165,6 +165,17 @@ export function NewGig({ open, onClose, gig }: { open: boolean; onClose: () => v
     date: !m ? "" : d ? `${m}-${d > monthEnd(m).slice(8) ? monthEnd(m).slice(8) : d}` : monthEnd(m),
     dateTbc: m && !d ? true : undefined,
   }));
+  type DateMode = "dia" | "mes" | "sin";
+  const [dateMode, setDateMode] = useState<DateMode>("dia");
+  useEffect(() => { if (open) { const g0 = gig ?? blank; setDateMode(!g0.date ? (gig ? "sin" : "dia") : g0.dateTbc ? "mes" : "dia"); } }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  const changeDateMode = (m: DateMode) => {
+    setDateMode(m);
+    if (m === "sin") setF(x => ({ ...x, date: "", dateTbc: undefined }));
+    // De «con día» a «solo el mes»: se queda el mes de la fecha que hubiera.
+    else if (m === "mes" && f.date) setDate(f.date.slice(0, 7), "");
+    // De «solo el mes» a «con día»: el día se elige en el calendario.
+    else if (m === "dia" && f.dateTbc) setF(x => ({ ...x, date: "", dateTbc: undefined }));
+  };
   const setContact = (i: number, c: Partial<Contact>) => set("contacts", f.contacts.map((x, j) => (j === i ? { ...x, ...c } : x)));
 
   async function submit(e: React.FormEvent) {
@@ -198,25 +209,31 @@ export function NewGig({ open, onClose, gig }: { open: boolean; onClose: () => v
           <span className="text-xs text-crema/55">{WEB_HINT[webMode(f)]}</span>
         </div>
         <p className="-mb-1 text-xs text-crema/55">Pon lo que sepáis: con un dato basta. Lo que falte sale «por confirmar».</p>
-        <div className="grid grid-cols-[1.3fr_1fr_1fr] gap-3">
-          <Field label="mes">{id => (
-            <Select id={id} value={month} onChange={e => pickMonth(e.target.value)}>
-              <option value="">sin fecha</option>
-              {MONTHS.map((n, i) => <option key={n} value={String(i + 1).padStart(2, "0")}>{n}</option>)}
-            </Select>
-          )}</Field>
-          <Field label="año">{id => (
-            <Select id={id} value={year} onChange={e => pickYear(e.target.value)}>
-              <option value="">—</option>
-              {years.map(y => <option key={y} value={String(y)}>{y}</option>)}
-            </Select>
-          )}</Field>
-          <Field label="día" hint={ym && !day ? "Sin día: sale mes y año." : undefined}>{id => (
-            <Select id={id} value={day} disabled={!ym} onChange={e => setDate(ym, e.target.value)}>
-              <option value="">por confirmar</option>
-              {Array.from({ length: ym ? Number(monthEnd(ym).slice(8)) : 31 }, (_, i) => String(i + 1).padStart(2, "0")).map(d => <option key={d} value={d}>{Number(d)}</option>)}
-            </Select>
-          )}</Field>
+        {/* Fecha: con día (calendario del móvil), solo el mes, o sin fecha todavía. */}
+        <div className="flex flex-col gap-2">
+          <span className="text-[13px] text-crema/75" id="gig-when">fecha</span>
+          <div role="group" aria-labelledby="gig-when" className="self-start">
+            <Segmented size="sm" value={dateMode} onChange={changeDateMode} options={[
+              { value: "dia", label: "con día" }, { value: "mes", label: "solo el mes" }, { value: "sin", label: "sin fecha" },
+            ]} />
+          </div>
+          {dateMode === "dia" && (
+            <Input type="date" aria-label="Fecha del bolo" value={f.date && !f.dateTbc ? f.date : ""}
+              onChange={e => setF(x => ({ ...x, date: e.target.value, dateTbc: undefined }))} className="max-w-[240px]" />
+          )}
+          {dateMode === "mes" && (
+            <div className="grid grid-cols-[1.4fr_1fr] gap-3 max-w-[360px]">
+              <Select aria-label="Mes" value={month} onChange={e => pickMonth(e.target.value)}>
+                <option value="">mes…</option>
+                {MONTHS.map((n, i) => <option key={n} value={String(i + 1).padStart(2, "0")}>{n}</option>)}
+              </Select>
+              <Select aria-label="Año" value={year} onChange={e => pickYear(e.target.value)}>
+                <option value="">año…</option>
+                {years.map(y => <option key={y} value={String(y)}>{y}</option>)}
+              </Select>
+            </div>
+          )}
+          <span className="text-xs text-crema/55">{dateMode === "dia" ? "Toca para abrir el calendario." : dateMode === "mes" ? "Sale «mes y año · día por confirmar». Cuando sepáis el día, cambia a «con día»." : "Sale «fecha por confirmar»."}</span>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <Field label="puertas">{id => <Input id={id} type="time" value={f.doors ?? ""} onChange={e => set("doors", e.target.value || undefined)} />}</Field>

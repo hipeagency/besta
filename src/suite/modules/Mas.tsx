@@ -3,7 +3,7 @@
 import { Link } from "react-router";
 import { Page } from "@/suite/Shell";
 import { useMe } from "@/suite/session";
-import { GROUPS, NAV, TABS, can, canSee } from "@/suite/nav";
+import { GROUPS, NAV, TABS, can, canSee, inMenu } from "@/suite/nav";
 import { useAction, useCollection } from "@/data/hooks";
 import { api, DATA_MODE } from "@/data/api";
 import { Button, useToast } from "@/components/ui";
@@ -16,7 +16,7 @@ export default function Mas() {
   const { data: leads } = useCollection("leads");
   const { data: requests } = useCollection("requests");
   const badges: Record<string, number> = { presupuestos: leads.filter(l => l.status === "nueva").length, merch: requests.filter(r => r.status === "nueva").length };
-  const rest = NAV.filter(i => !(TABS as readonly string[]).includes(i.id) && i.id !== "puerta" && canSee(i, me));
+  const rest = NAV.filter(i => !(TABS as readonly string[]).includes(i.id) && i.id !== "puerta" && canSee(i, me) && inMenu(i, me));
 
   return (
     <Page title="más">

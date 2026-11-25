@@ -51,6 +51,7 @@ export default function Inicio() {
         <div className="relative flex flex-wrap gap-2 mt-1">
           {actions}
           <Button onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))} className="hidden md:inline-flex">buscar <kbd className="font-mono text-[10px] px-1.5 py-0.5 rounded-md border border-crema/20">⌘K</kbd></Button>
+          <a href="/" target="_blank" rel="noopener" className="inline-flex items-center justify-center gap-2 rounded-full h-11 px-[18px] text-[15px] border-[1.5px] border-crema/25 text-crema hover:border-crema/60">ver la web <Icon name="externo" size={15} /></a>
           <IconButton label="personalizar inicio" onClick={() => setEditing(true)} className="border-[1.5px] border-crema/25 hover:border-crema/60 hover:bg-transparent"><Icon name="ajustes" size={18} /></IconButton>
         </div>
       </header>

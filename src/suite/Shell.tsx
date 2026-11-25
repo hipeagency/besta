@@ -3,7 +3,7 @@
    modo puesto de merch van a pantalla completa, fuera de esto. */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
-import { GROUPS, NAV, TABS, canSee, type NavItem } from "./nav";
+import { GROUPS, NAV, TABS, canSee, inMenu, type NavItem } from "./nav";
 import { useMe } from "./session";
 import { useTheme, themeLabel } from "./theme";
 import { Icon } from "@/components/ui/icons";
@@ -77,7 +77,7 @@ export function Shell() {
         </button>
 
         {GROUPS.map(g => {
-          const list = items.filter(i => i.group === g);
+          const list = items.filter(i => i.group === g && inMenu(i, me));
           if (!list.length) return null;
           return (
             <div key={g} className={cx("flex flex-col gap-0.5", g && "mt-3")}>
@@ -103,9 +103,6 @@ export function Shell() {
             className={({ isActive }) => cx("h-[38px] px-3 rounded-[10px] flex items-center gap-3 text-[14.5px]", rail && "justify-center px-0", isActive ? "bg-senal/12 text-crema font-semibold [&>svg]:text-senal" : "text-crema/65 hover:text-crema hover:bg-crema/[.045]")}>
             <Icon name="ajustes" size={17} />{!rail && "ajustes"}
           </NavLink>
-          <a href="/" target="_blank" rel="noopener" title={rail ? "web pública" : undefined} className={cx("h-[38px] px-3 rounded-[10px] flex items-center gap-3 text-[14.5px] text-crema/65 hover:text-crema hover:bg-crema/[.045]", rail && "justify-center px-0")}>
-            <Icon name="externo" size={17} />{!rail && "web pública"}
-          </a>
           <div className={cx("mt-1.5 flex items-center gap-2.5 p-2 rounded-xl bg-crema/[.03] border border-crema/8", rail && "justify-center bg-transparent border-transparent")}>
             <span className="size-8 shrink-0 rounded-full bg-senal/18 text-senal border border-senal/35 grid place-items-center font-bold text-sm">{me.name[0]}</span>
             {!rail && <>
