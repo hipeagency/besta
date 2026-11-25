@@ -176,7 +176,7 @@ export function useView() {
   const [viewAs, setViewAs] = usePref<ID>(`besta:ensayos:${me.id}:ver-como`, me.id);
   const [mode, setMode] = usePref<ViewMode>(`besta:ensayos:${me.id}:modo`, "acordes");
   const [latin, setLatin] = usePref<boolean>(`besta:ensayos:${me.id}:latino`, false);
-  const [diagrams, setDiagrams] = usePref<boolean>(`besta:ensayos:${me.id}:diagramas`, false);
+  const [diagrams, setDiagrams] = usePref<boolean>(`besta:ensayos:${me.id}:diagramas`, true);
   return { me, viewAs, setViewAs, mode, setMode, latin, setLatin, diagrams, setDiagrams };
 }
 
