@@ -180,6 +180,12 @@ function SongView({ song }: { song: Song }) {
         {!concert && <DeleteBanner song={song} />}
 
         {showDiagrams && <ChordDiagrams chords={diagramChords} kind={kind} latin={latin} />}
+        {/* Si están activados y no sale ninguno, se dice por qué (en vez de no enseñar nada). */}
+        {diagrams && !clean && !concert && (!kind || !diagramChords.length) && (
+          <p className="text-xs text-crema/60 print:hidden" data-diag={`${viewer.instrument || "?"}|${kind || "-"}|${diagramChords.length}`}>
+            {!kind ? `Sin diagramas para ${viewer.instrument || "este instrumento"}.` : "No reconozco acordes en esta canción para dibujar sus diagramas."}
+          </p>
+        )}
 
         <div className="flex flex-col gap-4 print:gap-5">
           {sections.map(({ sec, lines, own }) => {
