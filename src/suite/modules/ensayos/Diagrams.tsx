@@ -20,11 +20,13 @@ function useIsLight() {
   return light;
 }
 
+/* shrink-0: la columna de la canción es flex y tiene altura fija; con overflow-x
+   la fila se encogía hasta 0 px y los diagramas «no salían» aunque estuvieran. */
 export function ChordDiagrams({ chords, kind, latin, className }: { chords: string[]; kind: DiagramKind; latin: boolean; className?: string }) {
   const light = useIsLight();
   if (!kind || !chords.length) return null;
   return (
-    <section aria-label={`diagramas de ${kind}`} className={cx("flex gap-2.5 overflow-x-auto no-scrollbar md:flex-wrap print:hidden", className)}>
+    <section aria-label={`diagramas de ${kind}`} className={cx("shrink-0 flex gap-2.5 overflow-x-auto no-scrollbar md:flex-wrap print:hidden", className)}>
       {chords.map(c => (
         <figure key={c} className="shrink-0 w-[92px] rounded-xl bg-tubo p-2 flex flex-col items-center gap-1.5">
           <figcaption className="font-mono text-[13px] font-semibold text-senal-suave">{latin ? toLatin(c) : c}</figcaption>
