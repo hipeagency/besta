@@ -74,11 +74,16 @@ function SongView({ song }: { song: Song }) {
   /* Diagramas: los acordes que suenan (con «mis acordes» si toca), ya transpuestos,
      sin pasar a Do Re Mi: la postura se busca por el nombre inglés. */
   const kind = diagramKind(viewer);
-  const showDiagrams = diagrams && !clean && !concert && !!kind;
-  const diagramChords = useMemo(
-    () => showDiagrams ? chordsIn(shownSections(song, mode === "mis" ? "mis" : "acordes", viewer.id, semis, false).flatMap(s => s.lines)) : [],
-    [showDiagrams, song, mode, viewer.id, semis],
-  );
+  // También en concierto: compactos, dentro de cada sección, no estorban.
+  const showDiagrams = diagrams && !clean && !!kind;
+  /* Por sección: cada bloque enseña los diagramas de los acordes que suenan en él,
+     para no tener que subir arriba mientras se toca. */
+  const diagramsBySec = useMemo(() => {
+    const m = new Map<string, string[]>();
+    if (showDiagrams) for (const s of shownSections(song, mode === "mis" ? "mis" : "acordes", viewer.id, semis, false)) m.set(s.sec.id, chordsIn(s.lines));
+    return m;
+  }, [showDiagrams, song, mode, viewer.id, semis]);
+  const diagramChords = useMemo(() => [...new Set([...diagramsBySec.values()].flat())], [diagramsBySec]);
 
   /* Atajos como en la app antigua: ⇧C concierto, M modo, + − 0 tono, ⇧, ⇧. letra. */
   const keys = useRef<(e: KeyboardEvent) => void>(() => {});
@@ -179,7 +184,6 @@ function SongView({ song }: { song: Song }) {
 
         {!concert && <DeleteBanner song={song} />}
 
-        {showDiagrams && <ChordDiagrams chords={diagramChords} kind={kind} latin={latin} />}
         {/* Si están activados y no sale ninguno, se dice por qué (en vez de no enseñar nada). */}
         {diagrams && !clean && !concert && (!kind || !diagramChords.length) && (
           <p className="text-xs text-crema/60 print:hidden" data-diag={`${viewer.instrument || "?"}|${kind || "-"}|${diagramChords.length}`}>
@@ -204,6 +208,7 @@ function SongView({ song }: { song: Song }) {
                   )}
                 </div>
                 {!clean && <SectionNotes notes={secNotes[sec.id]} members={members} viewerId={viewer.id} onlyViewer={concert} />}
+                {showDiagrams && !!diagramsBySec.get(sec.id)?.length && <ChordDiagrams compact chords={diagramsBySec.get(sec.id)!} kind={kind} latin={latin} />}
                 {lines.length === 0 && <p className="text-sm text-crema/45 print:hidden">sin letra ni acordes</p>}
                 {lines.map((l, i) => (
                   <div key={i} className="flex flex-col overflow-x-auto no-scrollbar">

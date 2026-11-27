@@ -22,15 +22,15 @@ function useIsLight() {
 
 /* shrink-0: la columna de la canción es flex y tiene altura fija; con overflow-x
    la fila se encogía hasta 0 px y los diagramas «no salían» aunque estuvieran. */
-export function ChordDiagrams({ chords, kind, latin, className }: { chords: string[]; kind: DiagramKind; latin: boolean; className?: string }) {
+export function ChordDiagrams({ chords, kind, latin, className, compact }: { chords: string[]; kind: DiagramKind; latin: boolean; className?: string; compact?: boolean }) {
   const light = useIsLight();
   if (!kind || !chords.length) return null;
   return (
-    <section aria-label={`diagramas de ${kind}`} className={cx("shrink-0 flex gap-2.5 overflow-x-auto no-scrollbar md:flex-wrap print:hidden", className)}>
+    <section aria-label={`diagramas de ${kind}`} className={cx("shrink-0 flex overflow-x-auto no-scrollbar md:flex-wrap print:hidden", compact ? "gap-2" : "gap-2.5", className)}>
       {chords.map(c => (
-        <figure key={c} className="shrink-0 w-[92px] rounded-xl bg-tubo p-2 flex flex-col items-center gap-1.5">
-          <figcaption className="font-mono text-[13px] font-semibold text-senal-suave">{latin ? toLatin(c) : c}</figcaption>
-          <div className="w-[80px] h-[96px] grid place-items-center">
+        <figure key={c} className={cx("shrink-0 rounded-xl flex flex-col items-center", compact ? "w-[74px] bg-noche/55 p-1.5 gap-1" : "w-[92px] bg-tubo p-2 gap-1.5")}>
+          <figcaption className={cx("font-mono font-semibold text-senal-suave", compact ? "text-[12px]" : "text-[13px]")}>{latin ? toLatin(c) : c}</figcaption>
+          <div className={cx("grid place-items-center", compact ? "w-[64px] h-[76px]" : "w-[80px] h-[96px]")}>
             {kind === "guitarra" ? <Guitar chord={c} light={light} /> : kind === "piano" ? <Piano chord={c} light={light} /> : <Bass chord={c} />}
           </div>
         </figure>
