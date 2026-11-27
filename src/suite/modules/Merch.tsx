@@ -4,8 +4,7 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { Page } from "@/suite/Shell";
-import { useAction, useCollection } from "@/data/hooks";
-import { api, uid } from "@/data/api";
+import { useCollection } from "@/data/hooks";
 import { upcomingGigs } from "@/data/selectors";
 import type { MerchMove, MoveKind, Product } from "@/data/types";
 import { Button, Input, Pill, Segmented, Stat } from "@/components/ui";
@@ -15,7 +14,9 @@ import { Reservations } from "./merch/Reservations";
 import { ProductSheet, Recovery } from "./merch/ProductSheet";
 import { PorPedir, usePorPedir } from "./merch/PorPedir";
 import { Stock } from "./merch/Stock";
-import { LOW, heldOf, isOpenReserve, money, shortOf, sizeLabel, stockOf, swatch } from "./merch/shared";
+import { NewProduct } from "./merch/NewProduct";
+import { ProductThumb } from "./merch/Photo";
+import { LOW, heldOf, isOpenReserve, money, shortOf, sizeLabel, stockOf } from "./merch/shared";
 import { cx, eur, eur0 } from "@/lib/format";
 
 type View = "productos" | "stock" | "reservas" | "porpedir" | "movimientos";
@@ -31,11 +32,7 @@ export default function Merch() {
   const kind = (params.get("tipo") as MoveKind) || "";
   const editing = params.get("producto");
   const go = (p: Record<string, string>) => setParams(p, { replace: true });
-  const create = useAction(async () => {
-    const p: Product = { id: uid("p-"), name: "producto nuevo", priceCents: 0, costCents: 0, color: "tubo", archived: false, published: false, variants: [{ id: uid("v-"), label: "", stock: 0 }] };
-    await api.insert("products", p);
-    return p;
-  });
+  const [adding, setAdding] = useState(false);
 
   const active = products.filter(p => !p.archived);
   const bag = money(moves);
@@ -58,7 +55,7 @@ export default function Merch() {
     <Page
       title="merch"
       actions={<>
-        <Button onClick={async () => { const p = await create.run(); go({ vista: "productos", producto: p.id }); }} disabled={create.pending}>+ producto</Button>
+        <Button onClick={() => setAdding(true)}>+ producto</Button>
         <Button variant="primary" onClick={() => nav(next ? `/merch/puesto?bolo=${next.id}` : "/merch/puesto")}>
           abrir puesto{next ? ` · ${next.city}` : ""}
         </Button>
@@ -94,6 +91,7 @@ export default function Merch() {
       {view === "movimientos" && <Moves kind={kind} onKind={k => go(k ? { vista: "movimientos", tipo: k } : { vista: "movimientos" })} />}
 
       <ProductSheet id={editing} onClose={() => go({ vista: view })} />
+      <NewProduct open={adding} onClose={() => setAdding(false)} onCreated={id => { setAdding(false); go({ vista: "productos", producto: id }); }} />
     </Page>
   );
 }
@@ -135,7 +133,7 @@ function ProductCard({ p, moves, onOpen }: { p: Product; moves: MerchMove[]; onO
   return (
     <button type="button" onClick={onOpen} className="text-left rounded-[18px] bg-tubo hover:bg-tubo-alto p-4 flex flex-col gap-3 transition" aria-label={`Abrir ${p.name}`}>
       <span className="flex items-start gap-3">
-        <span className={cx("size-11 shrink-0 rounded-xl", swatch[p.color])} aria-hidden="true" />
+        <ProductThumb p={p} className="size-14 shrink-0 rounded-xl" />
         <span className="flex-1 min-w-0">
           <span className="flex justify-between items-baseline gap-2">
             <span className="font-semibold truncate">{p.name}</span>

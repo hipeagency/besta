@@ -117,7 +117,8 @@ export interface Order {
   email: string;           // en taquilla puede ir vacío (efectivo, Bizum)
   name?: string;
   qty: number;
-  amountCents: number;
+  amountCents: number;     // lo cobrado: con un código promocional de Stripe, ya con el descuento
+  discountCents?: number;  // lo que quitó el código (lo pone el servidor al confirmar el pago)
   items?: OrderItem[];     // los pedidos de antes de haber tipos no lo llevan: todo «general»
   channel?: OrderChannel;  // sin canal: online
   method?: DoorMethod;     // solo taquilla
@@ -310,6 +311,8 @@ export interface Variant { id: ID; label: string; stock: number }
 export interface Product {
   id: ID; name: string; priceCents: number; costCents: number; variants: Variant[]; archived: boolean; published: boolean;
   color: "senal" | "crema" | "tubo" | "noche"; info?: string;
+  /** Foto (URL pública del bucket «web»). Vacía o sin poner: la ficha va con su color. */
+  image?: string;
   /** En la web (si está publicado): «reservar» = se pide y se paga al recogerlo;
       «comprar» = se paga online con Stripe. Lo agotado siempre se encarga, sin pagar. */
   webMode?: WebMode;

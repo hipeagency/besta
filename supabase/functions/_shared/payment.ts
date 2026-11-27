@@ -12,7 +12,8 @@ export async function checkoutSession(order: Order, eventName: string, urls: { s
   const taxRate = optEnv("STRIPE_TAX_RATE_ID");
   return await stripe().checkout.sessions.create({
     mode: "payment",
-    line_items: itemsOf(order).map(i => ({
+    // Las entradas gratis van en el pedido (salen con su QR) pero no en el cobro.
+    line_items: itemsOf(order).filter(i => i.unitCents > 0).map(i => ({
       quantity: i.qty,
       price_data: {
         currency: "eur",
@@ -28,6 +29,9 @@ export async function checkoutSession(order: Order, eventName: string, urls: { s
       enabled: true,
       invoice_data: { description: `Pedido ${order.number}`, metadata: { order_id: order.id } },
     },
+    // Casilla «añadir código promocional»: valen los códigos creados en Stripe
+    // (Productos → Cupones → código promocional). Un cupón solo no basta.
+    allow_promotion_codes: true,
     ...(email ? { customer_email: email } : {}),
     metadata: { order_id: order.id },
     payment_intent_data: { metadata: { order_id: order.id } },

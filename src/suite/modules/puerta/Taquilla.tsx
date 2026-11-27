@@ -106,7 +106,7 @@ export function Taquilla({ ev, place, orders, tickets, onClose }: {
                   <li key={t.id} className={cx("rounded-[20px] bg-tubo p-4 flex items-center gap-3", !left && "opacity-55")}>
                     <span className="flex-1 min-w-0">
                       <span className="block text-xl font-bold truncate first-letter:uppercase">{t.name}</span>
-                      <span className="block font-mono text-sm text-crema/70">{eur(t.priceCents)}{!left ? " · agotada" : t.limit != null || left <= 20 ? ` · quedan ${left}` : ""}</span>
+                      <span className="block font-mono text-sm text-crema/70">{t.priceCents ? eur(t.priceCents) : "gratis"}{!left ? " · agotada" : t.limit != null || left <= 20 ? ` · quedan ${left}` : ""}</span>
                     </span>
                     {left > 0 && <Stepper value={qty[t.id] ?? 0} onChange={n => setQty(q => ({ ...q, [t.id]: n }))} min={0} max={maxFor(t.id)} />}
                   </li>
@@ -119,11 +119,16 @@ export function Taquilla({ ev, place, orders, tickets, onClose }: {
                 <span className="text-crema/75">{total ? label : "elige entradas"}</span>
                 <span className="font-mono text-[40px] leading-none">{eur(amount)}</span>
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                <PayButton disabled={!total || busy} onClick={() => setStage({ k: "efectivo" })}>efectivo</PayButton>
-                <PayButton disabled={!total || busy} onClick={() => setStage({ k: "bizum" })}>Bizum</PayButton>
-                <PayButton disabled={!total || busy} onClick={card} primary>{busy ? "…" : "tarjeta"}</PayButton>
-              </div>
+              {total > 0 && amount === 0 ? (
+                /* Todo gratis: no hay nada que cobrar, solo se apunta (cuenta en el aforo y entra ya). */
+                <PayButton disabled={busy} onClick={() => sell("efectivo")} primary>{busy ? "…" : "apuntar · gratis"}</PayButton>
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  <PayButton disabled={!total || busy} onClick={() => setStage({ k: "efectivo" })}>efectivo</PayButton>
+                  <PayButton disabled={!total || busy} onClick={() => setStage({ k: "bizum" })}>Bizum</PayButton>
+                  <PayButton disabled={!total || busy} onClick={card} primary>{busy ? "…" : "tarjeta"}</PayButton>
+                </div>
+              )}
             </div>
           </>
         )}

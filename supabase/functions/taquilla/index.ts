@@ -82,7 +82,7 @@ serve(["POST"], async req => {
     case "status": {
       if (order.status !== "pendiente" || !sessionId) return json(req, { status: order.status });
       const s = await stripe().checkout.sessions.retrieve(sessionId);
-      if (s.payment_status === "paid") {
+      if (s.payment_status === "paid" || s.payment_status === "no_payment_required") {
         await fulfillPaid(db, orderId, s);
         return json(req, { status: "pagado" });
       }
@@ -98,7 +98,7 @@ serve(["POST"], async req => {
       if (sessionId) {
         // Si justo acaba de pagar, Stripe no deja caducarla: entonces está pagado.
         const s = await stripe().checkout.sessions.retrieve(sessionId);
-        if (s.payment_status === "paid") {
+        if (s.payment_status === "paid" || s.payment_status === "no_payment_required") {
           await fulfillPaid(db, orderId, s);
           return json(req, { status: "pagado" });
         }

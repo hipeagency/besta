@@ -7,6 +7,7 @@
 import { siteUrl } from "../_shared/env.ts";
 import { email, HttpError, json, readJson, serve } from "../_shared/http.ts";
 import { checkoutSession } from "../_shared/payment.ts";
+import { fulfillFree } from "../_shared/orders.ts";
 import { adminClient, dbError, getRow, patchDoc } from "../_shared/supabase.ts";
 import type { Order, TicketEvent } from "../_shared/types.ts";
 
@@ -37,10 +38,27 @@ serve(["POST"], async req => {
   const { data, error } = await db.rpc("make_order", { ev: eventId, want: items, channel: "online", email: mail, newsletter });
   if (error) dbError(error, "No hemos podido reservar tus entradas.");
   const order = data as Order;
+  const success = `${siteUrl()}/entradas/?pedido=${order.token}&nuevo=1`;
+
+  // Todo gratis (registro de aforo): sin Stripe. Sale con su QR por email al momento.
+  if (order.amountCents === 0) {
+    try {
+      await fulfillFree(db, order.id);
+    } catch (e) {
+      console.error("checkout gratis", e);
+      // Si ya están emitidas y solo ha fallado el email, el pedido vale (se reenvía desde la suite).
+      const now = await getRow<Order>(db, "orders", order.id);
+      if (now?.doc.status !== "pagado") {
+        await patchDoc(db, "orders", order.id, { status: "caducado" }).catch(() => {});
+        throw new HttpError("No hemos podido apuntar tus entradas. Inténtalo de nuevo en un momento.", 502);
+      }
+    }
+    return json(req, { url: success });
+  }
 
   try {
     const session = await checkoutSession(order, ev.name, {
-      success: `${siteUrl()}/entradas/?pedido=${order.token}&nuevo=1`,
+      success,
       cancel: `${siteUrl()}/#directo`,
     }, mail);
     const { error: upErr } = await db.from("orders").update({ stripe_session: session.id }).eq("id", order.id);

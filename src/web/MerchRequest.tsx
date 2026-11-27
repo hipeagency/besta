@@ -54,7 +54,9 @@ export default function MerchRequest({ products: initial, empty = false }: { pro
           const soldOut = !p.variants.some(v => v.stock > 0);
           return (
             <div key={p.id} className="flex flex-col gap-3">
-              <div className={cx("aspect-[4/5] rounded-3xl grid place-items-center font-mono text-[13px]", tone[p.color])}>[foto {p.name}]</div>
+              {p.image
+                ? <img src={p.image} alt={p.name} loading="lazy" className="aspect-[4/5] w-full rounded-3xl object-cover bg-tubo" />
+                : <div className={cx("aspect-[4/5] rounded-3xl grid place-items-center p-4 text-center text-[22px] font-bold tracking-[-.02em] leading-tight", tone[p.color])}>{p.name}</div>}
               <div className="flex justify-between gap-2 text-[17px]"><span className="font-semibold">{p.name}</span><span className="font-mono">{eur(p.priceCents).replace(",00", "")}</span></div>
               {sizes.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 font-mono text-xs">

@@ -1,6 +1,5 @@
-/* Ficha de un producto: cómo va de dinero, qué hay por talla, apuntar
-   cualquier movimiento y todo lo que le ha pasado. Los datos del
-   producto (nombre, precio, tallas…) van plegados al final: se tocan poco. */
+/* Ficha de un producto, en pestañas: resumen (dinero, stock por talla,
+   apartado e historial), apuntar (un movimiento) y editar (foto y datos). */
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMe } from "@/suite/session";
@@ -14,6 +13,7 @@ import { ALL_PAYMENTS, LOW, freeOf, heldOf, isOpenReserve, money, shortOf, stock
 import { MoveRow } from "./Moves";
 import { NotifyButton, productDraft } from "@/suite/NotifyList";
 import { ReservationRow } from "./Reservations";
+import { PhotoPicker, ProductThumb } from "./Photo";
 import { cx, eur } from "@/lib/format";
 
 type Action = "vender" | "reservar" | "reponer" | "regalar" | "recuento";
@@ -22,10 +22,18 @@ const ACTIONS: { value: Action; label: string }[] = [
   { value: "regalar", label: "regalar" }, { value: "recuento", label: "recuento" },
 ];
 
+type Tab = "resumen" | "apuntar" | "editar";
+
+/* Tres pestañas para no mezclar: «resumen» (cómo va, qué queda, qué está
+   apartado y el historial), «apuntar» (vender, reservar, reponer…) y
+   «editar» (foto, nombre, precio, tallas, web). */
 export function ProductSheet({ id, onClose }: { id: string | null; onClose: () => void }) {
   const { data: products } = useCollection("products");
   const { data: moves } = useCollection("moves");
   const { data: gigs } = useCollection("gigs");
+  const [tab, setTab] = useState<Tab>("resumen");
+  const [start, setStart] = useState<Action>("vender");
+  useEffect(() => { setTab("resumen"); }, [id]);
   const p = products.find(x => x.id === id);
   if (!p) return <Sheet open={false} onClose={onClose} title="">{null}</Sheet>;
 
@@ -36,67 +44,95 @@ export function ProductSheet({ id, onClose }: { id: string | null; onClose: () =
   const s = stockOf(p, moves);
   const pending = s.box * p.priceCents;
   const sized = p.variants.length > 1 || !!p.variants[0]?.label;
+  const doThis = (a: Action) => { setStart(a); setTab("apuntar"); };
 
   return (
     <Sheet open={!!id} onClose={onClose} title={p.name || "producto"} width={560}>
-      <div className="flex flex-col gap-6 pt-2">
-        {p.info && <p className="-mt-1 text-sm text-crema/70">{p.info}</p>}
-
-        {/* dinero */}
-        <section className="flex flex-col gap-3" aria-label="Dinero">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Stat label="invertido" value={eur(bag.spent)} />
-            <Stat label="vendido" value={eur(bag.earned)} />
-            <Stat label="beneficio" value={<span className={bag.profit < 0 ? "text-senal-suave" : ""}>{eur(bag.profit)}</span>} />
-            <Stat label="vendidas" value={bag.sold} sub={bag.bought ? `de ${bag.bought} compradas` : undefined} />
+      <div className="flex flex-col gap-5 pt-1">
+        <div className="flex items-center gap-4">
+          <ProductThumb p={p} className="w-[72px] aspect-[4/5] shrink-0 rounded-xl" />
+          <div className="flex-1 min-w-0 text-sm">
+            <p className="font-mono text-lg">{eur(p.priceCents)}</p>
+            <p className="text-crema/65 truncate">{s.box} en caja{s.held ? ` · ${s.held} apartadas` : ""}{s.short ? ` · faltan ${s.short}` : ""}</p>
+            <p className="text-crema/55">{p.archived ? "archivado" : p.published ? (p.webMode === "comprar" ? "en la web · se compra online" : "en la web · se reserva") : "oculto en la web"}</p>
           </div>
-          <Recovery bag={bag} />
-          {pending > 0 && <p className="text-sm text-crema/70">Quedan {eur(pending)} en caja a precio de venta: vendiéndolo todo, este producto acabaría en <b className="text-crema">{eur(bag.earned + pending - bag.spent)}</b>.</p>}
-        </section>
+        </div>
+        <Segmented value={tab} onChange={setTab} className="self-start" options={[
+          { value: "resumen", label: "resumen" },
+          { value: "apuntar", label: "apuntar" },
+          { value: "editar", label: "editar" },
+        ]} />
 
-        {/* tallas */}
-        <section aria-label="Stock por talla">
-          <table className="w-full text-sm">
-            <thead><tr className="text-left text-[12px] text-crema/60">
-              <th className="font-normal py-1">{sized ? "talla" : ""}</th><th className="font-normal text-right">en caja</th><th className="font-normal text-right">apartado</th><th className="font-normal text-right">libre</th>
-            </tr></thead>
-            <tbody className="font-mono">
-              {p.variants.map(v => {
-                const held = heldOf(moves, v.id);
-                return (
-                  <tr key={v.id} className="border-t border-crema/8">
-                    <td className="py-2 font-sans">{v.label || "única"}</td>
-                    <td className="text-right">{v.stock + held}</td>
-                    <td className={cx("text-right", held ? "text-crema" : "text-crema/40")}>{held || "—"}</td>
-                    <td className={cx("text-right", v.stock <= LOW && "text-senal-suave")}>{v.stock < 0 ? <span className="font-sans">faltan {shortOf(v)}</span> : v.stock}</td>
-                  </tr>
-                );
-              })}
-              {p.variants.length > 1 && (
-                <tr className="border-t border-crema/20 font-semibold">
-                  <td className="py-2 font-sans">total</td><td className="text-right">{s.box}</td><td className="text-right">{s.held || "—"}</td><td className={cx("text-right", s.short > 0 && "text-senal-suave")}>{s.short ? <span className="font-sans">{s.free} · faltan {s.short}</span> : s.free}</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </section>
+        {tab === "resumen" && (
+          <>
+            {p.info && <p className="-mt-1 text-sm text-crema/70">{p.info}</p>}
 
-        <MoveForm p={p} />
+            {/* dinero */}
+            <section className="flex flex-col gap-3" aria-label="Dinero">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <Stat label="invertido" value={eur(bag.spent)} />
+                <Stat label="vendido" value={eur(bag.earned)} />
+                <Stat label="beneficio" value={<span className={bag.profit < 0 ? "text-senal-suave" : ""}>{eur(bag.profit)}</span>} />
+                <Stat label="vendidas" value={bag.sold} sub={bag.bought ? `de ${bag.bought} compradas` : undefined} />
+              </div>
+              <Recovery bag={bag} />
+              {pending > 0 && <p className="text-sm text-crema/70">Quedan {eur(pending)} en caja a precio de venta: vendiéndolo todo, este producto acabaría en <b className="text-crema">{eur(bag.earned + pending - bag.spent)}</b>.</p>}
+            </section>
 
-        {/* lo apartado pide acción: va primero y aparte */}
-        {open.length > 0 && (
-          <section className="rounded-[18px] bg-crema text-noche p-4">
-            <h3 className="font-semibold">apartado · {open.length} sin entregar</h3>
-            <ul>{open.map(m => <ReservationRow key={m.id} m={m} p={p} gigs={gigs} showCustomer />)}</ul>
-          </section>
+            {/* tallas */}
+            <section aria-label="Stock por talla">
+              <table className="w-full text-sm">
+                <thead><tr className="text-left text-[12px] text-crema/60">
+                  <th className="font-normal py-1">{sized ? "talla" : ""}</th><th className="font-normal text-right">en caja</th><th className="font-normal text-right">apartado</th><th className="font-normal text-right">libre</th>
+                </tr></thead>
+                <tbody className="font-mono">
+                  {p.variants.map(v => {
+                    const held = heldOf(moves, v.id);
+                    return (
+                      <tr key={v.id} className="border-t border-crema/8">
+                        <td className="py-2 font-sans">{v.label || "única"}</td>
+                        <td className="text-right">{v.stock + held}</td>
+                        <td className={cx("text-right", held ? "text-crema" : "text-crema/40")}>{held || "—"}</td>
+                        <td className={cx("text-right", v.stock <= LOW && "text-senal-suave")}>{v.stock < 0 ? <span className="font-sans">faltan {shortOf(v)}</span> : v.stock}</td>
+                      </tr>
+                    );
+                  })}
+                  {p.variants.length > 1 && (
+                    <tr className="border-t border-crema/20 font-semibold">
+                      <td className="py-2 font-sans">total</td><td className="text-right">{s.box}</td><td className="text-right">{s.held || "—"}</td><td className={cx("text-right", s.short > 0 && "text-senal-suave")}>{s.short ? <span className="font-sans">{s.free} · faltan {s.short}</span> : s.free}</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </section>
+
+            {!p.archived && (
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="primary" onClick={() => doThis("vender")}>vender</Button>
+                <Button size="sm" onClick={() => doThis("reservar")}>reservar</Button>
+                <Button size="sm" onClick={() => doThis("reponer")}>reponer</Button>
+                <Button size="sm" variant="quiet" onClick={() => doThis("regalar")}>regalar</Button>
+                <Button size="sm" variant="quiet" onClick={() => doThis("recuento")}>recuento</Button>
+              </div>
+            )}
+
+            {/* lo apartado pide acción: va primero y aparte */}
+            {open.length > 0 && (
+              <section className="rounded-[18px] bg-crema text-noche p-4">
+                <h3 className="font-semibold">apartado · {open.length} sin entregar</h3>
+                <ul>{open.map(m => <ReservationRow key={m.id} m={m} p={p} gigs={gigs} showCustomer />)}</ul>
+              </section>
+            )}
+            <section>
+              <h3 className="font-semibold mb-1">historial</h3>
+              {past.length ? <ul>{past.map(m => <MoveRow key={m.id} m={m} p={p} gigs={gigs} sizeOnly={sized ? undefined : true} />)}</ul>
+                : <p className="text-sm text-crema/60">Todavía no le ha pasado nada a este producto.</p>}
+            </section>
+          </>
         )}
-        <section>
-          <h3 className="font-semibold mb-1">historial</h3>
-          {past.length ? <ul>{past.map(m => <MoveRow key={m.id} m={m} p={p} gigs={gigs} sizeOnly={sized ? undefined : true} />)}</ul>
-            : <p className="text-sm text-crema/60">Todavía no le ha pasado nada a este producto.</p>}
-        </section>
 
-        <Settings p={p} onClose={onClose} />
+        {tab === "apuntar" && <MoveForm key={`${p.id}-${start}`} p={p} start={start} onDone={() => setTab("resumen")} />}
+        {tab === "editar" && <Settings p={p} onClose={onClose} />}
       </div>
     </Sheet>
   );
@@ -115,7 +151,7 @@ export function Recovery({ bag }: { bag: ReturnType<typeof money> }) {
   );
 }
 
-function MoveForm({ p }: { p: Product }) {
+function MoveForm({ p, start = "vender", onDone }: { p: Product; start?: Action; onDone?: () => void }) {
   const { me } = useMe();
   const toast = useToast();
   const { data: moves } = useCollection("moves");
@@ -126,7 +162,7 @@ function MoveForm({ p }: { p: Product }) {
   const todayGig = gigs.find(g => g.date === today)?.id ?? "";
   const recent = [...gigs].filter(g => g.date <= today).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10);
 
-  const [action, setAction] = useState<Action>("vender");
+  const [action, setAction] = useState<Action>(start);
   const [vid, setVid] = useState(p.variants[0]?.id ?? "");
   const [n, setN] = useState(1);
   const [unit, setUnit] = useState(p.priceCents);
@@ -144,7 +180,7 @@ function MoveForm({ p }: { p: Product }) {
     setN(a === "recuento" ? (variant ? variant.stock + heldOf(moves, variant.id) : 0) : 1);
     setUnit(a === "reponer" ? p.costCents : p.priceCents);
   };
-  useEffect(() => { setVid(p.variants[0]?.id ?? ""); setGig(todayGig); reset("vender", p.variants[0]); }, [p.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setVid(p.variants[0]?.id ?? ""); setGig(todayGig); reset(start, p.variants[0]); }, [p.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const takes = action === "vender" || action === "reservar" || action === "regalar";
   /* Unidades de esta reserva que no hay: quedan como encargo. */
@@ -161,7 +197,7 @@ function MoveForm({ p }: { p: Product }) {
     try {
       if (action === "vender") await move.run({ ...base, kind: "venta", qty: -n, unitCents: unit, payment: pay });
       if (action === "reservar") await move.run({ ...base, kind: "reserva", qty: -n, unitCents: unit, open: true });
-      if (action === "reservar" && encargo) { toast(`Encargo apuntado: faltan ${encargo} por pedir`, "ok"); reset(action); return; }
+      if (action === "reservar" && encargo) { toast(`Encargo apuntado: faltan ${encargo} por pedir`, "ok"); reset(action); onDone?.(); return; }
       if (action === "regalar") await move.run({ ...base, kind: "regalo", qty: -n, unitCents: 0 });
       if (action === "reponer") await move.run({ ...base, kind: "reposicion", qty: n, unitCents: unit });
       if (action === "recuento") {
@@ -172,13 +208,13 @@ function MoveForm({ p }: { p: Product }) {
     } catch (err) { toast((err as Error).message, "error"); return; }
     toast({ vender: "Venta apuntada", reservar: "Reserva apuntada", reponer: "Stock repuesto", regalar: "Regalo apuntado", recuento: "Recuento ajustado" }[action], "ok");
     reset(action);
+    onDone?.();
   }
 
   const label = { vender: `vender ${n} · ${eur(n * unit)}`, reservar: `${encargo ? "encargar" : "reservar"} ${n} · ${eur(n * unit)}`, reponer: `reponer +${n}`, regalar: `regalar ${n}`, recuento: "guardar recuento" }[action];
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-3 rounded-2xl bg-noche p-4">
-      <h3 className="font-semibold">apuntar</h3>
       <div className="overflow-x-auto no-scrollbar -mx-1 px-1"><Segmented size="sm" value={action} onChange={a => reset(a)} options={ACTIONS} /></div>
       <div className="grid grid-cols-2 gap-3">
         {p.variants.length > 1 ? (
@@ -239,7 +275,6 @@ function Settings({ p, onClose }: { p: Product; onClose: () => void }) {
   const [info, setInfo] = useState(p.info ?? "");
   useEffect(() => { setName(p.name); setPrice(p.priceCents); setCost(p.costCents); setInfo(p.info ?? ""); }, [p.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const setVariants = (variants: Product["variants"]) => patch.run({ variants });
-  const fresh = p.name === "producto nuevo";
 
   /* Borrar se lleva su historial: movimientos y pedidos de la web apuntan al
      producto y, huérfanos, seguirían sumando. Lo pendiente se resuelve antes. */
@@ -263,11 +298,9 @@ function Settings({ p, onClose }: { p: Product; onClose: () => void }) {
   }
 
   return (
-    <details open={fresh} className="rounded-2xl border border-crema/12 p-4 group/s">
-      <summary className="cursor-pointer font-semibold list-none flex items-center justify-between">
-        datos del producto <span className="text-crema/60 text-sm font-normal group-open/s:hidden">nombre, precio, tallas, web…</span>
-      </summary>
-      <div className="flex flex-col gap-4 pt-4">
+    <section className="flex flex-col gap-4" aria-label="Editar producto">
+        <PhotoPicker value={p.image || undefined} color={p.color}
+          onChange={url => { patch.run({ image: url ?? "" }); toast(url ? "Foto guardada" : "Foto quitada", "ok"); }} />
         <Field label="nombre">{fid => <Input id={fid} value={name} onChange={e => setName(e.target.value)} onBlur={() => name.trim() && name !== p.name && patch.run({ name: name.trim() })} />}</Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="precio €">{fid => <MoneyInput id={fid} cents={price} onValue={setPrice} onBlur={() => price !== p.priceCents && patch.run({ priceCents: price })} />}</Field>
@@ -275,7 +308,7 @@ function Settings({ p, onClose }: { p: Product; onClose: () => void }) {
         </div>
         <Field label="descripción">{fid => <Textarea id={fid} rows={2} value={info} placeholder="algodón orgánico, serigrafía a dos tintas…" onChange={e => setInfo(e.target.value)} onBlur={() => info.trim() !== (p.info ?? "") && patch.run({ info: info.trim() })} />}</Field>
         <div className="flex flex-col gap-1.5">
-          <span className="text-[13px] text-crema/75">color de la ficha</span>
+          <span className="text-[13px] text-crema/75">color de la ficha{p.image ? " (si no hay foto)" : ""}</span>
           <Segmented size="sm" value={p.color} onChange={color => patch.run({ color })} className="self-start"
             options={(["senal", "crema", "tubo", "noche"] as const).map(c => ({ value: c, label: c === "senal" ? "señal" : c }))} />
         </div>
@@ -315,7 +348,7 @@ function Settings({ p, onClose }: { p: Product; onClose: () => void }) {
             ))}
           </ul>
           <Button size="sm" className="self-start border-dashed" onClick={() => setVariants([...p.variants, { id: uid("v-"), label: "", stock: 0 }])}>+ talla</Button>
-          <p className="text-xs text-crema/55">Solo se quita una talla cuando está a cero. Para meter unidades, «reponer».</p>
+          <p className="text-xs text-crema/55">Solo se quita una talla cuando está a cero. Para meter unidades, «apuntar → reponer».</p>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -324,7 +357,6 @@ function Settings({ p, onClose }: { p: Product; onClose: () => void }) {
           </Button>
           <Button variant="quiet" onClick={() => blocked ? toast(blocked, "error") : setConfirmDelete(true)}><Icon name="basura" size={16} />borrar producto</Button>
         </div>
-      </div>
 
       {confirmDelete && createPortal(<Modal open onClose={() => setConfirmDelete(false)} title="¿borrar producto?">
         <p className="text-crema/80 mb-5">
@@ -338,6 +370,6 @@ function Settings({ p, onClose }: { p: Product; onClose: () => void }) {
           <Button onClick={() => setConfirmDelete(false)}>cancelar</Button>
         </div>
       </Modal>, document.body)}
-    </details>
+    </section>
   );
 }

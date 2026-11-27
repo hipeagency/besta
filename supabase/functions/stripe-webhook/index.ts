@@ -32,10 +32,12 @@ Deno.serve(async req => {
       case "checkout.session.completed":
       case "checkout.session.async_payment_succeeded": {
         const s = event.data.object;
-        if (s.payment_status !== "paid") break;  // pago diferido: llegará async_payment_succeeded
+        // Pago diferido: llegará async_payment_succeeded. Un código del 100 % deja
+        // la sesión en «no_payment_required»: también vale como pagado.
+        if (s.payment_status !== "paid" && s.payment_status !== "no_payment_required") break;
         if (s.metadata?.merch_request_id) {
           const pi = typeof s.payment_intent === "string" ? s.payment_intent : s.payment_intent?.id;
-          await merchPaid(db, s.metadata.merch_request_id, pi, s.customer_details?.name?.trim());
+          await merchPaid(db, s.metadata.merch_request_id, pi, s.customer_details?.name?.trim(), s.amount_total);
           break;
         }
         const orderId = s.metadata?.order_id;

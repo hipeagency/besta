@@ -54,21 +54,36 @@ export const sendTicketsOnce = (db: Admin, orderId: string) => sendOnce(db, orde
    Idempotente: da igual cuántas veces llegue. */
 export async function fulfillPaid(db: Admin, orderId: string, s: {
   id: string; payment_intent?: string | { id: string } | null; customer_details?: { name?: string | null; email?: string | null } | null;
+  amount_total?: number | null; total_details?: { amount_discount?: number | null } | null;
 }) {
   const { error } = await db.rpc("fulfill_order", { o_id: orderId, session: s.id });
   if (error) throw error;
   const pi = typeof s.payment_intent === "string" ? s.payment_intent : s.payment_intent?.id;
   const name = s.customer_details?.name?.trim();
   const mail = s.customer_details?.email?.trim().toLowerCase();
+  // Con un código promocional se cobra menos: el pedido apunta lo cobrado de verdad.
+  const off = s.total_details?.amount_discount ?? 0;
   const order = await patchDoc<Order>(db, "orders", orderId, o => {
     const p = {
       ...(pi && !o.paymentIntent ? { paymentIntent: pi } : {}),
       ...(name && !o.name ? { name } : {}),
       ...(mail && !o.email ? { email: mail } : {}),
+      ...(off > 0 && o.discountCents == null && s.amount_total != null ? { amountCents: s.amount_total, discountCents: off } : {}),
     };
     return Object.keys(p).length ? p : null;
   }) ?? (await getRow<Order>(db, "orders", orderId))?.doc ?? null;
   if (order?.channel === "puerta") return order;
+  const first = await sendTicketsOnce(db, orderId);
+  if (first && order?.newsletter) await subscribeBuyer(db, order);
+  return order;
+}
+
+/* Pedido de 0 € (entradas gratis, registro de aforo): no pasa por Stripe.
+   Se emite al momento y sale el email con los QR, igual que uno pagado. */
+export async function fulfillFree(db: Admin, orderId: string) {
+  const { data, error } = await db.rpc("fulfill_order", { o_id: orderId, session: null });
+  if (error) throw error;
+  const order = data as Order;
   const first = await sendTicketsOnce(db, orderId);
   if (first && order?.newsletter) await subscribeBuyer(db, order);
   return order;

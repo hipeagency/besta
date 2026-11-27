@@ -61,7 +61,7 @@ export default function Entradas() {
                   </div>
                   <Progress value={s.pct} />
                   <p className="flex flex-wrap justify-between gap-x-3 font-mono text-xs text-crema/60">
-                    <span>{eur(ev.priceCents)} · {s.invites} inv.</span>
+                    <span>{ev.priceCents ? eur(ev.priceCents) : "gratis"} · {s.invites} inv.</span>
                     <span>{past ? `${s.inside} dentro` : d === 0 ? "hoy" : `en ${d} d`}</span>
                   </p>
                 </div>
@@ -106,8 +106,9 @@ function NewEvent({ open, onClose }: { open: boolean; onClose: () => void }) {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!gig) return;
-    const cents = Math.round(Number(price.replace(",", ".")) * 100);
-    if (!Number.isFinite(cents) || cents <= 0) { toast("Revisa el precio", "error"); return; }
+    const cents = Math.round(Number(price.replace(",", ".").trim() || "0") * 100);
+    if (!Number.isFinite(cents) || cents < 0) { toast("Revisa el precio", "error"); return; }
+    if (cents > 0 && cents < 50) { toast("Stripe no cobra menos de 0,50 €. Pon 0 para entradas gratis", "error"); return; }
     const ev: TicketEvent = {
       id: uid("ev-"), gigId: gig.id, name: `besta en ${gig.city}`, description: "",
       image: "/img/escenario-azul.jpg", priceCents: cents, capacity: Math.max(1, Number(capacity) || 1),
@@ -138,7 +139,7 @@ function NewEvent({ open, onClose }: { open: boolean; onClose: () => void }) {
             </Select>
           )}</Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="precio (€)">{id => <Input id={id} inputMode="decimal" required value={price} onChange={e => setPrice(e.target.value)} className="font-mono" />}</Field>
+            <Field label="precio (€)" hint="0 = gratis (registro de aforo). Luego puedes añadir más tipos.">{id => <Input id={id} inputMode="decimal" required value={price} onChange={e => setPrice(e.target.value)} className="font-mono" />}</Field>
             <Field label="aforo">{id => <Input id={id} type="number" min={1} required value={capacity} onChange={e => setCapacity(e.target.value)} className="font-mono" />}</Field>
           </div>
           <div className="flex items-center justify-between gap-3">

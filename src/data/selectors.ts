@@ -8,8 +8,8 @@ import { isPast } from "@/lib/format";
 /** Comisión estimada de Stripe con tarjeta europea: 1,5 % + 0,25 € por pedido. */
 export const stripeFee = (amountCents: number) => Math.round(amountCents * 0.015 + 25);
 
-/** ¿Este pedido se cobró por Stripe? (online, o tarjeta con QR en taquilla) */
-export const viaStripe = (o: Order) => o.channel !== "puerta" || o.method === "tarjeta";
+/** ¿Este pedido se cobró por Stripe? (online, o tarjeta con QR en taquilla; los gratis no pasan por Stripe) */
+export const viaStripe = (o: Order) => o.amountCents > 0 && (o.channel !== "puerta" || o.method === "tarjeta");
 
 export function eventStats(ev: TicketEvent, d: Pick<DB, "orders" | "tickets">) {
   const orders = d.orders.filter(o => o.eventId === ev.id);

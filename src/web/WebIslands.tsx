@@ -164,7 +164,7 @@ function TicketDrawer({ ev, onClose }: { ev: IslandEvent; onClose: () => void })
                     <div className="min-w-0">
                       <div className="font-semibold first-letter:uppercase">{t.name}</div>
                       <div className="font-mono text-[13px] text-crema/70">
-                        {eur(t.priceCents)}
+                        {t.priceCents ? eur(t.priceCents) : "gratis"}
                         {out ? " · agotada"
                           : why === "aún no" && t.salesStart ? ` · a la venta el ${dateTimeShort(t.salesStart)}`
                           : why ? ` · ${why === "terminada" ? "ya no está a la venta" : why}`
@@ -189,22 +189,24 @@ function TicketDrawer({ ev, onClose }: { ev: IslandEvent; onClose: () => void })
 
             <div className="flex justify-between items-baseline pt-4 border-t border-crema/12">
               <span className="text-crema/80">Total · {total} {total === 1 ? "entrada" : "entradas"}</span>
-              <span className="font-mono text-[30px]">{eur(amount)}</span>
+              <span className="font-mono text-[30px]">{amount || !total ? eur(amount) : "gratis"}</span>
             </div>
 
             {error && <p role="alert" className="rounded-xl bg-crema text-noche px-4 py-3 text-sm">{error}</p>}
 
-            <Button type="submit" variant="primary" size="lg" block disabled={soldOut || nothing || !total}>pagar con tarjeta</Button>
+            <Button type="submit" variant="primary" size="lg" block disabled={soldOut || nothing || !total}>{total && !amount ? "reservar gratis" : "pagar con tarjeta"}</Button>
             <p className="text-center text-[13px] leading-relaxed text-crema/65">
-              Pago seguro con Stripe · Apple Pay · Google Pay<br />
-              Al pagar aceptas las <a href="/legal/condiciones/" className="underline">condiciones de venta</a>
+              {total && !amount ? <>Te llegan al email con su QR. Sin pagar nada.</> : <>Pago seguro con Stripe · Apple Pay · Google Pay<br />¿Tienes un código de descuento? Lo pones en la pantalla de pago.</>}<br />
+              Al {total && !amount ? "reservar" : "pagar"} aceptas las <a href="/legal/condiciones/" className="underline">condiciones de venta</a>
             </p>
           </form>
         ) : (
           <div className="px-7 py-12 flex flex-col gap-4 items-center text-center">
             <div className="size-[72px] rounded-full bg-senal/15 text-senal grid place-items-center"><Icon name="flecha" size={32} /></div>
-            <h2 className="text-[28px] font-bold">te llevamos al pago seguro</h2>
-            <p className="text-crema/75 leading-relaxed">Tus {total} {total === 1 ? "entrada queda reservada" : "entradas quedan reservadas"} 30 minutos. Al pagar te llegan al email con su QR.</p>
+            <h2 className="text-[28px] font-bold">{amount ? "te llevamos al pago seguro" : "apuntando tus entradas"}</h2>
+            <p className="text-crema/75 leading-relaxed">{amount
+              ? <>Tus {total} {total === 1 ? "entrada queda reservada" : "entradas quedan reservadas"} 30 minutos. Al pagar te llegan al email con su QR.</>
+              : <>Te llegan al email con su QR en un momento.</>}</p>
           </div>
         )}
       </aside>

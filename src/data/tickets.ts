@@ -38,6 +38,9 @@ export function onlineClosedReason(t: TicketType, now = Date.now()): string | nu
   return null;
 }
 
+/** «12,00 €» o «gratis» (un tipo a 0 € es un registro de aforo). */
+export const priceLabel = (cents: number, money: (c: number) => string) => (cents ? money(cents) : "gratis");
+
 /** «desde»: el más barato de los que se venden online (o de todos, si ninguno). */
 export function fromPrice(types: TicketType[]) {
   const pool = types.filter(t => t.active && sellsOnline(t));

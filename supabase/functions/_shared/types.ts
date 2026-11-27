@@ -13,7 +13,8 @@ export interface Order {
   email: string;
   name?: string;
   qty: number;
-  amountCents: number;
+  amountCents: number;     // lo cobrado: con un código promocional de Stripe, ya con el descuento
+  discountCents?: number;  // lo que quitó el código (amountCents + discountCents = precio de lista)
   items?: OrderItem[];     // sin líneas: pedido de antes de los tipos, todo «general»
   channel?: "online" | "puerta";
   method?: "efectivo" | "bizum" | "tarjeta";
@@ -79,7 +80,7 @@ export interface Gig {
 }
 
 export interface Variant { id: string; label: string; stock: number }
-export interface Product { id: string; name: string; priceCents: number; variants: Variant[]; archived?: boolean; published?: boolean; webMode?: "reservar" | "comprar" }
+export interface Product { id: string; name: string; priceCents: number; variants: Variant[]; archived?: boolean; published?: boolean; webMode?: "reservar" | "comprar"; image?: string }
 
 /* Merch comprado online: una reserva (aparta stock) enlazada a un pedido web. */
 export interface MerchMove {
@@ -90,7 +91,7 @@ export interface MerchMove {
 export interface MerchRequest {
   id: string; productId: string; variantId: string; qty: number; name: string; email: string; phone?: string; note?: string;
   status: "nueva" | "apartada" | "entregada" | "cancelada"; moveId?: string;
-  pay?: "pendiente" | "pagado" | "caducado" | "devuelto"; amountCents?: number; paidAt?: string;
+  pay?: "pendiente" | "pagado" | "caducado" | "devuelto"; amountCents?: number; discountCents?: number; paidAt?: string;
   stripeSession?: string; paymentIntent?: string; paidEmailAt?: string; refundEmailAt?: string; refundedAt?: string; createdAt: string;
 }
 

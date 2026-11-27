@@ -178,7 +178,9 @@ function Orders({ orders, tickets, initialQ }: { orders: Order[]; tickets: Ticke
                   <td className="px-1.5 py-2.5 font-mono">{orderNo(o.number)}</td>
                   <td className="px-1.5 py-2.5 max-w-[240px] truncate">{orderWho(o)}</td>
                   <td className="px-1.5 py-2.5 font-mono">{o.qty}</td>
-                  <td className="px-1.5 py-2.5 font-mono">{o.status === "caducado" ? "—" : eur(o.amountCents)}</td>
+                  <td className="px-1.5 py-2.5 font-mono" title={o.discountCents ? `con código: −${eur(o.discountCents)}` : undefined}>
+                    {o.status === "caducado" ? "—" : o.amountCents || o.discountCents ? eur(o.amountCents) : "gratis"}{o.discountCents ? <span className="text-crema/55"> · −{eur0(o.discountCents)}</span> : null}
+                  </td>
                   <td className="px-1.5 py-2.5"><span className="inline-flex items-center gap-2"><Dot tone={st.tone === "senal" ? "senal" : st.tone} />{st.label}</span></td>
                   <td className="px-1.5 py-1 text-right">
                     <button type="button" onClick={e => { e.stopPropagation(); setOpenId(o.id); }} aria-label={`Abrir pedido ${orderNo(o.number)}`}
@@ -234,6 +236,7 @@ function OrderSheet({ order, tickets, onClose }: { order?: Order; tickets: Ticke
   const st = orderState(order);
   // Taquilla en efectivo o Bizum: no hay nada que devolver en Stripe.
   const cash = order.channel === "puerta" && order.method !== "tarjeta";
+  const free = order.amountCents === 0 && !order.discountCents;   // entradas gratis: nada que devolver
   const live = tickets.filter(t => t.status !== "cancelada");
   const copy = (text: string, what: string) => { navigator.clipboard?.writeText(text).then(() => toast(`${what} copiado`, "ok"), () => {}); };
   // Lo mismo que el botón del email: abre sus entradas sin cuenta.
@@ -249,7 +252,13 @@ function OrderSheet({ order, tickets, onClose }: { order?: Order; tickets: Ticke
             onClick={async () => { await resend.run(order.id); toast(`Entradas reenviadas a ${order.email}`, "ok"); }}>
             <Icon name="enviar" size={16} />reenviar entradas
           </Button>}
-          {cash ? (
+          {free ? (
+            <ConfirmButton size="md" className="w-full" disabled={refund.pending}
+              confirm="sí, anular sus entradas"
+              onConfirm={async () => { await refund.run(order.id); toast("Reserva anulada. Sus plazas vuelven al aforo.", "ok"); }}>
+              anular reserva
+            </ConfirmButton>
+          ) : cash ? (
             <ConfirmButton size="md" className="w-full" disabled={refund.pending}
               confirm={`sí, anular (devuelvo ${eur(order.amountCents)} a mano)`}
               onConfirm={async () => { await refund.run(order.id); toast("Venta anulada. Devuelve el dinero en mano.", "ok"); }}>
@@ -271,7 +280,8 @@ function OrderSheet({ order, tickets, onClose }: { order?: Order; tickets: Ticke
           {order.name && <p className="text-sm text-crema/70">{order.name}</p>}
           {order.channel === "puerta" && <p className="text-sm text-crema/70">vendida en taquilla{order.soldBy ? ` por ${order.soldBy}` : ""} · {order.method}</p>}
           <div className="flex flex-wrap items-center gap-2 mt-2">
-            <span className="font-mono text-[26px]">{eur(order.amountCents)}</span>
+            <span className="font-mono text-[26px]">{order.amountCents || order.discountCents ? eur(order.amountCents) : "gratis"}</span>
+            {order.discountCents ? <Pill>código −{eur(order.discountCents)}</Pill> : null}
             <Pill>{itemsLabel(orderItems(order))}</Pill>
             {order.newsletter && <Pill>newsletter</Pill>}
           </div>

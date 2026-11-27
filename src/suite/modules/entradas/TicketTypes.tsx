@@ -5,7 +5,7 @@
 import { useState } from "react";
 import { useAction } from "@/data/hooks";
 import { api, uid } from "@/data/api";
-import { eventTypes, fromPrice, onlineClosedReason } from "@/data/tickets";
+import { eventTypes, fromPrice, onlineClosedReason, priceLabel } from "@/data/tickets";
 import type { SaleChannel, TicketEvent, TicketType } from "@/data/types";
 import { Button, Card, CardTitle, Field, Input, Pill, Segmented, Sheet, Toggle, useToast } from "@/components/ui";
 import { cx, eur } from "@/lib/format";
@@ -33,6 +33,7 @@ export function TicketTypes({ ev, sold }: { ev: TicketEvent; sold: Record<string
   }
 
   const blank = (): TicketType => ({ id: uid("tt-"), name: "", priceCents: types[0]?.priceCents ?? 1200, channel: "ambos", active: true });
+  const hasFree = types.some(t => t.priceCents === 0);
 
   return (
     <Card>
@@ -51,7 +52,7 @@ export function TicketTypes({ ev, sold }: { ev: TicketEvent; sold: Record<string
                   </span>
                 </span>
                 <span className="text-right shrink-0">
-                  <span className="block font-mono">{eur(t.priceCents)}</span>
+                  <span className="block font-mono">{priceLabel(t.priceCents, eur)}</span>
                   <span className="block font-mono text-xs text-crema/60">{n}{t.limit != null ? ` / ${t.limit}` : ""} vend.</span>
                 </span>
               </button>
@@ -59,7 +60,10 @@ export function TicketTypes({ ev, sold }: { ev: TicketEvent; sold: Record<string
           );
         })}
       </ul>
-      <p className="mt-2 text-xs text-crema/55">Todas comparten el aforo del evento. Las invitaciones van aparte.</p>
+      <p className="mt-2 text-xs text-crema/55">
+        Puedes tener tantos tipos como quieras (anticipada, general, taquilla, gratis…): todos comparten el aforo del evento. Las invitaciones van aparte.
+        {hasFree ? " Las gratis se apuntan en la web sin pasar por el pago y llegan con su QR." : ""}
+      </p>
 
       {edit && <TypeSheet key={edit.id} t={edit} isNew={!types.some(x => x.id === edit.id)} sold={sold[edit.id] ?? 0}
         names={types.filter(x => x.id !== edit.id).map(x => x.name.trim().toLowerCase())}
@@ -74,7 +78,8 @@ function TypeSheet({ t, isNew, sold, names, busy, onClose, onSave, onDelete }: {
 }) {
   const toast = useToast();
   const [f, setF] = useState({
-    name: t.name, price: t.priceCents ? (t.priceCents / 100).toFixed(2).replace(".", ",") : "", channel: t.channel,
+    name: t.name, price: isNew || t.priceCents ? (t.priceCents / 100).toFixed(2).replace(".", ",") : "0",
+    free: !isNew && t.priceCents === 0, channel: t.channel,
     limit: t.limit != null ? String(t.limit) : "", start: toLocalInput(t.salesStart), end: toLocalInput(t.salesEnd),
     note: t.note ?? "", active: t.active,
   });
@@ -83,11 +88,12 @@ function TypeSheet({ t, isNew, sold, names, busy, onClose, onSave, onDelete }: {
   function submit(e: React.FormEvent) {
     e.preventDefault();
     const name = f.name.trim();
-    const priceCents = Math.round(Number(f.price.replace(",", ".")) * 100);
+    const priceCents = f.free ? 0 : Math.round(Number(f.price.replace(",", ".").trim() || "0") * 100);
     const limit = f.limit.trim() ? Math.floor(Number(f.limit)) : undefined;
     if (!name) { toast("Ponle nombre", "error"); return; }
     if (names.includes(name.toLowerCase())) { toast("Ya hay un tipo con ese nombre", "error"); return; }
-    if (!Number.isFinite(priceCents) || priceCents <= 0) { toast("Revisa el precio. Para entradas gratis, usa invitaciones", "error"); return; }
+    if (!Number.isFinite(priceCents) || priceCents < 0) { toast("Revisa el precio", "error"); return; }
+    if (priceCents > 0 && priceCents < 50) { toast("Stripe no cobra menos de 0,50 €. Para que no se pague, marca «gratis»", "error"); return; }
     if (limit !== undefined && (!Number.isFinite(limit) || limit < Math.max(1, sold))) { toast(sold ? `El límite no puede bajar de ${sold}: ya están vendidas` : "Revisa el límite", "error"); return; }
     const salesStart = f.channel === "puerta" ? undefined : fromLocalInput(f.start);
     const salesEnd = f.channel === "puerta" ? undefined : fromLocalInput(f.end);
@@ -106,8 +112,10 @@ function TypeSheet({ t, isNew, sold, names, busy, onClose, onSave, onDelete }: {
       <form onSubmit={submit} className="flex flex-col gap-3.5 pt-1">
         <div className="grid grid-cols-[1fr_120px] gap-3">
           <Field label="nombre">{id => <Input id={id} autoFocus={isNew} value={f.name} onChange={e => set("name", e.target.value)} placeholder="anticipada, general, taquilla…" />}</Field>
-          <Field label="precio (€)">{id => <Input id={id} inputMode="decimal" value={f.price} onChange={e => set("price", e.target.value)} className="font-mono" />}</Field>
+          <Field label="precio (€)">{id => <Input id={id} inputMode="decimal" value={f.free ? "0" : f.price} disabled={f.free} onChange={e => set("price", e.target.value)} className="font-mono" />}</Field>
         </div>
+        <Toggle checked={f.free} onChange={v => set("free", v)} label="gratis · registro de aforo (no se paga)" />
+        {f.free && <p className="-mt-2 text-xs text-crema/55">Se apunta en la web con nombre y email, sin pasar por Stripe, y llega con su QR. Cuenta en el aforo como una vendida. Pon un límite si no quieres que se lleve todo el aforo.</p>}
         {sold > 0 && !isNew && <p className="-mt-1 text-xs text-crema/55">Ya hay {sold} vendidas: un cambio de precio solo vale para las próximas.</p>}
 
         <div className="flex flex-col gap-1.5">

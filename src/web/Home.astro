@@ -20,11 +20,14 @@ const published = db.gigs.filter(g => g.published && g.status !== "cancelado");
 const upcoming = empty ? [] : published.filter(g => !g.date || !isPast(g.date)).sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999"));
 const past = published.filter(g => g.date && !g.teaser && isPast(g.date)).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 2);
 const eventOf = (gigId: string) => db.events.find(e => e.gigId === gigId);
-/* «12 €», o «desde 10 €» si hay varios precios a la venta online. */
+/* «12 €», «desde 10 €» si hay varios precios a la venta online, o «gratis»
+   si todo lo que se vende online es a 0 € (registro de aforo). */
 const priceLabel = (e: TicketEvent) => {
   const prices = new Set(eventTypes(e).filter(t => t.active && t.channel !== "puerta").map(t => t.priceCents));
+  if (![...prices].some(c => c > 0)) return "gratis";
   return prices.size > 1 ? `desde ${eur(fromPrice(eventTypes(e)))}` : eur(fromPrice(eventTypes(e)));
 };
+const buyLabel = (e: TicketEvent) => (priceLabel(e) === "gratis" ? "reservar entrada" : "comprar entradas");
 
 const rows = [...upcoming, ...past].map(g => {
   const ev = eventOf(g.id);
@@ -148,7 +151,7 @@ const jsonLd = {
                     : <><div class="text-xs">{mon(next.g.date)}</div><div class="text-[30px] font-medium mt-1">{dayNum(next.g.date)}</div></>}</div>
                   <div class="min-w-0"><div class="text-xl font-semibold">{next.g.city || "ciudad por confirmar"}</div><div class="text-[15px] text-crema/70">{place(next.g)}</div></div>
                 </div>
-                {next.own && <button type="button" data-tickets={next.ev!.id} class="h-12 rounded-full bg-senal text-noche font-semibold">comprar entradas · {priceLabel(next.ev!)}</button>}
+                {next.own && <button type="button" data-tickets={next.ev!.id} class="h-12 rounded-full bg-senal text-noche font-semibold">{buyLabel(next.ev!)} · {priceLabel(next.ev!)}</button>}
                 {next.soldOut && <p class="h-12 rounded-full border-[1.5px] border-senal text-senal font-mono font-medium tracking-[.14em] flex items-center justify-center">SOLD OUT</p>}
                 {!next.own && !next.soldOut && next.g.externalUrl && <a href={next.g.externalUrl} target="_blank" rel="noopener" class="h-12 rounded-full bg-senal text-noche font-semibold flex items-center justify-center gap-2">entradas e info <Icon name="externo" size={16} /></a>}
               </>

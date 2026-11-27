@@ -59,10 +59,11 @@ export async function merchCheckout(db: Admin, b: Record<string, unknown>): Prom
       mode: "payment",
       line_items: [{
         quantity: qty,
-        price_data: { currency: "eur", unit_amount: p.priceCents, product_data: { name: `${p.name}${v.label ? ` · ${v.label}` : ""}` } },
+        price_data: { currency: "eur", unit_amount: p.priceCents, product_data: { name: `${p.name}${v.label ? ` · ${v.label}` : ""}`, ...(p.image?.startsWith("https://") ? { images: [p.image] } : {}) } },
         ...(taxRate ? { tax_rates: [taxRate] } : {}),
       }],
       invoice_creation: { enabled: true, invoice_data: { description: `Merch besta · ${p.name}${v.label ? ` ${v.label}` : ""}`, metadata: { merch_request_id: reqId } } },
+      allow_promotion_codes: true,   // códigos promocionales de Stripe
       customer_email: mail,
       metadata: { merch_request_id: reqId },
       payment_intent_data: { metadata: { merch_request_id: reqId } },
@@ -96,11 +97,22 @@ async function release(db: Admin, move?: MerchMove | null) {
 const moveOf = async (db: Admin, r: MerchRequest) => (r.moveId ? (await getRow<MerchMove>(db, "moves", r.moveId))?.doc : null);
 
 /* Pago completado. Idempotente: solo el primero que marca «pagado» sigue. */
-export async function merchPaid(db: Admin, reqId: string, paymentIntent?: string, buyerName?: string) {
-  const r = await patchDoc<MerchRequest>(db, "requests", reqId, d =>
-    d.pay === "pendiente" ? { pay: "pagado", paidAt: now(), ...(paymentIntent ? { paymentIntent } : {}) } : null);
+/* paidCents: lo cobrado de verdad (con un código promocional, menos que el precio).
+   Es lo que cuenta en el merch. */
+export async function merchPaid(db: Admin, reqId: string, paymentIntent?: string, buyerName?: string, paidCents?: number | null) {
+  const r = await patchDoc<MerchRequest>(db, "requests", reqId, d => {
+    if (d.pay !== "pendiente") return null;
+    const list = d.amountCents ?? 0;
+    const off = paidCents != null && paidCents < list ? list - paidCents : 0;
+    return { pay: "pagado", paidAt: now(), ...(paymentIntent ? { paymentIntent } : {}), ...(off ? { amountCents: paidCents!, discountCents: off } : {}) };
+  });
   if (!r) return;
-  if (r.moveId) await patchDoc(db, "moves", r.moveId, { online: "pagado", paidAt: r.paidAt, payment: "online", note: "pagado online" });
+  const unit = r.qty && r.amountCents != null ? Math.round(r.amountCents / r.qty) : undefined;
+  if (r.moveId) await patchDoc(db, "moves", r.moveId, {
+    online: "pagado", paidAt: r.paidAt, payment: "online",
+    note: r.discountCents ? `pagado online · descuento ${(r.discountCents / 100).toFixed(2).replace(".", ",")} €` : "pagado online",
+    ...(unit != null ? { unitCents: unit } : {}),
+  });
   await sendPaidOnce(db, r, buyerName);
 }
 
